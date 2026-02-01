@@ -303,6 +303,39 @@ const Cell = ({ x, y, cellData, onClick, view }) => {
   );
 };
 
+const GameCard = ({ data, selected, onClick, type }) => {
+  if (!data) return <div className="w-16 h-24 bg-gray-800 rounded opacity-50"></div>;
+  
+  return (
+    <div 
+      onClick={onClick}
+      className={`relative w-16 h-24 md:w-24 md:h-32 rounded-lg border-2 flex flex-col items-center justify-center p-1 cursor-pointer transition-all shadow-md shrink-0
+        ${selected ? 'border-yellow-400 -translate-y-2 shadow-yellow-500/50' : 'border-gray-600 bg-gray-800 hover:border-gray-400'}
+        ${type === 'track' ? 'bg-slate-800' : 'bg-indigo-900'}
+      `}
+    >
+      {type === 'track' && (
+        <>
+          <div className="text-[10px] md:text-xs text-gray-400 mb-1 md:mb-2 uppercase font-bold text-center truncate w-full">{data.shape}</div>
+          <div className="w-8 h-8 md:w-12 md:h-12 border border-gray-600 rounded flex items-center justify-center bg-gray-900">
+             <TrackSvg shape={data.shape} rotation={0} color="gray" />
+          </div>
+        </>
+      )}
+
+      {type === 'landmark' && (
+        <>
+          <div className="absolute top-1 right-1 text-gray-500 scale-75 md:scale-100">
+             {CATEGORIES[data.category?.toUpperCase()]?.icon}
+          </div>
+          <div className="text-[8px] md:text-[10px] text-center font-bold text-white leading-tight mt-2 line-clamp-2">{data.name}</div>
+          <div className="text-[8px] md:text-[9px] text-gray-400 mt-1">{CATEGORIES[data.category?.toUpperCase()]?.label}</div>
+        </>
+      )}
+    </div>
+  );
+};
+
 const WinnerModal = ({ winner, onRestart }) => {
   if (!winner) return null;
   return (
@@ -866,8 +899,29 @@ export default function App() {
   }
 
   if (view === 'player') {
+    // GUARD CLAUSE: Ensure data is ready before rendering player view
+    if (!gameState || !gameState.players) {
+      return (
+        <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+          <div className="animate-pulse">Loading game data...</div>
+        </div>
+      );
+    }
+    
     const player = gameState.players.find(p => p.id === user.uid);
-    const isMyTurn = gameState.players[gameState.turnIndex].id === user.uid;
+    
+    if (!player) {
+      return (
+        <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-8 text-center">
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Error Loading Game</h2>
+            <p className="text-gray-400">Could not find your player data. Please try refreshing or re-joining.</p>
+          </div>
+        </div>
+      );
+    }
+
+    const isMyTurn = gameState.players[gameState.turnIndex]?.id === user.uid;
     const connectedLandmarks = [];
     if (gameState && gameState.grid) {
       gameState.grid.forEach(row => {
