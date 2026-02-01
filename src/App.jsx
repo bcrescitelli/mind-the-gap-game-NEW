@@ -142,6 +142,59 @@ const getDistanceToStart = (grid, targetX, targetY, playerColor) => {
   return Infinity;
 };
 
+const check3TrackRule = (grid, startX, startY, playerColor) => {
+  const queue = [];
+  const visited = new Set();
+  
+  [0,1,2,3].forEach(dir => {
+    const nc = getNeighborCoords(startX, startY, dir);
+    const cell = getCell(grid, nc.x, nc.y);
+    if (isStart(nc.x, nc.y)) {
+       queue.push({ x: nc.x, y: nc.y, dist: 1 });
+       visited.add(`${nc.x},${nc.y}`);
+    } else if (cell && cell.type === 'track' && cell.owner === playerColor) {
+       const entry = getOppositeDir(dir);
+       const exits = getExits(cell.shape, cell.rotation);
+       if (exits.includes(entry)) {
+         queue.push({ x: nc.x, y: nc.y, dist: 1 });
+         visited.add(`${nc.x},${nc.y}`);
+       }
+    }
+  });
+
+  if (queue.length === 0) return false;
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    const cell = getCell(grid, current.x, current.y);
+    const isCityHall = isStart(current.x, current.y);
+    const isLandmark = cell && cell.type === 'landmark';
+
+    if (isCityHall || isLandmark) {
+      if (current.dist < 4) return false; 
+      continue;
+    }
+
+    [0,1,2,3].forEach(dir => {
+      const nc = getNeighborCoords(current.x, current.y, dir);
+      const key = `${nc.x},${nc.y}`;
+      if (!visited.has(key)) {
+        const nextCell = getCell(grid, nc.x, nc.y);
+        const currObj = isCityHall ? { isStart: true } : cell;
+        const nextObj = isStart(nc.x, nc.y) ? { isStart: true } : nextCell;
+
+        if (nextObj && (nextObj.isStart || nextObj.owner === playerColor || nextObj.type === 'landmark')) {
+           if (areConnected(currObj, nextObj, dir)) {
+             visited.add(key);
+             queue.push({ x: nc.x, y: nc.y, dist: current.dist + 1 });
+           }
+        }
+      }
+    });
+  }
+  return true;
+};
+
 // --- DATA GENERATION ---
 
 const generateLandmarks = () => {
@@ -555,9 +608,27 @@ export default function App() {
     let validConnectionFound = false;
     const neighbors = [0,1,2,3].map(d => getNeighborCoords(x, y, d));
     
-    neighbors.forEach((n, dir) => {
+    // --- VALIDATION PHASE ---
+    for (let i = 0; i < neighbors.length; i++) {
+      const n = neighbors[i];
+      const dir = i; // 0,1,2,3
       const neighborCell = getCell(grid, n.x, n.y);
       const isNeighborStart = isStart(n.x, n.y);
+      
+      // 1. Check for Max Connections on Landmarks
+      if (neighborCell && neighborCell.type === 'landmark') {
+        const targetObj = neighborCell;
+        // If our new piece physically connects to this landmark...
+        if (areConnected(candidateCell, targetObj, dir)) {
+           const currentConns = neighborCell.connections?.[player.color] || 0;
+           if (currentConns >= 2) {
+             alert("Limit Reached: You can only connect to a landmark twice (Enter & Exit).");
+             return; 
+           }
+        }
+      }
+
+      // 2. Connectivity Check (Must connect to something valid)
       let canConnectToNeighbor = false;
       if (isNeighborStart) canConnectToNeighbor = true;
       else if (neighborCell) {
@@ -571,7 +642,7 @@ export default function App() {
            validConnectionFound = true;
          }
       }
-    });
+    }
 
     if (!validConnectionFound) {
       alert("Invalid placement! Tracks must physically connect to your network (align exits).");
@@ -579,8 +650,11 @@ export default function App() {
     }
 
     if (card.type === 'landmark') {
-      // Check 3 track rule
-      // ... (Same as before, stripped for brevity in this response but kept logic)
+      const isSafeDistance = check3TrackRule(grid, x, y, player.color);
+      if (!isSafeDistance) {
+        alert("Landmarks must be separated by at least 3 track segments of your color from City Hall or other Landmarks.");
+        return;
+      }
       card.connections = {}; 
     }
 
@@ -608,18 +682,15 @@ export default function App() {
     if (card.type === 'landmark') {
       newGrid[y][x].connections = { [player.color]: 1 };
     } else {
-      neighbors.forEach(n => {
+      neighbors.forEach((n, dir) => {
         const cell = getCell(newGrid, n.x, n.y);
         if (cell && cell.type === 'landmark') {
            const currentConnections = cell.connections || {};
            const myConnCount = currentConnections[player.color] || 0;
-           // STRICT LIMIT: Max 2 connections per player per landmark
+           // Max 2 connections check done in validation, safe to apply now if physical match
            if (myConnCount < 2) {
-             // Only allow connection if exits align
-             // Note: neighbors loop doesn't give us alignment check easily here without re-running areConnected
-             // But validConnectionFound ensures we are connected to SOMETHING.
-             // We should check if we specifically connect to THIS landmark
-             if(areConnected(newGrid[y][x], cell, [0,1,2,3].find(d => getNeighborCoords(x,y,d).x === n.x && getNeighborCoords(x,y,d).y === n.y))) {
+             // We need to re-verify physical connection direction here to apply state
+             if(areConnected(newGrid[y][x], cell, dir)) {
                 if (!cell.connections) cell.connections = {};
                 cell.connections[player.color] = myConnCount + 1;
              }
@@ -696,9 +767,8 @@ export default function App() {
            newGrid.forEach(r => r.forEach(c => {
              if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) pLandmarks.add(c.id);
            }));
-           // Reuse check logic (simplified)
+           // Reuse check logic (simplified for specific targets primarily)
            if (nextPass.reqType === 'specific' && pLandmarks.has(nextPass.targetId)) return pl;
-           // ... (Assume simple check for now for tie breaker mainly on Specifics as they are most contentious)
            return null;
         }).filter(Boolean);
 
@@ -716,14 +786,10 @@ export default function App() {
            });
 
            if (bestPlayer) {
-             // They claim it immediately!
-             // We need to update their score in the player array, but we are inside the 'player' variable scope...
-             // This is complex. For now, let's just leave it in the pool. The NEXT player to act will trigger the checkPassenger loop.
-             // OR: We force it to be claimed by the *current* player if they are the winner? 
-             // If multiple people want it, it stays until someone makes a move? 
-             // "So it never gave it away" -> This implies passive claiming.
-             // Let's keep it simple: If multiple people claim, next player who acts claims it? 
-             // Better: Tie breaker logic runs on endTurn.
+             // Logic to auto-award could go here, but for now we leave it in the pool
+             // Real implementation would require updating scores/completedPassengers immediately
+             // which complicates the turn logic flow. 
+             // Current behavior: It sits there until someone makes a move to trigger the check loop.
            }
         }
       }
