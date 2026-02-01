@@ -834,13 +834,14 @@ export default function App() {
         <div className="bg-gray-900 border-t border-gray-800 shrink-0 flex flex-col safe-area-pb">
           {isMyTurn && selectedCardType === 'tracks' && (
             <div className="flex justify-center items-center gap-4 py-2 border-b border-gray-800 bg-gray-800/50">
-               {/* PREVIEW COMPONENT */}
-               <TrackSvg 
-                 shape={player.hand.tracks[selectedCardIdx]?.shape} 
-                 rotation={rotation} 
-                 color={player.color} 
-               />
-               <div className="w-10"></div> {/* Spacer for alignment */}
+               {/* PREVIEW COMPONENT - Wrapped to constrain size */}
+               <div className="w-10 h-10 border border-gray-600 bg-gray-900 rounded flex items-center justify-center">
+                 <TrackSvg 
+                   shape={player.hand.tracks[selectedCardIdx]?.shape} 
+                   rotation={rotation} 
+                   color={player.color} 
+                 />
+               </div>
               <button 
                 onClick={() => setRotation((r) => (r + 90) % 360)}
                 className="flex items-center gap-2 px-6 py-2 bg-blue-600 rounded-full font-bold shadow-lg active:scale-95 transition-transform"
