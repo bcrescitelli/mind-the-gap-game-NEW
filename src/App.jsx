@@ -31,8 +31,8 @@ const appId = "mind-the-gap-v1";
 
 // --- GAME CONSTANTS & GENERATORS ---
 
-const GRID_SIZE = 15;
-const CENTER = Math.floor(GRID_SIZE / 2); // 7 for 15x15
+const GRID_SIZE = 19; // Increased size
+const CENTER = Math.floor(GRID_SIZE / 2); 
 const COLORS = ['red', 'blue', 'green', 'yellow'];
 
 // Enriched Categories
@@ -79,7 +79,8 @@ const generateLandmarks = () => {
         id: `L-${idCounter++}`,
         name: names[i] || `${cat.label} Spot ${i + 1}`,
         category: cat.id,
-        type: 'landmark'
+        type: 'landmark',
+        connections: {} // { red: 0, blue: 0 } - Track connections per player
       });
     }
   });
@@ -92,8 +93,8 @@ const generatePassengers = (allLandmarks) => {
   const personas = [...PASSENGER_PERSONAS].sort(() => Math.random() - 0.5);
   let idCounter = 1;
 
-  // Specific Needs (Hard)
-  for(let i=0; i<10; i++) {
+  // 1. Specific Needs (Hard - 3pts)
+  for(let i=0; i<8; i++) {
     const target = allLandmarks[Math.floor(Math.random() * allLandmarks.length)];
     passengers.push({
       id: `P-${idCounter++}`,
@@ -106,9 +107,26 @@ const generatePassengers = (allLandmarks) => {
     });
   }
 
-  // Category Needs (Easy)
+  // 2. Dual Category (Medium - 2pts) - "I want Pizza OR a Rollercoaster"
   const cats = Object.values(CATEGORIES);
-  for(let i=0; i<20; i++) {
+  for(let i=0; i<10; i++) {
+    const cat1 = cats[Math.floor(Math.random() * cats.length)];
+    let cat2 = cats[Math.floor(Math.random() * cats.length)];
+    while(cat2.id === cat1.id) cat2 = cats[Math.floor(Math.random() * cats.length)];
+    
+    passengers.push({
+      id: `P-${idCounter++}`,
+      name: personas.pop() || `Passenger ${idCounter}`,
+      reqType: 'dual_category',
+      cat1: cat1.id,
+      cat2: cat2.id,
+      points: 2,
+      desc: `${cat1.label} OR ${cat2.label}`
+    });
+  }
+
+  // 3. Category Needs (Easy - 1pt)
+  for(let i=0; i<12; i++) {
     const targetCat = cats[Math.floor(Math.random() * cats.length)];
     passengers.push({
       id: `P-${idCounter++}`,
@@ -116,7 +134,7 @@ const generatePassengers = (allLandmarks) => {
       reqType: 'category',
       targetCategory: targetCat.id,
       points: 1,
-      desc: `Looking for ${targetCat.label}`
+      desc: `Any ${targetCat.label} spot`
     });
   }
 
@@ -181,7 +199,6 @@ const check3TrackRule = (grid, startX, startY, playerColor) => {
       if (current.dist < 4) return false;
     }
 
-    const currentCell = getCell(grid, current.x, current.y);
     // Be careful here: isStart doesn't have a "cell" object usually unless we specifically check coords
     // If it's a track, we continue
     
@@ -258,17 +275,26 @@ const Cell = ({ x, y, cellData, onClick, isValidTarget, ghost }) => {
   let bgClass = "bg-gray-900";
   let borderClass = "border-gray-800";
 
+  // Mappings for specific border colors to ensure curves render correctly
+  const borderColorMap = { 
+    red: 'border-red-500', 
+    blue: 'border-blue-500', 
+    green: 'border-green-500', 
+    yellow: 'border-yellow-400' 
+  };
+  const colorMap = { 
+    red: 'bg-red-500', 
+    blue: 'bg-blue-500', 
+    green: 'bg-green-500', 
+    yellow: 'bg-yellow-400' 
+  };
+
   if (isCenter) {
     content = <div className="flex flex-col items-center justify-center h-full w-full bg-white text-black font-bold text-[6px] md:text-[10px] z-10 text-center leading-none">CITY HALL</div>;
     bgClass = "bg-white";
   } else if (cellData?.type === 'track') {
-    // Determine color class
-    const colorMap = { red: 'bg-red-500', blue: 'bg-blue-500', green: 'bg-green-500', yellow: 'bg-yellow-400' };
-    // Force high opacity background for visibility
     const cClass = colorMap[cellData.owner] || 'bg-gray-500';
-    // For tracks, we want the LINES to be the color, not the background. 
-    // Actually, traditionally in this game type, the tile background is dark and the track is colored.
-    // Let's make the track itself vibrant.
+    const bClass = borderColorMap[cellData.owner] || 'border-gray-500';
     
     // Draw track path using SVG based on shape and rotation
     content = (
@@ -278,7 +304,7 @@ const Cell = ({ x, y, cellData, onClick, isValidTarget, ghost }) => {
         )}
         {cellData.shape === 'curved' && (
            <div className={`absolute top-1/2 left-1/2 w-full h-full -translate-x-1/2 -translate-y-1/2`}>
-             <div className={`absolute top-1/2 left-1/2 w-[60%] h-[60%] border-r-[8px] md:border-r-[12px] border-b-[8px] md:border-b-[12px] rounded-br-full ${cClass.replace('bg-', 'border-')} -translate-y-full -translate-x-full shadow-sm`}></div>
+             <div className={`absolute top-1/2 left-1/2 w-[60%] h-[60%] border-r-[8px] md:border-r-[12px] border-b-[8px] md:border-b-[12px] rounded-br-full ${bClass} -translate-y-full -translate-x-full shadow-sm`}></div>
            </div>
         )}
         {cellData.shape === 't-shape' && (
@@ -291,9 +317,13 @@ const Cell = ({ x, y, cellData, onClick, isValidTarget, ghost }) => {
     );
   } else if (cellData?.type === 'landmark') {
     content = (
-      <div className="w-full h-full bg-gray-200 flex flex-col items-center justify-center p-0.5 border-2 border-white shadow-inner">
+      <div className="w-full h-full bg-gray-200 flex flex-col items-center justify-center p-0.5 border-2 border-white shadow-inner relative">
          <div className="text-black scale-75 md:scale-100">{CATEGORIES[cellData.category?.toUpperCase()]?.icon}</div>
          <div className="text-[5px] md:text-[8px] text-black font-bold text-center leading-none mt-0.5 break-words w-full overflow-hidden">{cellData.name}</div>
+         {/* Show connection dots */}
+         {cellData.connections && Object.keys(cellData.connections).map((c, i) => (
+           <div key={c} className={`absolute w-1.5 h-1.5 rounded-full ${colorMap[c]} bottom-0.5 right-${i * 2 + 1}`}></div>
+         ))}
       </div>
     );
   } else if (ghost) {
@@ -315,7 +345,9 @@ const Cell = ({ x, y, cellData, onClick, isValidTarget, ghost }) => {
 // Shows the currently selected track with the correct rotation and color
 const TrackPreview = ({ shape, rotation, color }) => {
   const colorMap = { red: 'bg-red-500', blue: 'bg-blue-500', green: 'bg-green-500', yellow: 'bg-yellow-400' };
+  const borderColorMap = { red: 'border-red-500', blue: 'border-blue-500', green: 'border-green-500', yellow: 'border-yellow-400' };
   const cClass = colorMap[color] || 'bg-gray-400';
+  const bClass = borderColorMap[color] || 'border-gray-400';
   
   return (
     <div className="w-8 h-8 md:w-10 md:h-10 border border-gray-600 bg-gray-900 rounded flex items-center justify-center relative overflow-hidden">
@@ -323,7 +355,7 @@ const TrackPreview = ({ shape, rotation, color }) => {
         {shape === 'straight' && <div className={`absolute left-1/2 top-0 bottom-0 w-1/3 -translate-x-1/2 ${cClass}`}></div>}
         {shape === 'curved' && (
            <div className={`absolute top-1/2 left-1/2 w-full h-full -translate-x-1/2 -translate-y-1/2`}>
-             <div className={`absolute top-1/2 left-1/2 w-[60%] h-[60%] border-r-[4px] border-b-[4px] rounded-br-full ${cClass.replace('bg-', 'border-')} -translate-y-full -translate-x-full`}></div>
+             <div className={`absolute top-1/2 left-1/2 w-[60%] h-[60%] border-r-[4px] border-b-[4px] rounded-br-full ${bClass} -translate-y-full -translate-x-full`}></div>
            </div>
         )}
         {shape === 't-shape' && (
@@ -483,44 +515,59 @@ export default function App() {
     const grid = gameState.grid;
     if (grid[y][x] !== null) { alert("Space occupied"); return; }
 
-    // --- FIX: IMPROVED CONNECTIVITY CHECK ---
+    // --- CONNECTIVITY CHECK ---
     let connected = false;
+    let landmarkConnection = null; // To track if we are connecting to a landmark
+
     const neighbors = [0,1,2,3].map(d => getNeighborCoords(x, y, d));
     
     neighbors.forEach((n, dir) => {
+      const cell = getCell(grid, n.x, n.y);
       // 1. Is this neighbor City Hall?
       if (isStart(n.x, n.y)) {
         connected = true;
       }
       
-      // 2. Is this neighbor a track I own?
-      const cell = getCell(grid, n.x, n.y);
-      if (cell && cell.type === 'track' && cell.owner === player.color) {
-        connected = true;
+      if (cell) {
+        // 2. Is this neighbor a track I own?
+        if (cell.type === 'track' && cell.owner === player.color) {
+          connected = true;
+        }
+        // 3. Is this neighbor a Landmark I am ALREADY connected to?
+        // This allows us to "pass through" a landmark to build out the other side.
+        if (cell.type === 'landmark' && cell.connections && cell.connections[player.color] > 0) {
+          connected = true;
+        }
       }
     });
 
     if (!connected) {
-      alert("Must connect to your existing tracks or City Hall.");
+      alert("Must connect to your existing tracks, a Landmark you've entered, or City Hall.");
       return;
     }
 
+    // --- LANDMARK PLACEMENT RULES ---
     if (card.type === 'landmark') {
       const validDistance = check3TrackRule(grid, x, y, player.color);
       if (!validDistance) {
         alert("Landmarks must be separated by at least 3 track segments of your color from City Hall or other Landmarks.");
         return;
       }
+      // Initialize connections
+      card.connections = {}; 
     }
 
     const newGrid = [...grid];
+    // Copy the card to the grid
     newGrid[y][x] = {
       ...card,
       owner: player.color,
       rotation: rotation,
-      connectedColors: [player.color]
+      // For tracks, we might update later if they connect to adjacent landmarks
+      connectedColors: card.type === 'track' ? [player.color] : [] 
     };
 
+    // --- SCORING & PASSENGERS & LANDMARK CONNECTIONS ---
     let pointsGained = 0;
     const completedPassengerIds = [];
     
@@ -528,8 +575,13 @@ export default function App() {
       gameState.activePassengers.forEach(p => {
         if (completedPassengerIds.includes(p.id)) return;
         let match = false;
+        
         if (p.reqType === 'specific' && p.targetId === landmarkCell.id) match = true;
+        
         if (p.reqType === 'category' && p.targetCategory === landmarkCell.category) match = true;
+        
+        if (p.reqType === 'dual_category' && (p.cat1 === landmarkCell.category || p.cat2 === landmarkCell.category)) match = true;
+
         if (match) {
            pointsGained += p.points;
            completedPassengerIds.push(p.id);
@@ -538,15 +590,36 @@ export default function App() {
     };
 
     if (card.type === 'landmark') {
+      // Placing a landmark satisfies passengers immediately? 
+      // Usually you have to connect to it. The placer is implicitly connected?
+      // Rule says: "Players can only place landmarks in-between 3 tracks".
+      // Let's assume placement implies connection for the owner.
+      newGrid[y][x].connections = { [player.color]: 1 }; // First connection
       checkPassengers(newGrid[y][x]);
     } else {
+      // Check if this new track connects to any adjacent landmarks
       neighbors.forEach(n => {
         const cell = getCell(newGrid, n.x, n.y);
         if (cell && cell.type === 'landmark') {
-           if (!cell.connectedColors.includes(player.color)) {
-             if (cell.connectedColors.length < 2) {
-               cell.connectedColors.push(player.color);
-               checkPassengers(cell);
+           // Connection Logic
+           const currentConnections = cell.connections || {};
+           const myConnCount = currentConnections[player.color] || 0;
+           const distinctPlayers = Object.keys(currentConnections).length;
+           
+           // Can I connect?
+           // 1. If I have < 2 connections personally
+           // 2. AND (I am already one of the players OR there are less than 2 players total)
+           
+           if (myConnCount < 2) {
+             if (myConnCount > 0 || distinctPlayers < 2) {
+                // Valid connection!
+                if (!cell.connections) cell.connections = {};
+                cell.connections[player.color] = myConnCount + 1;
+                
+                // If this is my first connection (entering), I score passengers
+                // Or maybe I score every time? Usually just on arrival?
+                // Let's score whenever I connect.
+                checkPassengers(cell);
              }
            }
         }
@@ -716,6 +789,7 @@ export default function App() {
                   <div className="flex justify-between items-center">
                     <span className="font-bold text-yellow-400 text-sm">{pass.points} PTS</span>
                     {pass.reqType === 'category' && <span className="scale-75">{CATEGORIES[pass.targetCategory?.toUpperCase()]?.icon}</span>}
+                    {pass.reqType === 'dual_category' && <span className="text-[10px] text-yellow-500">Dual</span>}
                   </div>
                   <div className="flex justify-between items-end">
                      <p className="text-xs text-gray-300 leading-tight font-medium">{pass.name}</p>
