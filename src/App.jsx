@@ -166,7 +166,6 @@ const generateLandmarks = () => {
 
 const generatePassengers = (allLandmarks) => {
   const passengers = [];
-  const personas = [...PASSENGER_PERSONAS].sort(() => Math.random() - 0.5);
   let idCounter = 1;
 
   // 1. Specific Needs (Hard - 3pts)
