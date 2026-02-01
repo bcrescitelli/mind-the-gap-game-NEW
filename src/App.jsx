@@ -13,7 +13,7 @@ import {
   ShoppingBag, Zap, Crown, Play, User
 } from 'lucide-react';
 
-// --- FIREBASE CONFIGURATION (From your Screenshot) ---
+// --- FIREBASE CONFIGURATION ---
 const firebaseConfig = {
   apiKey: "AIzaSyCi6ow177aGwqxoZ1ygZ8SgEx8JbLcSoEw",
   authDomain: "mind-the-gap-game-96226.firebaseapp.com",
@@ -27,13 +27,15 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = "mind-the-gap-v1"; // Custom ID for our game logic namespace
+const appId = "mind-the-gap-v1"; 
 
 // --- GAME CONSTANTS & GENERATORS ---
 
 const GRID_SIZE = 15;
 const CENTER = Math.floor(GRID_SIZE / 2); // 7 for 15x15
 const COLORS = ['red', 'blue', 'green', 'yellow'];
+
+// Enriched Categories
 const CATEGORIES = {
   GASTRONOMY: { id: 'gastronomy', label: 'Gastronomy', icon: <Coffee size={16} /> },
   HERITAGE: { id: 'heritage', label: 'Heritage', icon: <Landmark size={16} /> },
@@ -41,6 +43,25 @@ const CATEGORIES = {
   RETAIL: { id: 'retail', label: 'Retail', icon: <ShoppingBag size={16} /> },
   THRILL: { id: 'thrill', label: 'Thrill', icon: <Zap size={16} /> },
 };
+
+// Specific Landmark Names
+const LANDMARK_NAMES = {
+  gastronomy: ["The Gilded Fork", "Espresso Alley", "Chef Pierre's", "Midnight Diner", "Spice Bazaar", "The Bagel Shop", "Sushi Row", "The Tea Garden", "Burger Haven", "The Melting Pot", "Cocoa Corner", "Pasta Palace", "The Food Truck Park", "Bistro 42", "The Sweet Spot"],
+  heritage: ["Old Cathedral", "City Museum", "Founders Statue", "The Grand Library", "Clock Tower", "War Memorial", "Historic Fort", "The Opera House", "Ancient Ruins", "Parliament House", "The Old Bank", "Royal Palace", "Art Gallery", "The Observatory", "Town Hall Annex"],
+  nature: ["Central Park", "Botanical Gardens", "The Old Oak", "Swan Lake", "River Walk", "Sunset Hill", "The Zoo", "Butterfly House", "Pine Grove", "Crystal Cavern", "The Waterfall", "Wildflower Meadow", "Deer Park", "The Conservatory", "Bamboo Forest"],
+  retail: ["Grand Mall", "Fashion Street", "The Arcade", "Market Square", "Tech Hub", "Antique Row", "Bookworm's Den", "Toy Emporium", "The Jeweler", "Sneaker City", "Music Box", "Candy Kingdom", "Designer Outlet", "The Flea Market", "Souvenir Shop"],
+  thrill: ["Rollercoaster Park", "Haunted House", "Skyline Drop", "Go-Kart Track", "The Casino", "Neon Club", "Escape Room", "Laser Tag Arena", "VR World", "Rock Climbing Gym", "Skate Park", "The Stadium", "Comedy Club", "Horror Cinema", "Bungee Tower"]
+};
+
+// Quirky Passenger Names
+const PASSENGER_PERSONAS = [
+  "The Head Chef", "The Widow", "The Hipster", "The Lost Tourist", "The Mayor", 
+  "The Food Critic", "The Ghost Hunter", "The Architect", "The Jogger", "The Shopaholic",
+  "The Opera Singer", "The Skater Kid", "The Professor", "The Influencer", "The Cat Lady",
+  "The Detective", "The Street Artist", "The Banker", "The Surfer", "The Magician",
+  "The Librarian", "The Foodie", "The Historian", "The Birdwatcher", "The Gamer",
+  "The Thrill Seeker", "The Fashionista", "The Musician", "The CEO", "The Mime"
+];
 
 // --- DATA GENERATION ---
 
@@ -50,53 +71,52 @@ const generateLandmarks = () => {
   let idCounter = 1;
   
   cats.forEach(cat => {
+    // Shuffle names for this category
+    const names = [...LANDMARK_NAMES[cat.id]].sort(() => Math.random() - 0.5);
+    
     for (let i = 0; i < 15; i++) {
       landmarks.push({
         id: `L-${idCounter++}`,
-        name: `${cat.label} Spot ${i + 1}`,
+        name: names[i] || `${cat.label} Spot ${i + 1}`,
         category: cat.id,
         type: 'landmark'
       });
     }
   });
-  // Shuffle
+  // Shuffle all
   return landmarks.sort(() => Math.random() - 0.5);
 };
 
 const generatePassengers = (allLandmarks) => {
   const passengers = [];
-  const needs = [
-    { type: 'specific', count: 10, points: 3 }, // Hard: Specific Landmark
-    { type: 'category', count: 20, points: 1 }  // Easy: Category
-  ];
-
+  const personas = [...PASSENGER_PERSONAS].sort(() => Math.random() - 0.5);
   let idCounter = 1;
 
-  // Specific Needs
+  // Specific Needs (Hard)
   for(let i=0; i<10; i++) {
     const target = allLandmarks[Math.floor(Math.random() * allLandmarks.length)];
     passengers.push({
       id: `P-${idCounter++}`,
-      name: `Passenger ${idCounter}`,
+      name: personas.pop() || `Passenger ${idCounter}`,
       reqType: 'specific',
       targetId: target.id,
       targetName: target.name,
       points: 3,
-      desc: `Wants to go to ${target.name}`
+      desc: `Must visit ${target.name}`
     });
   }
 
-  // Category Needs
+  // Category Needs (Easy)
   const cats = Object.values(CATEGORIES);
   for(let i=0; i<20; i++) {
     const targetCat = cats[Math.floor(Math.random() * cats.length)];
     passengers.push({
       id: `P-${idCounter++}`,
-      name: `Passenger ${idCounter}`,
+      name: personas.pop() || `Passenger ${idCounter}`,
       reqType: 'category',
       targetCategory: targetCat.id,
       points: 1,
-      desc: `Wants some ${targetCat.label}`
+      desc: `Looking for ${targetCat.label}`
     });
   }
 
@@ -119,23 +139,16 @@ const getCell = (grid, x, y) => {
   return grid[y][x];
 };
 
-// Check if a cell is "City Hall" (The Start)
 const isStart = (x, y) => x === CENTER && y === CENTER;
 
-// Simple graph connections for track shapes based on rotation (0, 90, 180, 270)
-// Exits: 0: Top, 1: Right, 2: Bottom, 3: Left
 const getExits = (shape, rotation) => {
-  // Base exits for rotation 0
   let baseExits = [];
-  if (shape === 'straight') baseExits = [0, 2]; // Top, Bottom
-  if (shape === 'curved') baseExits = [2, 1];   // Bottom, Right (L-shape)
-  if (shape === 't-shape') baseExits = [1, 2, 3]; // Right, Bottom, Left (T pointing Down)
-  
-  // Rotate exits
+  if (shape === 'straight') baseExits = [0, 2]; 
+  if (shape === 'curved') baseExits = [2, 1];   
+  if (shape === 't-shape') baseExits = [1, 2, 3]; 
   return baseExits.map(e => (e + rotation / 90) % 4);
 };
 
-// Get coordinates for a neighbor in a specific direction (0:N, 1:E, 2:S, 3:W)
 const getNeighborCoords = (x, y, dir) => {
   if (dir === 0) return { x, y: y - 1 };
   if (dir === 1) return { x: x + 1, y };
@@ -144,39 +157,17 @@ const getNeighborCoords = (x, y, dir) => {
   return { x, y };
 };
 
-// Reverse direction (e.g., if I exit North (0), I enter the neighbor from South (2))
-const getOppositeDir = (dir) => (dir + 2) % 4;
-
-// BFS to check "3 Track Rule"
-// Must be 3 steps away from Start OR another Landmark along tracks of SAME color
 const check3TrackRule = (grid, startX, startY, playerColor) => {
-  const queue = [{ x: startX, y: startY, dist: 0 }];
-  const visited = new Set([`${startX},${startY}`]);
-  
-  // We need to look at neighbors that are TRACKS of same color or START
-  // This is a "backwards" search from the proposed landmark spot
-  
-  // Actually, the landmark is placed at startX, startY. 
-  // We need to check all connecting tracks of playerColor.
-  
-  // 1. Identify all neighbors that are tracks of playerColor.
   const neighbors = [];
   [0,1,2,3].forEach(dir => {
     const nc = getNeighborCoords(startX, startY, dir);
     const cell = getCell(grid, nc.x, nc.y);
-    if (cell && (isStart(nc.x, nc.y) || (cell.type === 'track' && cell.owner === playerColor))) {
+    if (isStart(nc.x, nc.y) || (cell && cell.type === 'track' && cell.owner === playerColor)) {
       neighbors.push(nc);
     }
   });
 
-  if (neighbors.length === 0) return false; // Not connected to anything? Invalid placement anyway.
-
-  // For each connection path, we must verify distance >= 3
-  // Simplification: BFS from the LANDMARK spot. 
-  // If we hit a STATION or START in < 3 steps (dist 1, 2, or 3), it's invalid.
-  // Note: The landmark itself is step 0. The adjacent track is step 1.
-  
-  let minDistanceToNode = Infinity;
+  if (neighbors.length === 0) return false; 
 
   const searchQueue = neighbors.map(n => ({ ...n, dist: 1 }));
   const searchVisited = new Set(neighbors.map(n => `${n.x},${n.y}`));
@@ -186,35 +177,28 @@ const check3TrackRule = (grid, startX, startY, playerColor) => {
     const current = searchQueue.shift();
     const cell = getCell(grid, current.x, current.y);
 
-    if (isStart(current.x, current.y) || cell.type === 'landmark') {
-      // Found a node!
-      if (current.dist < 4) { // "separated by 3 tracks" means Track-Track-Track (Dist 3) is OK?
-        // User said: "separated by 3 tracks".
-        // L - T - T - T - L  <-- This is separated by 3 tracks.
-        // Distance L to L is 4 steps. 
-        // So if dist < 4, it's too close.
-        return false;
-      }
+    if (isStart(current.x, current.y) || (cell && cell.type === 'landmark')) {
+      if (current.dist < 4) return false;
     }
 
-    // Continue traversing ONLY same color tracks
-    const exits = cell.type === 'track' ? getExits(cell.shape, cell.rotation) : [0,1,2,3]; // Start has all exits
-    
-    // Check neighbors
-    // Note: This simple BFS doesn't account for track "flow" (exits aligning), 
-    // but typically strict adjacency of color implies flow in this simplified grid model.
-    // For robustness, we should check physical connection, but color adjacency is a strong proxy here.
+    const currentCell = getCell(grid, current.x, current.y);
+    // Be careful here: isStart doesn't have a "cell" object usually unless we specifically check coords
+    // If it's a track, we continue
     
     [0,1,2,3].forEach(dir => {
       const nc = getNeighborCoords(current.x, current.y, dir);
       const key = `${nc.x},${nc.y}`;
       if (!searchVisited.has(key)) {
         const nextCell = getCell(grid, nc.x, nc.y);
-        if (nextCell) {
-           if (isStart(nc.x, nc.y) || nextCell.type === 'landmark' || (nextCell.type === 'track' && nextCell.owner === playerColor)) {
+        
+        // Valid next step: City Hall OR Landmark OR Own Track
+        const isCityHall = isStart(nc.x, nc.y);
+        const isOwnTrack = nextCell && nextCell.type === 'track' && nextCell.owner === playerColor;
+        const isLandmark = nextCell && nextCell.type === 'landmark';
+
+        if (isCityHall || isOwnTrack || isLandmark) {
              searchVisited.add(key);
              searchQueue.push({ x: nc.x, y: nc.y, dist: current.dist + 1 });
-           }
         }
       }
     });
@@ -280,23 +264,27 @@ const Cell = ({ x, y, cellData, onClick, isValidTarget, ghost }) => {
   } else if (cellData?.type === 'track') {
     // Determine color class
     const colorMap = { red: 'bg-red-500', blue: 'bg-blue-500', green: 'bg-green-500', yellow: 'bg-yellow-400' };
+    // Force high opacity background for visibility
     const cClass = colorMap[cellData.owner] || 'bg-gray-500';
+    // For tracks, we want the LINES to be the color, not the background. 
+    // Actually, traditionally in this game type, the tile background is dark and the track is colored.
+    // Let's make the track itself vibrant.
     
     // Draw track path using SVG based on shape and rotation
     content = (
       <div className="relative w-full h-full" style={{ transform: `rotate(${cellData.rotation}deg)` }}>
         {cellData.shape === 'straight' && (
-          <div className={`absolute left-1/2 top-0 bottom-0 w-1/3 -translate-x-1/2 ${cClass}`}></div>
+          <div className={`absolute left-1/2 top-0 bottom-0 w-1/3 -translate-x-1/2 ${cClass} shadow-sm`}></div>
         )}
         {cellData.shape === 'curved' && (
            <div className={`absolute top-1/2 left-1/2 w-full h-full -translate-x-1/2 -translate-y-1/2`}>
-             <div className={`absolute top-1/2 left-1/2 w-[60%] h-[60%] border-r-[8px] md:border-r-[12px] border-b-[8px] md:border-b-[12px] rounded-br-full ${cClass.replace('bg-', 'border-')} -translate-y-full -translate-x-full`}></div>
+             <div className={`absolute top-1/2 left-1/2 w-[60%] h-[60%] border-r-[8px] md:border-r-[12px] border-b-[8px] md:border-b-[12px] rounded-br-full ${cClass.replace('bg-', 'border-')} -translate-y-full -translate-x-full shadow-sm`}></div>
            </div>
         )}
         {cellData.shape === 't-shape' && (
           <>
-             <div className={`absolute left-1/2 top-0 bottom-0 w-1/3 -translate-x-1/2 ${cClass}`}></div>
-             <div className={`absolute right-0 top-1/2 w-1/2 h-1/3 -translate-y-1/2 ${cClass}`}></div>
+             <div className={`absolute left-1/2 top-0 bottom-0 w-1/3 -translate-x-1/2 ${cClass} shadow-sm`}></div>
+             <div className={`absolute right-0 top-1/2 w-1/2 h-1/3 -translate-y-1/2 ${cClass} shadow-sm`}></div>
           </>
         )}
       </div>
@@ -323,57 +311,67 @@ const Cell = ({ x, y, cellData, onClick, isValidTarget, ghost }) => {
   );
 };
 
+// --- TRACK PREVIEW COMPONENT ---
+// Shows the currently selected track with the correct rotation and color
+const TrackPreview = ({ shape, rotation, color }) => {
+  const colorMap = { red: 'bg-red-500', blue: 'bg-blue-500', green: 'bg-green-500', yellow: 'bg-yellow-400' };
+  const cClass = colorMap[color] || 'bg-gray-400';
+  
+  return (
+    <div className="w-8 h-8 md:w-10 md:h-10 border border-gray-600 bg-gray-900 rounded flex items-center justify-center relative overflow-hidden">
+      <div className="w-full h-full relative" style={{ transform: `rotate(${rotation}deg)` }}>
+        {shape === 'straight' && <div className={`absolute left-1/2 top-0 bottom-0 w-1/3 -translate-x-1/2 ${cClass}`}></div>}
+        {shape === 'curved' && (
+           <div className={`absolute top-1/2 left-1/2 w-full h-full -translate-x-1/2 -translate-y-1/2`}>
+             <div className={`absolute top-1/2 left-1/2 w-[60%] h-[60%] border-r-[4px] border-b-[4px] rounded-br-full ${cClass.replace('bg-', 'border-')} -translate-y-full -translate-x-full`}></div>
+           </div>
+        )}
+        {shape === 't-shape' && (
+          <>
+             <div className={`absolute left-1/2 top-0 bottom-0 w-1/3 -translate-x-1/2 ${cClass}`}></div>
+             <div className={`absolute right-0 top-1/2 w-1/2 h-1/3 -translate-y-1/2 ${cClass}`}></div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+
 // --- MAIN COMPONENT ---
 
 export default function App() {
   const [user, setUser] = useState(null);
-  
-  // Separation of "Entry Code" (input) and "Active Room" (connected)
   const [entryCode, setEntryCode] = useState(""); 
   const [activeRoomId, setActiveRoomId] = useState(""); 
-  
   const [playerName, setPlayerName] = useState("");
   const [gameState, setGameState] = useState(null);
-  const [view, setView] = useState('home'); // home, lobby, host, player
+  const [view, setView] = useState('home');
   const [error, setError] = useState("");
   
-  // Game Interaction State
-  const [selectedCardIdx, setSelectedCardIdx] = useState(null); // Index in hand
-  const [selectedCardType, setSelectedCardType] = useState(null); // 'tracks' or 'landmarks'
+  const [selectedCardIdx, setSelectedCardIdx] = useState(null);
+  const [selectedCardType, setSelectedCardType] = useState(null);
   const [rotation, setRotation] = useState(0);
 
-  // Auth & Sync
   useEffect(() => {
     const initAuth = async () => {
-      try {
-        await signInAnonymously(auth);
-      } catch (err) {
-        console.error("Auth error:", err);
-      }
+      try { await signInAnonymously(auth); } catch (err) { console.error("Auth error:", err); }
     };
     initAuth();
     const sub = onAuthStateChanged(auth, setUser);
     return () => sub();
   }, []);
 
-  // Sync Game Data
   useEffect(() => {
     if (!user || !activeRoomId) return;
-    
-    // Listen ONLY when activeRoomId is set
     const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         if (typeof data.grid === 'string') data.grid = JSON.parse(data.grid);
         setGameState(data);
-        
-        // Determine view
         const isHost = data.hostId === user.uid;
-        if (data.status === 'playing') {
-          setView(isHost ? 'host' : 'player');
-        } else {
-          setView('lobby');
-        }
+        if (data.status === 'playing') setView(isHost ? 'host' : 'player');
+        else setView('lobby');
       } else {
         setError("Room not found");
         setGameState(null);
@@ -382,16 +380,12 @@ export default function App() {
     return () => unsub();
   }, [user, activeRoomId]);
 
-  // --- ACTIONS ---
-
   const createGame = async () => {
     if (!user) return;
     const newRoomId = Math.random().toString(36).substring(2, 7).toUpperCase();
     const initialGrid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null));
     const landmarks = generateLandmarks();
     const passengers = generatePassengers(landmarks);
-    
-    // Initial 3 active passengers
     const activePassengers = passengers.splice(0, 3);
 
     const initialData = {
@@ -410,8 +404,6 @@ export default function App() {
     };
 
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', newRoomId), initialData);
-    
-    // Use the new room ID for display and connection
     setEntryCode(newRoomId);
     setActiveRoomId(newRoomId);
   };
@@ -421,7 +413,6 @@ export default function App() {
       setError("Please enter a room code and your name.");
       return;
     }
-    
     const codeToJoin = entryCode.toUpperCase();
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', codeToJoin);
     
@@ -429,113 +420,83 @@ export default function App() {
       await runTransaction(db, async (transaction) => {
         const roomDoc = await transaction.get(roomRef);
         if (!roomDoc.exists()) throw "Room does not exist";
-        
         const data = roomDoc.data();
         if (data.status !== 'lobby') throw "Game already started";
         if (data.players.length >= 4) throw "Room full";
-        if (data.players.find(p => p.id === user.uid)) return; // Already joined logic handled below
+        if (data.players.find(p => p.id === user.uid)) return;
 
         const newPlayer = {
           id: user.uid,
           name: playerName,
           color: COLORS[data.players.length],
           score: 0,
-          hand: {
-            tracks: [],
-            landmarks: []
-          },
+          hand: { tracks: [], landmarks: [] },
           completedPassengers: []
         };
 
-        transaction.update(roomRef, {
-          players: arrayUnion(newPlayer)
-        });
+        transaction.update(roomRef, { players: arrayUnion(newPlayer) });
       });
-      
-      // Connection successful, NOW we start listening
       setActiveRoomId(codeToJoin);
       setError("");
-      
     } catch (e) {
       if (e === "Room does not exist") setError("Invalid Room Code");
       else if (e === "Room full") setError("Room is full!");
-      else {
-        // If we are already in the room (e.g. re-joining), just connect
-        setActiveRoomId(codeToJoin);
-      }
+      else setActiveRoomId(codeToJoin);
     }
   };
 
   const startGame = async () => {
     if (!gameState) return;
-    
-    // Deal initial cards
     const updatedPlayers = gameState.players.map(p => {
       const tracks = gameState.decks.tracks.splice(0, 3);
       const landmarks = gameState.decks.landmarks.splice(0, 2);
       return { ...p, hand: { tracks, landmarks } };
     });
-
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
-      status: 'playing',
-      players: updatedPlayers,
-      decks: gameState.decks 
+      status: 'playing', players: updatedPlayers, decks: gameState.decks 
     });
   };
 
   const endTurn = async (newGrid, newPlayers, newDecks, newActivePassengers) => {
     const nextTurn = (gameState.turnIndex + 1) % gameState.players.length;
-    
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
-      grid: JSON.stringify(newGrid),
-      players: newPlayers,
-      decks: newDecks,
-      activePassengers: newActivePassengers,
-      turnIndex: nextTurn
+      grid: JSON.stringify(newGrid), players: newPlayers, decks: newDecks,
+      activePassengers: newActivePassengers, turnIndex: nextTurn
     });
-
-    // Reset local selection
     setSelectedCardIdx(null);
     setSelectedCardType(null);
     setRotation(0);
   };
 
-  // --- GAMEPLAY LOGIC ---
-
   const handlePlaceCard = (x, y) => {
     if (view !== 'player') return;
     const playerIdx = gameState.players.findIndex(p => p.id === user.uid);
-    if (playerIdx !== gameState.turnIndex) {
-      alert("Not your turn!");
-      return;
-    }
+    if (playerIdx !== gameState.turnIndex) { alert("Not your turn!"); return; }
     
     if (selectedCardIdx === null) return;
     const player = gameState.players[playerIdx];
     const card = selectedCardType === 'tracks' 
       ? player.hand.tracks[selectedCardIdx] 
       : player.hand.landmarks[selectedCardIdx];
-
     if (!card) return;
 
-    // VALIDATION
     const grid = gameState.grid;
-    if (grid[y][x] !== null) {
-      alert("Space occupied");
-      return;
-    }
+    if (grid[y][x] !== null) { alert("Space occupied"); return; }
 
-    // 1. Connectivity Rule (Must touch start or same color track)
+    // --- FIX: IMPROVED CONNECTIVITY CHECK ---
     let connected = false;
-    let validNeighbors = 0;
-    
     const neighbors = [0,1,2,3].map(d => getNeighborCoords(x, y, d));
     
     neighbors.forEach((n, dir) => {
+      // 1. Is this neighbor City Hall?
+      if (isStart(n.x, n.y)) {
+        connected = true;
+      }
+      
+      // 2. Is this neighbor a track I own?
       const cell = getCell(grid, n.x, n.y);
-      if (cell) {
-        if (isStart(n.x, n.y)) connected = true;
-        if (cell.type === 'track' && cell.owner === player.color) connected = true;
+      if (cell && cell.type === 'track' && cell.owner === player.color) {
+        connected = true;
       }
     });
 
@@ -544,9 +505,7 @@ export default function App() {
       return;
     }
 
-    // 2. Landmark Specific Rules
     if (card.type === 'landmark') {
-      // 3-Track Rule
       const validDistance = check3TrackRule(grid, x, y, player.color);
       if (!validDistance) {
         alert("Landmarks must be separated by at least 3 track segments of your color from City Hall or other Landmarks.");
@@ -554,27 +513,23 @@ export default function App() {
       }
     }
 
-    // EXECUTE MOVE
     const newGrid = [...grid];
     newGrid[y][x] = {
       ...card,
       owner: player.color,
-      rotation: rotation, // Only relevant for tracks
-      connectedColors: [player.color] // Track who is connected to this tile
+      rotation: rotation,
+      connectedColors: [player.color]
     };
 
-    // SCORING & PASSENGERS
     let pointsGained = 0;
     const completedPassengerIds = [];
     
     const checkPassengers = (landmarkCell) => {
       gameState.activePassengers.forEach(p => {
         if (completedPassengerIds.includes(p.id)) return;
-        
         let match = false;
         if (p.reqType === 'specific' && p.targetId === landmarkCell.id) match = true;
         if (p.reqType === 'category' && p.targetCategory === landmarkCell.category) match = true;
-        
         if (match) {
            pointsGained += p.points;
            completedPassengerIds.push(p.id);
@@ -590,7 +545,6 @@ export default function App() {
         if (cell && cell.type === 'landmark') {
            if (!cell.connectedColors.includes(player.color)) {
              if (cell.connectedColors.length < 2) {
-               // Connect!
                cell.connectedColors.push(player.color);
                checkPassengers(cell);
              }
@@ -599,7 +553,6 @@ export default function App() {
       });
     }
 
-    // UPDATE STATE
     const newHand = { ...player.hand };
     if (selectedCardType === 'tracks') newHand.tracks.splice(selectedCardIdx, 1);
     else newHand.landmarks.splice(selectedCardIdx, 1);
@@ -632,8 +585,6 @@ export default function App() {
 
     endTurn(newGrid, newPlayers, newDecks, newActivePassengers);
   };
-
-  // --- RENDERS ---
 
   if (view === 'home') {
     return (
@@ -707,13 +658,11 @@ export default function App() {
     );
   }
 
-  // --- GAME BOARD RENDERER ---
   const Board = ({ interactive }) => (
     <div 
       className="grid gap-[1px] bg-gray-800 p-1 rounded-lg shadow-2xl overflow-hidden select-none mx-auto"
       style={{ 
         gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
-        // Keep it square, max width is responsive
         width: '100%',
         aspectRatio: '1/1',
         maxWidth: '800px',
@@ -738,9 +687,7 @@ export default function App() {
   if (view === 'host') {
     return (
       <div className="h-screen bg-gray-950 text-white flex p-2 gap-2 overflow-hidden">
-        {/* Left: Stats Sidebar */}
         <div className="w-1/4 max-w-sm flex flex-col gap-2 h-full">
-          {/* Room Code */}
           <div className="bg-gray-800 p-2 rounded text-center">
              <div className="text-xs text-gray-400 uppercase">Room Code</div>
              <div className="text-2xl font-black tracking-widest">{activeRoomId}</div>
@@ -770,14 +717,17 @@ export default function App() {
                     <span className="font-bold text-yellow-400 text-sm">{pass.points} PTS</span>
                     {pass.reqType === 'category' && <span className="scale-75">{CATEGORIES[pass.targetCategory?.toUpperCase()]?.icon}</span>}
                   </div>
-                  <p className="text-xs text-gray-300 leading-tight">{pass.desc}</p>
+                  <div className="flex justify-between items-end">
+                     <p className="text-xs text-gray-300 leading-tight font-medium">{pass.name}</p>
+                     <p className="text-[10px] text-gray-500">{pass.reqType === 'specific' ? 'Specific' : 'Type'}</p>
+                  </div>
+                  <p className="text-[10px] text-gray-400 italic mt-1">{pass.desc}</p>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Center: The Map - Maximized */}
         <div className="flex-1 flex items-center justify-center bg-gray-900 rounded-xl overflow-hidden relative">
            <div className="absolute inset-2 flex items-center justify-center">
               <Board interactive={false} />
@@ -793,7 +743,6 @@ export default function App() {
 
     return (
       <div className="h-[100dvh] bg-gray-950 text-white flex flex-col overflow-hidden">
-        {/* Top Bar - Compact */}
         <div className="h-12 bg-gray-900 flex items-center justify-between px-3 border-b border-gray-800 shrink-0">
           <div className="flex items-center gap-2">
             <div className={`w-3 h-3 rounded-full bg-${player.color}-500 shadow-[0_0_8px_currentColor]`}></div>
@@ -808,16 +757,19 @@ export default function App() {
           </div>
         </div>
 
-        {/* Middle: Map (Scrollable) */}
         <div className="flex-1 overflow-auto p-2 flex items-center justify-center bg-black/20">
            <Board interactive={isMyTurn} />
         </div>
 
-        {/* Bottom: Controls & Hand - Fixed height area */}
         <div className="bg-gray-900 border-t border-gray-800 shrink-0 flex flex-col safe-area-pb">
-          {/* Controls Bar */}
           {isMyTurn && selectedCardType === 'tracks' && (
-            <div className="flex justify-center py-2 border-b border-gray-800 bg-gray-800/50">
+            <div className="flex justify-center items-center gap-4 py-2 border-b border-gray-800 bg-gray-800/50">
+               {/* PREVIEW COMPONENT */}
+               <TrackPreview 
+                 shape={player.hand.tracks[selectedCardIdx]?.shape} 
+                 rotation={rotation} 
+                 color={player.color} 
+               />
               <button 
                 onClick={() => setRotation((r) => (r + 90) % 360)}
                 className="flex items-center gap-2 px-6 py-2 bg-blue-600 rounded-full font-bold shadow-lg active:scale-95 transition-transform"
@@ -827,7 +779,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Hand Cards - Horizontally scrollable */}
           <div className="flex gap-1 overflow-x-auto p-2 pb-4 no-scrollbar">
             {player.hand.tracks.map((card, i) => (
               <GameCard 
