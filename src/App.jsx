@@ -31,7 +31,7 @@ const appId = "mind-the-gap-v1";
 
 // --- GAME CONSTANTS & GENERATORS ---
 
-const GRID_SIZE = 19; // Increased size
+const GRID_SIZE = 19; 
 const CENTER = Math.floor(GRID_SIZE / 2); 
 const COLORS = ['red', 'blue', 'green', 'yellow'];
 
@@ -80,11 +80,10 @@ const generateLandmarks = () => {
         name: names[i] || `${cat.label} Spot ${i + 1}`,
         category: cat.id,
         type: 'landmark',
-        connections: {} // { red: 0, blue: 0 } - Track connections per player
+        connections: {} // { red: 0, blue: 0 }
       });
     }
   });
-  // Shuffle all
   return landmarks.sort(() => Math.random() - 0.5);
 };
 
@@ -107,26 +106,28 @@ const generatePassengers = (allLandmarks) => {
     });
   }
 
-  // 2. Dual Category (Medium - 2pts) - "I want Pizza OR a Rollercoaster"
-  const cats = Object.values(CATEGORIES);
-  for(let i=0; i<10; i++) {
-    const cat1 = cats[Math.floor(Math.random() * cats.length)];
-    let cat2 = cats[Math.floor(Math.random() * cats.length)];
-    while(cat2.id === cat1.id) cat2 = cats[Math.floor(Math.random() * cats.length)];
+  // 2. The "List" (Multiple Options - 2pts) - "I want A, B, or C"
+  for(let i=0; i<12; i++) {
+    const opts = [];
+    while(opts.length < 3) {
+      const l = allLandmarks[Math.floor(Math.random() * allLandmarks.length)];
+      if(!opts.find(o => o.id === l.id)) opts.push(l);
+    }
     
     passengers.push({
       id: `P-${idCounter++}`,
       name: personas.pop() || `Passenger ${idCounter}`,
-      reqType: 'dual_category',
-      cat1: cat1.id,
-      cat2: cat2.id,
+      reqType: 'list',
+      targets: opts.map(o => o.id),
+      targetNames: opts.map(o => o.name),
       points: 2,
-      desc: `${cat1.label} OR ${cat2.label}`
+      desc: `${opts[0].name}, ${opts[1].name}, or ${opts[2].name}`
     });
   }
 
   // 3. Category Needs (Easy - 1pt)
-  for(let i=0; i<12; i++) {
+  const cats = Object.values(CATEGORIES);
+  for(let i=0; i<10; i++) {
     const targetCat = cats[Math.floor(Math.random() * cats.length)];
     passengers.push({
       id: `P-${idCounter++}`,
@@ -159,12 +160,13 @@ const getCell = (grid, x, y) => {
 
 const isStart = (x, y) => x === CENTER && y === CENTER;
 
+// 0:Top, 1:Right, 2:Bottom, 3:Left
 const getExits = (shape, rotation) => {
   let baseExits = [];
   if (shape === 'straight') baseExits = [0, 2]; 
   if (shape === 'curved') baseExits = [2, 1];   
   if (shape === 't-shape') baseExits = [1, 2, 3]; 
-  return baseExits.map(e => (e + rotation / 90) % 4);
+  return baseExits.map(e => (e + Math.floor(rotation / 90)) % 4);
 };
 
 const getNeighborCoords = (x, y, dir) => {
@@ -175,47 +177,104 @@ const getNeighborCoords = (x, y, dir) => {
   return { x, y };
 };
 
+const getOppositeDir = (dir) => (dir + 2) % 4;
+
+// --- PATHFINDING & RULES ---
+
+// Check if two cells physically connect via tracks
+const areConnected = (cellA, cellB, dirFromAtoB) => {
+  if (!cellA || !cellB) return false;
+  
+  // Landmarks and Start are "Wildcards" - they connect to any adjacent track pointing at them
+  const isA_Wild = cellA.type === 'landmark' || cellA.isStart;
+  const isB_Wild = cellB.type === 'landmark' || cellB.isStart;
+  
+  // If both are wild (Landmark next to Landmark), they don't connect via track rules
+  if (isA_Wild && isB_Wild) return false;
+
+  const entryB = getOppositeDir(dirFromAtoB);
+
+  // If A is track, does it have exit towards B?
+  if (cellA.type === 'track') {
+    const exitsA = getExits(cellA.shape, cellA.rotation);
+    if (!exitsA.includes(dirFromAtoB)) return false;
+  }
+
+  // If B is track, does it have exit towards A?
+  if (cellB.type === 'track') {
+    const exitsB = getExits(cellB.shape, cellB.rotation);
+    if (!exitsB.includes(entryB)) return false;
+  }
+
+  return true;
+};
+
 const check3TrackRule = (grid, startX, startY, playerColor) => {
-  const neighbors = [];
+  // BFS to find closest Landmark or Start via VALID track connections
+  const queue = [];
+  const visited = new Set();
+  
+  // Initial neighbors: check all 4 directions from the placement site
   [0,1,2,3].forEach(dir => {
     const nc = getNeighborCoords(startX, startY, dir);
     const cell = getCell(grid, nc.x, nc.y);
-    if (isStart(nc.x, nc.y) || (cell && cell.type === 'track' && cell.owner === playerColor)) {
-      neighbors.push(nc);
+    
+    // Valid start points for BFS:
+    // 1. City Hall
+    // 2. A track owned by player that points at this spot
+    // 3. A landmark we are already connected to? (Not relevant for this rule, we just want dist)
+    
+    if (isStart(nc.x, nc.y)) {
+       queue.push({ x: nc.x, y: nc.y, dist: 1 });
+       visited.add(`${nc.x},${nc.y}`);
+    } else if (cell && cell.type === 'track' && cell.owner === playerColor) {
+       // Check if track actually points to us
+       const entry = getOppositeDir(dir);
+       const exits = getExits(cell.shape, cell.rotation);
+       if (exits.includes(entry)) {
+         queue.push({ x: nc.x, y: nc.y, dist: 1 });
+         visited.add(`${nc.x},${nc.y}`);
+       }
     }
   });
 
-  if (neighbors.length === 0) return false; 
+  if (queue.length === 0) return false; // Should be caught by connectivity check first, but failsafe
 
-  const searchQueue = neighbors.map(n => ({ ...n, dist: 1 }));
-  const searchVisited = new Set(neighbors.map(n => `${n.x},${n.y}`));
-  searchVisited.add(`${startX},${startY}`);
-
-  while (searchQueue.length > 0) {
-    const current = searchQueue.shift();
+  while (queue.length > 0) {
+    const current = queue.shift();
     const cell = getCell(grid, current.x, current.y);
+    
+    // Check what we found
+    const isCityHall = isStart(current.x, current.y);
+    const isLandmark = cell && cell.type === 'landmark';
 
-    if (isStart(current.x, current.y) || (cell && cell.type === 'landmark')) {
-      if (current.dist < 4) return false;
+    if (isCityHall || isLandmark) {
+      if (current.dist < 4) return false; // Too close!
+      // If >= 4, we stop this branch but continue checking others? 
+      // Actually BFS guarantees shortest path. If we found one >= 4, acts as valid?
+      // No, we need to ensure NO landmark is < 4.
+      // Since BFS finds shortest path first, if we hit a landmark now, it IS the closest one on this path.
+      // So if dist < 4, fail. If dist >= 4, this path is safe, don't propagate further.
+      continue;
     }
 
-    // Be careful here: isStart doesn't have a "cell" object usually unless we specifically check coords
-    // If it's a track, we continue
-    
+    // Propagate through tracks
     [0,1,2,3].forEach(dir => {
       const nc = getNeighborCoords(current.x, current.y, dir);
       const key = `${nc.x},${nc.y}`;
-      if (!searchVisited.has(key)) {
+      if (!visited.has(key)) {
         const nextCell = getCell(grid, nc.x, nc.y);
         
-        // Valid next step: City Hall OR Landmark OR Own Track
-        const isCityHall = isStart(nc.x, nc.y);
-        const isOwnTrack = nextCell && nextCell.type === 'track' && nextCell.owner === playerColor;
-        const isLandmark = nextCell && nextCell.type === 'landmark';
+        // Define objects for helper (mock Start as object)
+        const currObj = isCityHall ? { isStart: true } : cell;
+        const nextObj = isStart(nc.x, nc.y) ? { isStart: true } : nextCell;
 
-        if (isCityHall || isOwnTrack || isLandmark) {
-             searchVisited.add(key);
-             searchQueue.push({ x: nc.x, y: nc.y, dist: current.dist + 1 });
+        if (nextObj && (nextObj.isStart || nextObj.owner === playerColor || nextObj.type === 'landmark')) {
+           // Check physical connection logic
+           if (areConnected(currObj, nextObj, dir)) {
+             visited.add(key);
+             queue.push({ x: nc.x, y: nc.y, dist: current.dist + 1 });
+           }
         }
       }
     });
@@ -242,13 +301,7 @@ const GameCard = ({ data, selected, onClick, type }) => {
         <>
           <div className="text-[10px] md:text-xs text-gray-400 mb-1 md:mb-2 uppercase font-bold text-center truncate w-full">{data.shape}</div>
           <div className="w-8 h-8 md:w-12 md:h-12 border border-gray-600 rounded flex items-center justify-center bg-gray-900">
-             {/* Visual representation of track shape */}
-             {data.shape === 'straight' && <div className="w-1.5 md:w-2 h-full bg-gray-400"></div>}
-             {data.shape === 'curved' && <div className="w-4 h-4 md:w-6 md:h-6 border-r-4 border-b-4 border-gray-400 rounded-br-full -translate-x-0.5 -translate-y-0.5"></div>}
-             {data.shape === 't-shape' && <div className="w-full h-full flex items-center justify-center relative">
-               <div className="absolute top-0 bottom-0 w-1.5 md:w-2 bg-gray-400"></div>
-               <div className="absolute right-0 top-1/2 w-1/2 h-1.5 md:h-2 bg-gray-400 -translate-y-1/2"></div>
-             </div>}
+             <TrackSvg shape={data.shape} rotation={0} color="gray" />
           </div>
         </>
       )}
@@ -266,68 +319,63 @@ const GameCard = ({ data, selected, onClick, type }) => {
   );
 };
 
-// 2. Cell Component
+// 2. Track SVG Component (The Core Visual Fix)
+const TrackSvg = ({ shape, rotation, color }) => {
+  const colorMap = { 
+    red: '#ef4444', 
+    blue: '#3b82f6', 
+    green: '#22c55e', 
+    yellow: '#eab308',
+    gray: '#9ca3af'
+  };
+  const strokeColor = colorMap[color] || '#9ca3af';
+
+  return (
+    <div className="w-full h-full" style={{ transform: `rotate(${rotation}deg)` }}>
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        {shape === 'straight' && (
+          <line x1="50" y1="0" x2="50" y2="100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
+        )}
+        {shape === 'curved' && (
+           // Bottom to Right curve
+           <path d="M 50 100 Q 50 50 100 50" fill="none" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
+        )}
+        {shape === 't-shape' && (
+          // Right, Bottom, Left (No Top)
+          <>
+            <line x1="0" y1="50" x2="100" y2="50" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
+            <line x1="50" y1="50" x2="50" y2="100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
+          </>
+        )}
+      </svg>
+    </div>
+  );
+};
+
+// 3. Cell Component
 const Cell = ({ x, y, cellData, onClick, isValidTarget, ghost }) => {
   const isCenter = x === CENTER && y === CENTER;
-  
-  // Render logic
   let content = null;
   let bgClass = "bg-gray-900";
   let borderClass = "border-gray-800";
-
-  // Mappings for specific border colors to ensure curves render correctly
-  const borderColorMap = { 
-    red: 'border-red-500', 
-    blue: 'border-blue-500', 
-    green: 'border-green-500', 
-    yellow: 'border-yellow-400' 
-  };
-  const colorMap = { 
-    red: 'bg-red-500', 
-    blue: 'bg-blue-500', 
-    green: 'bg-green-500', 
-    yellow: 'bg-yellow-400' 
-  };
+  const colorDotMap = { red: 'bg-red-500', blue: 'bg-blue-500', green: 'bg-green-500', yellow: 'bg-yellow-400' };
 
   if (isCenter) {
     content = <div className="flex flex-col items-center justify-center h-full w-full bg-white text-black font-bold text-[6px] md:text-[10px] z-10 text-center leading-none">CITY HALL</div>;
     bgClass = "bg-white";
   } else if (cellData?.type === 'track') {
-    const cClass = colorMap[cellData.owner] || 'bg-gray-500';
-    const bClass = borderColorMap[cellData.owner] || 'border-gray-500';
-    
-    // Draw track path using SVG based on shape and rotation
-    content = (
-      <div className="relative w-full h-full" style={{ transform: `rotate(${cellData.rotation}deg)` }}>
-        {cellData.shape === 'straight' && (
-          <div className={`absolute left-1/2 top-0 bottom-0 w-1/3 -translate-x-1/2 ${cClass} shadow-sm`}></div>
-        )}
-        {cellData.shape === 'curved' && (
-           <div className={`absolute top-1/2 left-1/2 w-full h-full -translate-x-1/2 -translate-y-1/2`}>
-             <div className={`absolute top-1/2 left-1/2 w-[60%] h-[60%] border-r-[8px] md:border-r-[12px] border-b-[8px] md:border-b-[12px] rounded-br-full ${bClass} -translate-y-full -translate-x-full shadow-sm`}></div>
-           </div>
-        )}
-        {cellData.shape === 't-shape' && (
-          <>
-             <div className={`absolute left-1/2 top-0 bottom-0 w-1/3 -translate-x-1/2 ${cClass} shadow-sm`}></div>
-             <div className={`absolute right-0 top-1/2 w-1/2 h-1/3 -translate-y-1/2 ${cClass} shadow-sm`}></div>
-          </>
-        )}
-      </div>
-    );
+    content = <TrackSvg shape={cellData.shape} rotation={cellData.rotation} color={cellData.owner} />;
   } else if (cellData?.type === 'landmark') {
     content = (
       <div className="w-full h-full bg-gray-200 flex flex-col items-center justify-center p-0.5 border-2 border-white shadow-inner relative">
          <div className="text-black scale-75 md:scale-100">{CATEGORIES[cellData.category?.toUpperCase()]?.icon}</div>
          <div className="text-[5px] md:text-[8px] text-black font-bold text-center leading-none mt-0.5 break-words w-full overflow-hidden">{cellData.name}</div>
-         {/* Show connection dots */}
          {cellData.connections && Object.keys(cellData.connections).map((c, i) => (
-           <div key={c} className={`absolute w-1.5 h-1.5 rounded-full ${colorMap[c]} bottom-0.5 right-${i * 2 + 1}`}></div>
+           <div key={c} className={`absolute w-1.5 h-1.5 rounded-full ${colorDotMap[c]} bottom-0.5 right-${i * 2 + 1}`}></div>
          ))}
       </div>
     );
   } else if (ghost) {
-    // Ghost preview for hover/selection
     content = <div className={`w-full h-full bg-white opacity-20 animate-pulse rounded-sm`}></div>
   }
 
@@ -340,35 +388,6 @@ const Cell = ({ x, y, cellData, onClick, isValidTarget, ghost }) => {
     </div>
   );
 };
-
-// --- TRACK PREVIEW COMPONENT ---
-// Shows the currently selected track with the correct rotation and color
-const TrackPreview = ({ shape, rotation, color }) => {
-  const colorMap = { red: 'bg-red-500', blue: 'bg-blue-500', green: 'bg-green-500', yellow: 'bg-yellow-400' };
-  const borderColorMap = { red: 'border-red-500', blue: 'border-blue-500', green: 'border-green-500', yellow: 'border-yellow-400' };
-  const cClass = colorMap[color] || 'bg-gray-400';
-  const bClass = borderColorMap[color] || 'border-gray-400';
-  
-  return (
-    <div className="w-8 h-8 md:w-10 md:h-10 border border-gray-600 bg-gray-900 rounded flex items-center justify-center relative overflow-hidden">
-      <div className="w-full h-full relative" style={{ transform: `rotate(${rotation}deg)` }}>
-        {shape === 'straight' && <div className={`absolute left-1/2 top-0 bottom-0 w-1/3 -translate-x-1/2 ${cClass}`}></div>}
-        {shape === 'curved' && (
-           <div className={`absolute top-1/2 left-1/2 w-full h-full -translate-x-1/2 -translate-y-1/2`}>
-             <div className={`absolute top-1/2 left-1/2 w-[60%] h-[60%] border-r-[4px] border-b-[4px] rounded-br-full ${bClass} -translate-y-full -translate-x-full`}></div>
-           </div>
-        )}
-        {shape === 't-shape' && (
-          <>
-             <div className={`absolute left-1/2 top-0 bottom-0 w-1/3 -translate-x-1/2 ${cClass}`}></div>
-             <div className={`absolute right-0 top-1/2 w-1/2 h-1/3 -translate-y-1/2 ${cClass}`}></div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
-
 
 // --- MAIN COMPONENT ---
 
@@ -517,24 +536,19 @@ export default function App() {
 
     // --- CONNECTIVITY CHECK ---
     let connected = false;
-    let landmarkConnection = null; // To track if we are connecting to a landmark
-
     const neighbors = [0,1,2,3].map(d => getNeighborCoords(x, y, d));
     
     neighbors.forEach((n, dir) => {
-      const cell = getCell(grid, n.x, n.y);
-      // 1. Is this neighbor City Hall?
       if (isStart(n.x, n.y)) {
         connected = true;
       }
       
+      const cell = getCell(grid, n.x, n.y);
       if (cell) {
-        // 2. Is this neighbor a track I own?
         if (cell.type === 'track' && cell.owner === player.color) {
-          connected = true;
+           connected = true;
         }
-        // 3. Is this neighbor a Landmark I am ALREADY connected to?
-        // This allows us to "pass through" a landmark to build out the other side.
+        // Allow building off ANY connected landmark (Pass-through logic)
         if (cell.type === 'landmark' && cell.connections && cell.connections[player.color] > 0) {
           connected = true;
         }
@@ -550,24 +564,21 @@ export default function App() {
     if (card.type === 'landmark') {
       const validDistance = check3TrackRule(grid, x, y, player.color);
       if (!validDistance) {
-        alert("Landmarks must be separated by at least 3 track segments of your color from City Hall or other Landmarks.");
+        alert("Landmarks must be separated by at least 3 track segments of your color from City Hall or other Landmarks (following valid paths).");
         return;
       }
-      // Initialize connections
       card.connections = {}; 
     }
 
     const newGrid = [...grid];
-    // Copy the card to the grid
     newGrid[y][x] = {
       ...card,
       owner: player.color,
       rotation: rotation,
-      // For tracks, we might update later if they connect to adjacent landmarks
       connectedColors: card.type === 'track' ? [player.color] : [] 
     };
 
-    // --- SCORING & PASSENGERS & LANDMARK CONNECTIONS ---
+    // --- SCORING & PASSENGERS ---
     let pointsGained = 0;
     const completedPassengerIds = [];
     
@@ -577,10 +588,9 @@ export default function App() {
         let match = false;
         
         if (p.reqType === 'specific' && p.targetId === landmarkCell.id) match = true;
-        
         if (p.reqType === 'category' && p.targetCategory === landmarkCell.category) match = true;
-        
         if (p.reqType === 'dual_category' && (p.cat1 === landmarkCell.category || p.cat2 === landmarkCell.category)) match = true;
+        if (p.reqType === 'list' && p.targets.includes(landmarkCell.id)) match = true;
 
         if (match) {
            pointsGained += p.points;
@@ -590,35 +600,20 @@ export default function App() {
     };
 
     if (card.type === 'landmark') {
-      // Placing a landmark satisfies passengers immediately? 
-      // Usually you have to connect to it. The placer is implicitly connected?
-      // Rule says: "Players can only place landmarks in-between 3 tracks".
-      // Let's assume placement implies connection for the owner.
-      newGrid[y][x].connections = { [player.color]: 1 }; // First connection
+      newGrid[y][x].connections = { [player.color]: 1 }; 
       checkPassengers(newGrid[y][x]);
     } else {
-      // Check if this new track connects to any adjacent landmarks
       neighbors.forEach(n => {
         const cell = getCell(newGrid, n.x, n.y);
         if (cell && cell.type === 'landmark') {
-           // Connection Logic
            const currentConnections = cell.connections || {};
            const myConnCount = currentConnections[player.color] || 0;
            const distinctPlayers = Object.keys(currentConnections).length;
            
-           // Can I connect?
-           // 1. If I have < 2 connections personally
-           // 2. AND (I am already one of the players OR there are less than 2 players total)
-           
            if (myConnCount < 2) {
              if (myConnCount > 0 || distinctPlayers < 2) {
-                // Valid connection!
                 if (!cell.connections) cell.connections = {};
                 cell.connections[player.color] = myConnCount + 1;
-                
-                // If this is my first connection (entering), I score passengers
-                // Or maybe I score every time? Usually just on arrival?
-                // Let's score whenever I connect.
                 checkPassengers(cell);
              }
            }
@@ -790,6 +785,7 @@ export default function App() {
                     <span className="font-bold text-yellow-400 text-sm">{pass.points} PTS</span>
                     {pass.reqType === 'category' && <span className="scale-75">{CATEGORIES[pass.targetCategory?.toUpperCase()]?.icon}</span>}
                     {pass.reqType === 'dual_category' && <span className="text-[10px] text-yellow-500">Dual</span>}
+                    {pass.reqType === 'list' && <span className="text-[10px] text-blue-400">List</span>}
                   </div>
                   <div className="flex justify-between items-end">
                      <p className="text-xs text-gray-300 leading-tight font-medium">{pass.name}</p>
@@ -839,11 +835,12 @@ export default function App() {
           {isMyTurn && selectedCardType === 'tracks' && (
             <div className="flex justify-center items-center gap-4 py-2 border-b border-gray-800 bg-gray-800/50">
                {/* PREVIEW COMPONENT */}
-               <TrackPreview 
+               <TrackSvg 
                  shape={player.hand.tracks[selectedCardIdx]?.shape} 
                  rotation={rotation} 
                  color={player.color} 
                />
+               <div className="w-10"></div> {/* Spacer for alignment */}
               <button 
                 onClick={() => setRotation((r) => (r + 90) % 360)}
                 className="flex items-center gap-2 px-6 py-2 bg-blue-600 rounded-full font-bold shadow-lg active:scale-95 transition-transform"
