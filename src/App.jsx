@@ -534,29 +534,45 @@ export default function App() {
     const grid = gameState.grid;
     if (grid[y][x] !== null) { alert("Space occupied"); return; }
 
-    // --- CONNECTIVITY CHECK ---
-    let connected = false;
+    // --- NEW VALIDATION LOGIC ---
+    // Create a mock of the card as if it were placed
+    const candidateCell = {
+      ...card,
+      owner: player.color,
+      rotation: rotation,
+      type: card.type,
+      isStart: false // Ensure it's not treated as Start
+    };
+
+    let validConnectionFound = false;
     const neighbors = [0,1,2,3].map(d => getNeighborCoords(x, y, d));
     
     neighbors.forEach((n, dir) => {
-      if (isStart(n.x, n.y)) {
-        connected = true;
-      }
+      const neighborCell = getCell(grid, n.x, n.y);
+      const isNeighborStart = isStart(n.x, n.y);
       
-      const cell = getCell(grid, n.x, n.y);
-      if (cell) {
-        if (cell.type === 'track' && cell.owner === player.color) {
-           connected = true;
-        }
-        // Allow building off ANY connected landmark (Pass-through logic)
-        if (cell.type === 'landmark' && cell.connections && cell.connections[player.color] > 0) {
-          connected = true;
-        }
+      // Determine if we can technically connect to this neighbor (ownership/rules)
+      let canConnectToNeighbor = false;
+      if (isNeighborStart) canConnectToNeighbor = true;
+      else if (neighborCell) {
+        if (neighborCell.type === 'track' && neighborCell.owner === player.color) canConnectToNeighbor = true;
+        // Allow connecting if we are already connected to this landmark
+        if (neighborCell.type === 'landmark' && neighborCell.connections && neighborCell.connections[player.color] > 0) canConnectToNeighbor = true;
+      }
+
+      if (canConnectToNeighbor) {
+         // Create a standardized object for the neighbor to check alignment
+         const targetObj = isNeighborStart ? { isStart: true, type: 'start' } : neighborCell;
+         
+         // Check if physical exits align
+         if (areConnected(candidateCell, targetObj, dir)) {
+           validConnectionFound = true;
+         }
       }
     });
 
-    if (!connected) {
-      alert("Must connect to your existing tracks, a Landmark you've entered, or City Hall.");
+    if (!validConnectionFound) {
+      alert("Invalid placement! Tracks must physically connect to your network (align exits).");
       return;
     }
 
@@ -728,7 +744,7 @@ export default function App() {
 
   const Board = ({ interactive }) => (
     <div 
-      className="grid gap-[1px] bg-gray-800 p-1 rounded-lg shadow-2xl overflow-hidden select-none mx-auto"
+      className="grid gap-[1px] bg-gray-700 p-1 rounded-lg shadow-2xl overflow-hidden select-none mx-auto"
       style={{ 
         gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
         width: '100%',
