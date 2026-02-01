@@ -828,7 +828,7 @@ export default function App() {
         maxWidth: isMobile ? 'none' : '1000px', // Bigger for Host
         minWidth: isMobile ? '1200px' : 'auto', // Force scroll on mobile
         maxHeight: isMobile ? 'none' : '90vh',
-        touchAction: 'none' // Prevent zooming logic interference
+        // REMOVED: touchAction: 'none'
       }}
     >
       {gameState.grid.map((row, y) => (
