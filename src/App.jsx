@@ -232,21 +232,21 @@ const GameCard = ({ data, selected, onClick, type }) => {
   return (
     <div 
       onClick={onClick}
-      className={`relative w-20 h-28 md:w-24 md:h-32 rounded-lg border-2 flex flex-col items-center justify-center p-1 cursor-pointer transition-all shadow-md
+      className={`relative w-16 h-24 md:w-24 md:h-32 rounded-lg border-2 flex flex-col items-center justify-center p-1 cursor-pointer transition-all shadow-md shrink-0
         ${selected ? 'border-yellow-400 -translate-y-2 shadow-yellow-500/50' : 'border-gray-600 bg-gray-800 hover:border-gray-400'}
         ${type === 'track' ? 'bg-slate-800' : 'bg-indigo-900'}
       `}
     >
       {type === 'track' && (
         <>
-          <div className="text-xs text-gray-400 mb-2 uppercase font-bold">{data.shape}</div>
-          <div className="w-12 h-12 border border-gray-600 rounded flex items-center justify-center bg-gray-900">
+          <div className="text-[10px] md:text-xs text-gray-400 mb-1 md:mb-2 uppercase font-bold text-center truncate w-full">{data.shape}</div>
+          <div className="w-8 h-8 md:w-12 md:h-12 border border-gray-600 rounded flex items-center justify-center bg-gray-900">
              {/* Visual representation of track shape */}
-             {data.shape === 'straight' && <div className="w-2 h-full bg-gray-400"></div>}
-             {data.shape === 'curved' && <div className="w-6 h-6 border-r-4 border-b-4 border-gray-400 rounded-br-full -translate-x-1 -translate-y-1"></div>}
+             {data.shape === 'straight' && <div className="w-1.5 md:w-2 h-full bg-gray-400"></div>}
+             {data.shape === 'curved' && <div className="w-4 h-4 md:w-6 md:h-6 border-r-4 border-b-4 border-gray-400 rounded-br-full -translate-x-0.5 -translate-y-0.5"></div>}
              {data.shape === 't-shape' && <div className="w-full h-full flex items-center justify-center relative">
-               <div className="absolute top-0 bottom-0 w-2 bg-gray-400"></div>
-               <div className="absolute right-0 top-1/2 w-1/2 h-2 bg-gray-400 -translate-y-1/2"></div>
+               <div className="absolute top-0 bottom-0 w-1.5 md:w-2 bg-gray-400"></div>
+               <div className="absolute right-0 top-1/2 w-1/2 h-1.5 md:h-2 bg-gray-400 -translate-y-1/2"></div>
              </div>}
           </div>
         </>
@@ -254,29 +254,12 @@ const GameCard = ({ data, selected, onClick, type }) => {
 
       {type === 'landmark' && (
         <>
-          <div className="absolute top-1 right-1 text-gray-500">
+          <div className="absolute top-1 right-1 text-gray-500 scale-75 md:scale-100">
              {CATEGORIES[data.category?.toUpperCase()]?.icon}
           </div>
-          <div className="text-[10px] text-center font-bold text-white leading-tight mt-2">{data.name}</div>
-          <div className="text-[9px] text-gray-400 mt-1">{CATEGORIES[data.category?.toUpperCase()]?.label}</div>
+          <div className="text-[8px] md:text-[10px] text-center font-bold text-white leading-tight mt-2 line-clamp-2">{data.name}</div>
+          <div className="text-[8px] md:text-[9px] text-gray-400 mt-1">{CATEGORIES[data.category?.toUpperCase()]?.label}</div>
         </>
-      )}
-
-      {type === 'passenger' && (
-        <div className="h-full flex flex-col justify-between p-1 w-full">
-           <div className="flex justify-between items-start">
-             <User size={14} className="text-blue-300" />
-             <span className="font-bold text-yellow-400 text-sm">{data.points}pt</span>
-           </div>
-           <div className="text-[10px] text-center font-medium leading-tight my-1 text-white">
-             {data.desc}
-           </div>
-           {data.reqType === 'category' && (
-             <div className="self-center text-gray-400">
-               {CATEGORIES[data.targetCategory?.toUpperCase()]?.icon}
-             </div>
-           )}
-        </div>
       )}
     </div>
   );
@@ -292,7 +275,7 @@ const Cell = ({ x, y, cellData, onClick, isValidTarget, ghost }) => {
   let borderClass = "border-gray-800";
 
   if (isCenter) {
-    content = <div className="flex flex-col items-center justify-center h-full w-full bg-white text-black font-bold text-[8px] md:text-xs z-10 text-center leading-none">CITY HALL</div>;
+    content = <div className="flex flex-col items-center justify-center h-full w-full bg-white text-black font-bold text-[6px] md:text-[10px] z-10 text-center leading-none">CITY HALL</div>;
     bgClass = "bg-white";
   } else if (cellData?.type === 'track') {
     // Determine color class
@@ -320,9 +303,9 @@ const Cell = ({ x, y, cellData, onClick, isValidTarget, ghost }) => {
     );
   } else if (cellData?.type === 'landmark') {
     content = (
-      <div className="w-full h-full bg-gray-200 flex flex-col items-center justify-center p-1 border-2 border-white shadow-inner">
-         <div className="text-black">{CATEGORIES[cellData.category?.toUpperCase()]?.icon}</div>
-         <div className="text-[6px] md:text-[8px] text-black font-bold text-center leading-none mt-1 break-words w-full overflow-hidden">{cellData.name}</div>
+      <div className="w-full h-full bg-gray-200 flex flex-col items-center justify-center p-0.5 border-2 border-white shadow-inner">
+         <div className="text-black scale-75 md:scale-100">{CATEGORIES[cellData.category?.toUpperCase()]?.icon}</div>
+         <div className="text-[5px] md:text-[8px] text-black font-bold text-center leading-none mt-0.5 break-words w-full overflow-hidden">{cellData.name}</div>
       </div>
     );
   } else if (ghost) {
@@ -333,7 +316,7 @@ const Cell = ({ x, y, cellData, onClick, isValidTarget, ghost }) => {
   return (
     <div 
       onClick={() => onClick(x, y)}
-      className={`w-full h-full aspect-square border ${borderClass} ${bgClass} relative flex items-center justify-center overflow-hidden cursor-pointer hover:bg-opacity-90 transition-colors`}
+      className={`w-full h-full aspect-square border ${borderClass} ${bgClass} relative flex items-center justify-center overflow-hidden cursor-pointer hover:bg-opacity-90 transition-colors touch-manipulation`}
     >
       {content}
     </div>
@@ -344,7 +327,11 @@ const Cell = ({ x, y, cellData, onClick, isValidTarget, ghost }) => {
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [roomId, setRoomId] = useState("");
+  
+  // Separation of "Entry Code" (input) and "Active Room" (connected)
+  const [entryCode, setEntryCode] = useState(""); 
+  const [activeRoomId, setActiveRoomId] = useState(""); 
+  
   const [playerName, setPlayerName] = useState("");
   const [gameState, setGameState] = useState(null);
   const [view, setView] = useState('home'); // home, lobby, host, player
@@ -371,9 +358,10 @@ export default function App() {
 
   // Sync Game Data
   useEffect(() => {
-    if (!user || !roomId) return;
-    // Updated path to include 'games' collection
-    const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'games', roomId), (docSnap) => {
+    if (!user || !activeRoomId) return;
+    
+    // Listen ONLY when activeRoomId is set
+    const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         if (typeof data.grid === 'string') data.grid = JSON.parse(data.grid);
@@ -392,7 +380,7 @@ export default function App() {
       }
     }, (err) => console.error("Sync error", err));
     return () => unsub();
-  }, [user, roomId]);
+  }, [user, activeRoomId]);
 
   // --- ACTIONS ---
 
@@ -421,43 +409,61 @@ export default function App() {
       winner: null
     };
 
-    // Updated path to include 'games' collection
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', newRoomId), initialData);
-    setRoomId(newRoomId);
+    
+    // Use the new room ID for display and connection
+    setEntryCode(newRoomId);
+    setActiveRoomId(newRoomId);
   };
 
   const joinGame = async () => {
-    if (!roomId || !playerName || !user) return;
+    if (!entryCode || !playerName || !user) {
+      setError("Please enter a room code and your name.");
+      return;
+    }
     
-    // Updated path to include 'games' collection
-    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', roomId);
-    // Transaction to safely add player
-    await runTransaction(db, async (transaction) => {
-      const roomDoc = await transaction.get(roomRef);
-      if (!roomDoc.exists()) throw "Room does not exist";
-      
-      const data = roomDoc.data();
-      if (data.status !== 'lobby') throw "Game already started";
-      if (data.players.length >= 4) throw "Room full";
-      if (data.players.find(p => p.id === user.uid)) return; // Already joined
+    const codeToJoin = entryCode.toUpperCase();
+    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', codeToJoin);
+    
+    try {
+      await runTransaction(db, async (transaction) => {
+        const roomDoc = await transaction.get(roomRef);
+        if (!roomDoc.exists()) throw "Room does not exist";
+        
+        const data = roomDoc.data();
+        if (data.status !== 'lobby') throw "Game already started";
+        if (data.players.length >= 4) throw "Room full";
+        if (data.players.find(p => p.id === user.uid)) return; // Already joined logic handled below
 
-      const newPlayer = {
-        id: user.uid,
-        name: playerName,
-        color: COLORS[data.players.length],
-        score: 0,
-        hand: {
-          tracks: [],
-          landmarks: []
-        },
-        completedPassengers: []
-      };
+        const newPlayer = {
+          id: user.uid,
+          name: playerName,
+          color: COLORS[data.players.length],
+          score: 0,
+          hand: {
+            tracks: [],
+            landmarks: []
+          },
+          completedPassengers: []
+        };
 
-      transaction.update(roomRef, {
-        players: arrayUnion(newPlayer)
+        transaction.update(roomRef, {
+          players: arrayUnion(newPlayer)
+        });
       });
-    });
-    setRoomId(roomId); // Triggers listener
+      
+      // Connection successful, NOW we start listening
+      setActiveRoomId(codeToJoin);
+      setError("");
+      
+    } catch (e) {
+      if (e === "Room does not exist") setError("Invalid Room Code");
+      else if (e === "Room full") setError("Room is full!");
+      else {
+        // If we are already in the room (e.g. re-joining), just connect
+        setActiveRoomId(codeToJoin);
+      }
+    }
   };
 
   const startGame = async () => {
@@ -470,19 +476,17 @@ export default function App() {
       return { ...p, hand: { tracks, landmarks } };
     });
 
-    // Updated path to include 'games' collection
-    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', roomId), {
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
       status: 'playing',
       players: updatedPlayers,
-      decks: gameState.decks // Update decks after dealing
+      decks: gameState.decks 
     });
   };
 
   const endTurn = async (newGrid, newPlayers, newDecks, newActivePassengers) => {
     const nextTurn = (gameState.turnIndex + 1) % gameState.players.length;
     
-    // Updated path to include 'games' collection
-    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', roomId), {
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
       grid: JSON.stringify(newGrid),
       players: newPlayers,
       decks: newDecks,
@@ -525,8 +529,6 @@ export default function App() {
     let connected = false;
     let validNeighbors = 0;
     
-    // For landmarks, check max 2 players logic roughly
-    // The rule is "connected to own color".
     const neighbors = [0,1,2,3].map(d => getNeighborCoords(x, y, d));
     
     neighbors.forEach((n, dir) => {
@@ -534,9 +536,6 @@ export default function App() {
       if (cell) {
         if (isStart(n.x, n.y)) connected = true;
         if (cell.type === 'track' && cell.owner === player.color) connected = true;
-        
-        // Complex connectivity: Should check if track exit aligns with this cell
-        // For simplified gameplay: adjacency of color is sufficient to allow placement
       }
     });
 
@@ -553,10 +552,6 @@ export default function App() {
         alert("Landmarks must be separated by at least 3 track segments of your color from City Hall or other Landmarks.");
         return;
       }
-      // Max 2 players rule (simplified: Check how many different colors surround this spot)
-      // Actually this rule applies when CONNECTING to a landmark. 
-      // But placement is also a connection.
-      // If we place here, we are the 1st connection. So it's always valid regarding the "Max 2" rule upon placement.
     }
 
     // EXECUTE MOVE
@@ -569,13 +564,9 @@ export default function App() {
     };
 
     // SCORING & PASSENGERS
-    // If placing a TRACK, check if it connects to a LANDMARK
-    // If placing a LANDMARK, check if it connects to ME (it does by definition of placement)
-    
     let pointsGained = 0;
     const completedPassengerIds = [];
     
-    // Function to check passenger satisfaction
     const checkPassengers = (landmarkCell) => {
       gameState.activePassengers.forEach(p => {
         if (completedPassengerIds.includes(p.id)) return;
@@ -594,35 +585,25 @@ export default function App() {
     if (card.type === 'landmark') {
       checkPassengers(newGrid[y][x]);
     } else {
-      // I placed a track. Did I touch a landmark?
       neighbors.forEach(n => {
         const cell = getCell(newGrid, n.x, n.y);
         if (cell && cell.type === 'landmark') {
-           // Check if I can connect (Max 2 rule)
            if (!cell.connectedColors.includes(player.color)) {
              if (cell.connectedColors.length < 2) {
                // Connect!
                cell.connectedColors.push(player.color);
                checkPassengers(cell);
-             } else {
-               // Cannot connect physically - logic would be to prevent placement if the ONLY connection is to a full landmark
-               // For simplicity, we allow placement but no scoring/connection if full
              }
-           } else {
-             // Already connected, no new scoring triggers usually, but maybe paths merged? 
-             // Simplification: only score on first connection
            }
         }
       });
     }
 
     // UPDATE STATE
-    // 1. Remove card from hand
     const newHand = { ...player.hand };
     if (selectedCardType === 'tracks') newHand.tracks.splice(selectedCardIdx, 1);
     else newHand.landmarks.splice(selectedCardIdx, 1);
     
-    // 2. Replenish Hand
     const newDecks = { ...gameState.decks };
     if (selectedCardType === 'tracks') {
        if (newDecks.tracks.length > 0) newHand.tracks.push(newDecks.tracks.pop());
@@ -630,7 +611,6 @@ export default function App() {
        if (newDecks.landmarks.length > 0) newHand.landmarks.push(newDecks.landmarks.pop());
     }
 
-    // 3. Update Passengers
     let newActivePassengers = [...gameState.activePassengers];
     if (completedPassengerIds.length > 0) {
       newActivePassengers = newActivePassengers.filter(p => !completedPassengerIds.includes(p.id));
@@ -639,7 +619,6 @@ export default function App() {
       }
     }
 
-    // 4. Update Player Score
     const newPlayers = [...gameState.players];
     newPlayers[playerIdx] = {
       ...player,
@@ -647,11 +626,8 @@ export default function App() {
       score: player.score + pointsGained
     };
 
-    // Check Win
     if (newPlayers[playerIdx].score >= 7) {
-       // Handle Win
        alert(`${player.name} WINS!`);
-       // In a real app, set winner state
     }
 
     endTurn(newGrid, newPlayers, newDecks, newActivePassengers);
@@ -662,34 +638,35 @@ export default function App() {
   if (view === 'home') {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans p-4">
-        <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-green-500 to-blue-500 mb-8 tracking-tighter">
+        <h1 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-green-500 to-blue-500 mb-8 tracking-tighter text-center">
           MIND THE GAP
         </h1>
-        <div className="flex gap-4">
-          <button onClick={createGame} className="px-8 py-4 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-xl shadow-lg transition-transform hover:scale-105 flex items-center gap-2">
-            <Crown size={24}/> Host Game
+        <div className="flex flex-col md:flex-row gap-4 w-full max-w-md">
+          <button onClick={createGame} className="px-8 py-4 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-xl shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 w-full md:w-auto">
+            <Crown size={24}/> Host
           </button>
-          <div className="flex flex-col gap-2">
+          
+          <div className="flex flex-col gap-2 w-full">
             <input 
               type="text" 
               placeholder="Room Code" 
-              className="px-4 py-2 rounded bg-gray-800 border border-gray-700 focus:border-blue-500 outline-none text-center uppercase tracking-widest"
-              value={roomId}
-              onChange={e => setRoomId(e.target.value.toUpperCase())}
+              className="px-4 py-2 rounded bg-gray-800 border border-gray-700 focus:border-blue-500 outline-none text-center uppercase tracking-widest w-full"
+              value={entryCode}
+              onChange={e => setEntryCode(e.target.value.toUpperCase())}
             />
             <input 
               type="text" 
               placeholder="Your Name" 
-              className="px-4 py-2 rounded bg-gray-800 border border-gray-700 focus:border-blue-500 outline-none text-center"
+              className="px-4 py-2 rounded bg-gray-800 border border-gray-700 focus:border-blue-500 outline-none text-center w-full"
               value={playerName}
               onChange={e => setPlayerName(e.target.value)}
             />
-            <button onClick={joinGame} className="px-8 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-bold shadow-lg transition-transform hover:scale-105">
+            <button onClick={joinGame} className="px-8 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-bold shadow-lg transition-transform hover:scale-105 w-full">
               Join Game
             </button>
           </div>
         </div>
-        {error && <p className="text-red-500 mt-4">{error}</p>}
+        {error && <p className="text-red-500 mt-4 font-bold bg-red-900/20 px-4 py-2 rounded">{error}</p>}
       </div>
     );
   }
@@ -698,7 +675,7 @@ export default function App() {
     const isHost = gameState?.hostId === user.uid;
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4">
-        <h2 className="text-4xl font-bold mb-2">Lobby: {roomId}</h2>
+        <h2 className="text-4xl font-bold mb-2">Lobby: {activeRoomId}</h2>
         <p className="text-gray-400 mb-8">Waiting for players...</p>
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -724,23 +701,23 @@ export default function App() {
             START GAME
           </button>
         ) : (
-          <p className="animate-pulse text-xl font-medium">Host will start the game soon...</p>
+          <p className="animate-pulse text-xl font-medium text-center">Host will start the game soon...</p>
         )}
       </div>
     );
   }
 
   // --- GAME BOARD RENDERER ---
-  // Shared between host and player, but formatted differently
-  
   const Board = ({ interactive }) => (
     <div 
-      className="grid gap-[1px] bg-gray-800 p-1 rounded-lg shadow-2xl overflow-hidden select-none"
+      className="grid gap-[1px] bg-gray-800 p-1 rounded-lg shadow-2xl overflow-hidden select-none mx-auto"
       style={{ 
         gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
+        // Keep it square, max width is responsive
+        width: '100%',
         aspectRatio: '1/1',
-        maxWidth: interactive ? '100%' : '80vh',
-        width: '100%'
+        maxWidth: '800px',
+        maxHeight: '75vh' 
       }}
     >
       {gameState.grid.map((row, y) => (
@@ -760,43 +737,51 @@ export default function App() {
 
   if (view === 'host') {
     return (
-      <div className="min-h-screen bg-gray-950 text-white flex flex-col md:flex-row p-4 gap-4">
-        {/* Left: Scoreboard & Passengers */}
-        <div className="w-full md:w-1/4 flex flex-col gap-4">
-          <div className="bg-gray-900 p-4 rounded-xl shadow-lg border border-gray-800">
-            <h3 className="text-xl font-bold text-gray-400 mb-4 flex items-center gap-2"><Trophy size={20}/> Standings</h3>
-            <div className="space-y-3">
+      <div className="h-screen bg-gray-950 text-white flex p-2 gap-2 overflow-hidden">
+        {/* Left: Stats Sidebar */}
+        <div className="w-1/4 max-w-sm flex flex-col gap-2 h-full">
+          {/* Room Code */}
+          <div className="bg-gray-800 p-2 rounded text-center">
+             <div className="text-xs text-gray-400 uppercase">Room Code</div>
+             <div className="text-2xl font-black tracking-widest">{activeRoomId}</div>
+          </div>
+
+          <div className="bg-gray-900 p-3 rounded-xl shadow-lg border border-gray-800 flex-shrink-0">
+            <h3 className="text-lg font-bold text-gray-400 mb-2 flex items-center gap-2"><Trophy size={16}/> Scores</h3>
+            <div className="space-y-2">
               {gameState.players.map((p, i) => (
-                <div key={i} className={`flex items-center justify-between p-3 rounded-lg ${gameState.turnIndex === i ? 'bg-gray-800 ring-2 ring-white' : 'bg-gray-800/50'}`}>
-                  <div className="flex items-center gap-3">
-                    <div className={`w-4 h-4 rounded-full bg-${p.color}-500`}></div>
-                    <span className="font-bold">{p.name}</span>
+                <div key={i} className={`flex items-center justify-between p-2 rounded-lg ${gameState.turnIndex === i ? 'bg-gray-800 ring-1 ring-white' : 'bg-gray-800/50'}`}>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-full bg-${p.color}-500`}></div>
+                    <span className="font-bold text-sm truncate max-w-[80px]">{p.name}</span>
                   </div>
-                  <span className="text-2xl font-black">{p.score}/7</span>
+                  <span className="text-lg font-black">{p.score}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="bg-gray-900 p-4 rounded-xl shadow-lg border border-gray-800 flex-1">
-            <h3 className="text-xl font-bold text-gray-400 mb-4 flex items-center gap-2"><Users size={20}/> Passengers</h3>
-            <div className="grid grid-cols-1 gap-3">
+          <div className="bg-gray-900 p-3 rounded-xl shadow-lg border border-gray-800 flex-1 overflow-auto">
+            <h3 className="text-lg font-bold text-gray-400 mb-2 flex items-center gap-2"><Users size={16}/> Passengers</h3>
+            <div className="space-y-2">
               {gameState.activePassengers.map(pass => (
-                <div key={pass.id} className="bg-gray-800 p-3 rounded-lg flex flex-col gap-1 border border-gray-700">
-                  <div className="flex justify-between">
-                    <span className="font-bold text-yellow-400">{pass.points} PTS</span>
-                    {pass.reqType === 'category' && CATEGORIES[pass.targetCategory?.toUpperCase()]?.icon}
+                <div key={pass.id} className="bg-gray-800 p-2 rounded-lg flex flex-col gap-1 border border-gray-700">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-yellow-400 text-sm">{pass.points} PTS</span>
+                    {pass.reqType === 'category' && <span className="scale-75">{CATEGORIES[pass.targetCategory?.toUpperCase()]?.icon}</span>}
                   </div>
-                  <p className="text-sm text-gray-300">{pass.desc}</p>
+                  <p className="text-xs text-gray-300 leading-tight">{pass.desc}</p>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Center: The Map */}
-        <div className="flex-1 flex items-center justify-center bg-gray-900 rounded-xl p-4 overflow-hidden">
-           <Board interactive={false} />
+        {/* Center: The Map - Maximized */}
+        <div className="flex-1 flex items-center justify-center bg-gray-900 rounded-xl overflow-hidden relative">
+           <div className="absolute inset-2 flex items-center justify-center">
+              <Board interactive={false} />
+           </div>
         </div>
       </div>
     );
@@ -807,43 +792,46 @@ export default function App() {
     const isMyTurn = gameState.players[gameState.turnIndex].id === user.uid;
 
     return (
-      <div className="min-h-screen bg-gray-950 text-white flex flex-col">
-        {/* Top Bar */}
-        <div className="h-14 bg-gray-900 flex items-center justify-between px-4 border-b border-gray-800 shrink-0">
+      <div className="h-[100dvh] bg-gray-950 text-white flex flex-col overflow-hidden">
+        {/* Top Bar - Compact */}
+        <div className="h-12 bg-gray-900 flex items-center justify-between px-3 border-b border-gray-800 shrink-0">
           <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full bg-${player.color}-500`}></div>
-            <span className="font-bold">{player.name}</span>
+            <div className={`w-3 h-3 rounded-full bg-${player.color}-500 shadow-[0_0_8px_currentColor]`}></div>
+            <span className="font-bold truncate max-w-[100px]">{player.name}</span>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-400">Score: <span className="text-white font-bold">{player.score}</span></span>
-            {isMyTurn && <span className="px-2 py-1 bg-green-900 text-green-400 text-xs font-bold rounded animate-pulse">YOUR TURN</span>}
+          <div className="flex items-center gap-3">
+             <div className="flex flex-col items-end leading-none">
+                <span className="text-[10px] text-gray-400">SCORE</span>
+                <span className="text-lg font-black text-white">{player.score}</span>
+             </div>
+             {isMyTurn && <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>}
           </div>
         </div>
 
         {/* Middle: Map (Scrollable) */}
-        <div className="flex-1 overflow-auto p-4 flex items-start justify-center">
+        <div className="flex-1 overflow-auto p-2 flex items-center justify-center bg-black/20">
            <Board interactive={isMyTurn} />
         </div>
 
-        {/* Bottom: Hand & Controls */}
-        <div className="bg-gray-900 border-t border-gray-800 p-2 shrink-0 pb-6 safe-area-pb">
-          {/* Controls */}
+        {/* Bottom: Controls & Hand - Fixed height area */}
+        <div className="bg-gray-900 border-t border-gray-800 shrink-0 flex flex-col safe-area-pb">
+          {/* Controls Bar */}
           {isMyTurn && selectedCardType === 'tracks' && (
-            <div className="flex justify-center mb-2">
+            <div className="flex justify-center py-2 border-b border-gray-800 bg-gray-800/50">
               <button 
                 onClick={() => setRotation((r) => (r + 90) % 360)}
                 className="flex items-center gap-2 px-6 py-2 bg-blue-600 rounded-full font-bold shadow-lg active:scale-95 transition-transform"
               >
-                <RotateCw size={18} /> Rotate ({rotation}°)
+                <RotateCw size={18} /> Rotate <span className="text-blue-200">({rotation}°)</span>
               </button>
             </div>
           )}
 
-          {/* Hand Cards */}
-          <div className="flex gap-2 overflow-x-auto px-2 py-2">
+          {/* Hand Cards - Horizontally scrollable */}
+          <div className="flex gap-1 overflow-x-auto p-2 pb-4 no-scrollbar">
             {player.hand.tracks.map((card, i) => (
               <GameCard 
-                key={i} 
+                key={`t-${i}`} 
                 data={card} 
                 type="track"
                 selected={selectedCardType === 'tracks' && selectedCardIdx === i}
@@ -855,10 +843,10 @@ export default function App() {
                 }}
               />
             ))}
-            <div className="w-px bg-gray-700 mx-1 shrink-0"></div>
+            <div className="w-px bg-gray-700 mx-1 shrink-0 self-stretch my-2"></div>
             {player.hand.landmarks.map((card, i) => (
               <GameCard 
-                key={i} 
+                key={`l-${i}`} 
                 data={card} 
                 type="landmark"
                 selected={selectedCardType === 'landmarks' && selectedCardIdx === i}
