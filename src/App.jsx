@@ -10,7 +10,7 @@ import {
 import { 
   Train, Map, Users, RotateCw, CheckCircle, 
   AlertCircle, Trophy, Coffee, Landmark, Trees, 
-  ShoppingBag, Zap, Crown, Play, User, Music, Volume2, VolumeX, Link as LinkIcon, RefreshCw
+  ShoppingBag, Zap, Crown, Play, User, Music, Volume2, VolumeX, Link as LinkIcon, RefreshCw, Star
 } from 'lucide-react';
 
 // --- FIREBASE CONFIGURATION ---
@@ -322,9 +322,10 @@ const Cell = ({ x, y, cellData, onClick, view }) => {
   const isHost = view === 'host';
   
   let content = null;
-  // Host view gets transparent background to show map, player view gets dark contrast
-  let bgClass = isHost ? (cellData ? "bg-transparent" : "bg-black/10") : "bg-black/40 backdrop-blur-[2px]";
-  let borderClass = isHost ? "border-gray-500/30" : "border-gray-700";
+  // Host: Transparent background to show map, NO borders.
+  // Player: Dark contrast with borders.
+  let bgClass = isHost ? (cellData ? "bg-transparent" : "bg-transparent") : "bg-black/40 backdrop-blur-[2px]";
+  let borderClass = isHost ? "border-0" : "border border-gray-700";
   const colorDotMap = { red: 'bg-red-500', blue: 'bg-blue-500', green: 'bg-green-500', yellow: 'bg-yellow-400' };
 
   if (isCenter) {
@@ -349,7 +350,7 @@ const Cell = ({ x, y, cellData, onClick, view }) => {
   return (
     <div 
       onClick={() => onClick(x, y)}
-      className={`w-full h-full aspect-square border ${borderClass} ${bgClass} relative flex items-center justify-center overflow-hidden cursor-pointer hover:bg-white/10 transition-colors touch-manipulation`}
+      className={`w-full h-full aspect-square ${borderClass} ${bgClass} relative flex items-center justify-center overflow-hidden cursor-pointer hover:bg-white/10 transition-colors touch-manipulation`}
     >
       {content}
     </div>
@@ -415,11 +416,54 @@ const WinnerModal = ({ winner, onRestart }) => {
   );
 };
 
+// --- NOTIFICATION OVERLAY ---
+const NotificationOverlay = ({ event }) => {
+  const [visible, setVisible] = useState(false);
+  
+  useEffect(() => {
+    if (event && (Date.now() - event.timestamp < 5000)) {
+      setVisible(true);
+      const timer = setTimeout(() => setVisible(false), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [event]);
+
+  if (!visible || !event || event.type !== 'claim') return null;
+
+  return (
+    <div className="fixed top-10 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-10 fade-in duration-500">
+      <div className="bg-white text-gray-900 px-8 py-6 rounded-2xl shadow-2xl border-4 border-yellow-400 flex flex-col items-center gap-2 max-w-lg w-full">
+        <div className="flex items-center gap-2 text-yellow-600 font-black uppercase tracking-widest text-sm">
+          <Star size={20} className="fill-current" /> Passenger Claimed! <Star size={20} className="fill-current" />
+        </div>
+        <div className="text-center">
+          <span className={`text-${event.playerColor}-600 font-black text-3xl`}>{event.playerName}</span>
+          <span className="text-gray-600 font-bold text-xl mx-2">picked up</span>
+        </div>
+        <div className="text-2xl font-black font-serif text-center leading-tight">
+          {event.passengerNames.join(" & ")}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- AUDIO PLAYER ---
 const playSound = (type) => {
-  const audio = new Audio(`/sounds/${type}.mp3`);
-  audio.volume = 0.5;
-  audio.play().catch(e => console.log("Audio play failed", e));
+  // Map internal types to user specific filenames
+  const soundFileMap = {
+    'place-track': 'place-track.m4a',
+    'place-landmark': 'place-landmark.m4a',
+    'claim-passenger': 'claim-passenger.m4a',
+    'win-game': 'win-game.mp3'
+  };
+  
+  const file = soundFileMap[type];
+  if (file) {
+    const audio = new Audio(`/${file}`);
+    audio.volume = 0.5;
+    audio.play().catch(e => console.log("Audio play failed", e));
+  }
 };
 
 const AudioPlayer = ({ view }) => {
@@ -507,7 +551,8 @@ export default function App() {
       turnIndex: 0,
       decks: { tracks: generateTrackDeck(), landmarks, passengers },
       activePassengers,
-      winner: null
+      winner: null,
+      lastEvent: null
     };
 
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', newRoomId), initialData);
@@ -661,7 +706,8 @@ export default function App() {
     const newGrid = [...grid];
     newGrid[y][x] = { ...card, owner: player.color, rotation, connectedColors: card.type === 'track' ? [player.color] : [] };
     
-    playSound('place');
+    // PLAY PLACEMENT SOUND
+    playSound(card.type === 'track' ? 'place-track' : 'place-landmark');
 
     // --- SCORING ---
     let pointsGained = 0;
@@ -702,12 +748,11 @@ export default function App() {
     refreshConnections();
 
     // Check Passengers
+    const claimedPassengerNames = [];
     const checkPassenger = (p) => {
       if (completedPassengerIds.includes(p.id)) return false;
       let match = false;
       
-      // Need to find the actual landmark objects to check categories
-      // We iterate grid to find landmarks that match IDs in playerConnectedLandmarks
       const myLandmarks = [];
       newGrid.forEach(r => r.forEach(c => {
         if(c && c.type === 'landmark' && playerConnectedLandmarks.has(c.id)) myLandmarks.push(c);
@@ -734,13 +779,26 @@ export default function App() {
       if (match) {
         pointsGained += p.points;
         completedPassengerIds.push(p.id);
+        claimedPassengerNames.push(p.name);
         return true;
       }
       return false;
     };
 
     gameState.activePassengers.forEach(checkPassenger);
-    if (pointsGained > 0) playSound('success');
+    
+    // Handle Claim Events
+    let lastEvent = null;
+    if (pointsGained > 0) {
+      playSound('claim-passenger');
+      lastEvent = {
+        type: 'claim',
+        playerColor: player.color,
+        playerName: player.name,
+        passengerNames: claimedPassengerNames,
+        timestamp: Date.now()
+      };
+    }
 
     // Update Hands
     const newHand = { ...player.hand };
@@ -760,25 +818,20 @@ export default function App() {
         newActivePassengers.push(nextPass);
         
         // IMMEDIATE TIE BREAKER CHECK FOR NEW CARD
-        // Does anyone satisfy this immediately?
         const potentialWinners = gameState.players.map(pl => {
-           // Need to rebuild their connected landmarks set from grid
            const pLandmarks = new Set();
            newGrid.forEach(r => r.forEach(c => {
              if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) pLandmarks.add(c.id);
            }));
-           // Reuse check logic (simplified for specific targets primarily)
            if (nextPass.reqType === 'specific' && pLandmarks.has(nextPass.targetId)) return pl;
            return null;
         }).filter(Boolean);
 
         if (potentialWinners.length > 0) {
-           // Find closest to City Hall
            let bestPlayer = null;
            let minDist = Infinity;
            
            potentialWinners.forEach(winner => {
-             // Find target coords
              let tx, ty;
              newGrid.forEach((r,y) => r.forEach((c,x) => { if(c?.id === nextPass.targetId) { tx=x; ty=y; }}));
              const dist = getDistanceToStart(newGrid, tx, ty, winner.color);
@@ -801,17 +854,18 @@ export default function App() {
     let winner = null;
     if (newPlayers[playerIdx].score >= 7) {
        winner = newPlayers[playerIdx];
-       playSound('win');
+       playSound('win-game');
     }
 
-    endTurn(newGrid, newPlayers, newDecks, newActivePassengers, winner);
+    endTurn(newGrid, newPlayers, newDecks, newActivePassengers, winner, lastEvent);
   };
 
-  const endTurn = async (newGrid, newPlayers, newDecks, newActivePassengers, winner) => {
+  const endTurn = async (newGrid, newPlayers, newDecks, newActivePassengers, winner, lastEvent) => {
     const nextTurn = (gameState.turnIndex + 1) % gameState.players.length;
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
       grid: JSON.stringify(newGrid), players: newPlayers, decks: newDecks,
-      activePassengers: newActivePassengers, turnIndex: nextTurn, winner: winner || null
+      activePassengers: newActivePassengers, turnIndex: nextTurn, winner: winner || null,
+      lastEvent: lastEvent || gameState.lastEvent // Keep old event if no new one
     });
     setSelectedCardIdx(null);
     setSelectedCardType(null);
@@ -883,7 +937,7 @@ export default function App() {
 
   const Board = ({ interactive, isMobile }) => (
     <div 
-      className="grid gap-[1px] bg-black/10 p-1 rounded-lg shadow-2xl overflow-hidden select-none mx-auto relative border border-gray-600/30 backdrop-blur-sm"
+      className={`grid ${isMobile ? 'gap-[1px]' : 'gap-0'} bg-black/10 p-1 rounded-lg shadow-2xl overflow-hidden select-none mx-auto relative border border-gray-600/30 backdrop-blur-sm`}
       style={{ 
         backgroundImage: 'url(/city-map.jpg)', 
         backgroundSize: 'cover',
@@ -891,10 +945,9 @@ export default function App() {
         gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
         width: '100%',
         aspectRatio: '1/1',
-        maxWidth: isMobile ? 'none' : '1000px', // Bigger for Host
-        minWidth: isMobile ? '1200px' : 'auto', // Force scroll on mobile
+        maxWidth: isMobile ? 'none' : '1000px', 
+        minWidth: isMobile ? '1200px' : 'auto', 
         maxHeight: isMobile ? 'none' : '90vh',
-        // REMOVED: touchAction: 'none'
       }}
     >
       {gameState.grid.map((row, y) => (
@@ -909,6 +962,7 @@ export default function App() {
     return (
       <div className="h-screen bg-gray-950 text-white flex p-4 gap-4 overflow-hidden relative">
         <AudioPlayer view="host" />
+        <NotificationOverlay event={gameState.lastEvent} />
         <div className="w-1/4 max-w-sm flex flex-col gap-4 h-full z-10">
           <div className="bg-gray-800 p-3 rounded-lg text-center shadow-lg border border-gray-700">
              <div className="text-xs text-gray-400 uppercase tracking-widest">Room Code</div>
@@ -1002,6 +1056,7 @@ export default function App() {
     return (
       <div className="h-[100dvh] bg-gray-950 text-white flex flex-col overflow-hidden">
         <AudioPlayer view="player" />
+        <NotificationOverlay event={gameState.lastEvent} />
         <div className="bg-gray-900 border-b border-gray-800 shrink-0 z-20 shadow-md">
           <div className="h-14 flex items-center justify-between px-4">
             <div className="flex items-center gap-3">
@@ -1030,7 +1085,8 @@ export default function App() {
         </div>
 
         <div className="flex-1 overflow-auto bg-black/40 relative">
-           <div className="min-w-full min-h-full p-4 flex items-center justify-center">
+           {/* Mobile Scrolling Fix: inline-block allows left-right scroll without clipping */}
+           <div className="inline-block min-w-full min-h-full p-4">
              <Board interactive={isMyTurn} isMobile={true} />
            </div>
         </div>
