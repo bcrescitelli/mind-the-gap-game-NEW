@@ -12,7 +12,7 @@ import {
   AlertCircle, Trophy, Coffee, Landmark, Trees, 
   ShoppingBag, Zap, Crown, Play, User, Music, Volume2, VolumeX, 
   Link as LinkIcon, RefreshCw, Star, Ticket, Cone, Construction, Shuffle, Move, Repeat,
-  Plane, Banknote, Ghost, Heart, Smile, LogOut, X
+  Plane, Banknote, Ghost, Heart, Smile, LogOut, X, Check
 } from 'lucide-react';
 
 // --- FIREBASE CONFIGURATION ---
@@ -34,6 +34,7 @@ const appId = "mind-the-gap-v1";
 const GRID_SIZE = 19; 
 const CENTER = Math.floor(GRID_SIZE / 2); 
 const COLORS = ['red', 'blue', 'green', 'yellow'];
+const WIN_SCORE = 10; // Updated to 10
 
 // Categories
 const CATEGORIES = {
@@ -495,7 +496,9 @@ const playSound = (type) => {
     'place-track': 'place-track.m4a',
     'place-landmark': 'place-landmark.m4a',
     'claim-passenger': 'claim-passenger.m4a',
-    'win-game': 'win-game.mp3'
+    'win-game': 'win-game.mp3',
+    'select-track': 'select-track.m4a',
+    'rotate-track': 'rotate-track.m4a'
   };
   
   const file = soundFileMap[type];
@@ -509,11 +512,27 @@ const playSound = (type) => {
 const AudioPlayer = ({ view }) => {
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef(null);
+  const ambientRef = useRef(null);
 
   useEffect(() => {
     if (view === 'host' && audioRef.current) {
       audioRef.current.volume = 0.1; // Reduced background music volume
       audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+      
+      // Ambient Sound Loop (Continuous)
+      if (ambientRef.current) {
+          ambientRef.current.volume = 0.3; // Start low
+          ambientRef.current.play().catch(e => console.log("Ambient fail", e));
+          
+          // Random volume fluctuation
+          const fluctuate = () => {
+             if(ambientRef.current) {
+                 ambientRef.current.volume = Math.random() * 0.4 + 0.1; // 0.1 to 0.5
+                 setTimeout(fluctuate, Math.random() * 10000 + 5000);
+             }
+          };
+          fluctuate();
+      }
     }
   }, [view]);
 
@@ -522,9 +541,15 @@ const AudioPlayer = ({ view }) => {
   return (
     <div className="fixed bottom-4 right-4 z-50">
       <audio ref={audioRef} loop src="/mind-the-gap-theme.mp3" />
+      <audio ref={ambientRef} loop src="/city-ambience.mp3" />
       <button onClick={() => {
-        if(playing) audioRef.current.pause();
-        else audioRef.current.play();
+        if(playing) {
+            audioRef.current.pause();
+            ambientRef.current.pause();
+        } else {
+            audioRef.current.play();
+            ambientRef.current.play();
+        }
         setPlaying(!playing);
       }} className="p-2 bg-gray-800 text-white rounded-full shadow-lg border border-gray-600 hover:bg-gray-700 transition-colors">
         {playing ? <Volume2 size={24} /> : <VolumeX size={24} />}
@@ -558,7 +583,7 @@ const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, v
             onClick={interactive ? handlePlaceCard : () => {}} 
             view={view}
             isBlocked={gameState.blockedCells?.includes(`${x},${y}`)}
-            animateTrain={true} // Enable train animation on all tracks
+            animateTrain={true} 
           />
         ))
       ))}
@@ -570,6 +595,7 @@ export default function App() {
   const [entryCode, setEntryCode] = useState(""); 
   const [activeRoomId, setActiveRoomId] = useState(""); 
   const [playerName, setPlayerName] = useState("");
+  const [playerColor, setPlayerColor] = useState("red"); // Default
   const [gameState, setGameState] = useState(null);
   const [view, setView] = useState('home');
   const [error, setError] = useState("");
@@ -582,6 +608,7 @@ export default function App() {
   const [zoom, setZoom] = useState(1);
   const lastPinchDist = useRef(null);
   const lastPlayedEventTime = useRef(Date.now());
+  const [availableColors, setAvailableColors] = useState(COLORS);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -605,10 +632,23 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Session Restore
     const savedRoom = sessionStorage.getItem('mind_the_gap_room');
     if (savedRoom && !activeRoomId) setActiveRoomId(savedRoom);
   }, []);
+  
+  // Watch for available colors
+  useEffect(() => {
+    if (entryCode.length === 5) {
+       const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'games', entryCode.toUpperCase()), (docSnap) => {
+         if(docSnap.exists()) {
+             const data = docSnap.data();
+             const taken = data.players.map(p => p.color);
+             setAvailableColors(COLORS.filter(c => !taken.includes(c)));
+         }
+       });
+       return () => unsub();
+    }
+  }, [entryCode]);
 
   useEffect(() => {
     if (!user || !activeRoomId) return;
@@ -682,6 +722,7 @@ export default function App() {
 
   const joinGame = async () => {
     if (!entryCode || !playerName || !user) { setError("Please enter info."); return; }
+    if (!playerColor) { setError("Pick a color!"); return; }
     const codeToJoin = entryCode.toUpperCase();
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', codeToJoin);
     try {
@@ -692,8 +733,10 @@ export default function App() {
         if (data.status !== 'lobby') throw "Game already started";
         if (data.players.length >= 4) throw "Room full";
         if (data.players.find(p => p.id === user.uid)) return;
+        if (data.players.find(p => p.color === playerColor)) throw "Color taken";
+        
         const newPlayer = {
-          id: user.uid, name: playerName, color: COLORS[data.players.length],
+          id: user.uid, name: playerName, color: playerColor,
           score: 0, hand: { tracks: [], landmarks: [], metro: [] }, completedPassengers: []
         };
         transaction.update(roomRef, { players: arrayUnion(newPlayer) });
@@ -795,7 +838,7 @@ export default function App() {
       } else if (card.id === 'rezoning') { 
           const newDecks = { ...gameState.decks }; const newHand = { ...gameState.players[playerIdx].hand };
           newDecks.landmarks.push(...newHand.landmarks); 
-          newDecks.landmarks.sort(() => Math.random() - 0.5); // Shuffle
+          newDecks.landmarks.sort(() => Math.random() - 0.5); 
           newHand.landmarks = [];
           if(newDecks.landmarks.length >= 2) { newHand.landmarks.push(newDecks.landmarks.pop()); newHand.landmarks.push(newDecks.landmarks.pop()); }
           newHand.metro.splice(idx, 1);
@@ -900,7 +943,8 @@ export default function App() {
 
     const newGrid = [...grid];
     newGrid[y][x] = { ...card, owner: player.color, rotation, connectedColors: card.type === 'track' ? [player.color] : [] };
-    
+    playSound(card.type === 'track' ? 'place-track' : 'place-landmark');
+
     // SCORING
     let pointsGained = 0;
     const completedPassengerIds = [];
@@ -946,8 +990,12 @@ export default function App() {
     gameState.activePassengers.forEach(checkPassenger);
     
     let lastEvent = null;
-    if (pointsGained > 0) lastEvent = { type: 'claim-passenger', playerColor: player.color, playerName: player.name, passengerNames: claimedPassengerNames, timestamp: Date.now(), coords: { x, y } };
-    else lastEvent = { type: card.type === 'track' ? 'place-track' : 'place-landmark', playerColor: player.color, timestamp: Date.now() };
+    if (pointsGained > 0) {
+        lastEvent = { type: 'claim-passenger', playerColor: player.color, playerName: player.name, passengerNames: claimedPassengerNames, timestamp: Date.now(), coords: { x, y } };
+        playSound('claim-passenger');
+    } else {
+        lastEvent = { type: card.type === 'track' ? 'place-track' : 'place-landmark', playerColor: player.color, timestamp: Date.now() };
+    }
 
     // Update Hand
     const newHand = { ...player.hand };
@@ -974,7 +1022,11 @@ export default function App() {
     newPlayers[playerIdx] = { ...player, hand: newHand, score: player.score + pointsGained };
 
     let winner = null;
-    if (newPlayers[playerIdx].score >= 7) { winner = newPlayers[playerIdx]; lastEvent = { type: 'win-game', playerColor: player.color, playerName: player.name, timestamp: Date.now() }; }
+    if (newPlayers[playerIdx].score >= WIN_SCORE) { 
+        winner = newPlayers[playerIdx]; 
+        lastEvent = { type: 'win-game', playerColor: player.color, playerName: player.name, timestamp: Date.now() }; 
+        playSound('win-game');
+    }
 
     endTurn({ grid: JSON.stringify(newGrid), players: newPlayers, decks: newDecks, activePassengers: newActivePassengers }, winner, lastEvent);
   };
@@ -982,17 +1034,53 @@ export default function App() {
   if (view === 'home') {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans p-4 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('/city-map.jpg')] bg-cover opacity-20 blur-sm pointer-events-none"></div>
-        <h1 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-cal-sans">MIND THE GAP</h1>
-        <div className="flex flex-col md:flex-row gap-4 w-full max-w-md z-10 font-questrial">
-          <button onClick={createGame} className="px-8 py-4 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-xl shadow-lg flex items-center justify-center gap-2 w-full md:w-auto"><Crown size={24}/> Host</button>
-          <div className="flex flex-col gap-2 w-full">
-            <input type="text" placeholder="Room Code" className="px-4 py-2 rounded bg-gray-800 border border-gray-700 text-center uppercase w-full" value={entryCode} onChange={e => setEntryCode(e.target.value.toUpperCase())}/>
-            <input type="text" placeholder="Your Name" className="px-4 py-2 rounded bg-gray-800 border border-gray-700 text-center w-full" value={playerName} onChange={e => setPlayerName(e.target.value)}/>
-            <button onClick={joinGame} className="px-8 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-bold shadow-lg w-full">Join Game</button>
+        <h1 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-cal-sans">
+          MIND THE GAP
+        </h1>
+        <div className="flex flex-col gap-4 w-full max-w-md z-10 font-questrial">
+          <div className="flex flex-col gap-2 w-full bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
+            <h3 className="text-xl font-bold text-center mb-4 font-cal-sans">Join Room</h3>
+            <input 
+              type="text" placeholder="Room Code" 
+              className="px-4 py-2 rounded bg-gray-900 border border-gray-700 focus:border-blue-500 outline-none text-center uppercase tracking-widest w-full font-bold"
+              value={entryCode} onChange={e => setEntryCode(e.target.value.toUpperCase())}
+            />
+            
+            {entryCode.length === 5 && (
+                <div className="grid grid-cols-4 gap-2 my-2">
+                    {COLORS.map(c => (
+                        <button 
+                            key={c}
+                            onClick={() => setPlayerColor(c)}
+                            disabled={!availableColors.includes(c)}
+                            className={`h-10 rounded-lg transition-all ${playerColor === c ? 'ring-4 ring-white scale-105' : ''} ${!availableColors.includes(c) ? 'opacity-20 cursor-not-allowed' : 'hover:opacity-80'}`}
+                            style={{ backgroundColor: c === 'yellow' ? '#EAB308' : c === 'red' ? '#EF4444' : c === 'blue' ? '#3B82F6' : '#22C55E' }}
+                        >
+                            {playerColor === c && <Check size={20} className="mx-auto text-white drop-shadow-md" />}
+                        </button>
+                    ))}
+                </div>
+            )}
+            
+            <input 
+              type="text" placeholder="Your Name" 
+              className="px-4 py-2 rounded bg-gray-900 border border-gray-700 focus:border-blue-500 outline-none text-center w-full"
+              value={playerName} onChange={e => setPlayerName(e.target.value)}
+            />
+            <button onClick={joinGame} className="px-8 py-3 bg-green-600 hover:bg-green-500 rounded-lg font-bold shadow-lg w-full mt-2 transition-transform active:scale-95">Join Game</button>
           </div>
+          
+          <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-gray-700"></div>
+            <span className="flex-shrink mx-4 text-gray-500 text-xs uppercase">OR</span>
+            <div className="flex-grow border-t border-gray-700"></div>
+          </div>
+          
+          <button onClick={createGame} className="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-xl shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 w-full">
+            <Crown size={24}/> Create New Room
+          </button>
         </div>
-        {error && <p className="text-red-500 mt-4 font-bold bg-red-900/20 px-4 py-2 rounded z-10 font-questrial">{error}</p>}
+        {error && <p className="text-red-500 mt-4 font-bold bg-red-900/20 px-4 py-2 rounded z-10 font-questrial border border-red-500/50">{error}</p>}
       </div>
     );
   }
@@ -1019,7 +1107,6 @@ export default function App() {
         ) : (
           <p className="animate-pulse text-xl font-medium text-center font-questrial">Host will start the game soon...</p>
         )}
-        <button onClick={leaveGame} className="absolute top-4 right-4 p-2 bg-red-600/20 hover:bg-red-600 text-red-200 rounded-full z-50 transition-colors"><X size={20} /></button>
       </div>
     );
   }
@@ -1029,7 +1116,6 @@ export default function App() {
       <div className="h-screen bg-gray-950 text-white flex p-4 gap-4 overflow-hidden relative font-questrial">
         <AudioPlayer view="host" />
         <NotificationOverlay event={gameState.lastEvent} />
-        <button onClick={leaveGame} className="absolute top-4 right-4 p-2 bg-red-600/20 hover:bg-red-600 text-red-200 rounded-full z-50 transition-colors"><X size={20} /></button>
         <div className="w-1/4 max-w-sm flex flex-col gap-4 h-full z-10">
           <div className="bg-gray-800 p-3 rounded-lg text-center shadow-lg border border-gray-700">
              <div className="text-xs text-gray-400 uppercase tracking-widest">Room Code</div>
@@ -1056,7 +1142,11 @@ export default function App() {
             <div className="space-y-3">
               {gameState.activePassengers.map(pass => (
                 <div key={pass.id} className={`bg-white text-gray-900 p-4 rounded-xl shadow-xl flex flex-col gap-1 border-4 border-gray-200 relative overflow-hidden transform transition-all duration-300 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 scale-95 grayscale' : 'hover:scale-105'}`}>
-                  {gameState.totalTurns < pass.unlockTurn && <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10"><span className="bg-red-600 text-white px-3 py-1 font-bold rounded uppercase text-xs font-cal-sans">Arriving Soon</span></div>}
+                  {gameState.totalTurns < pass.unlockTurn && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
+                          <span className="bg-red-600 text-white px-3 py-1 font-bold rounded uppercase text-xs font-cal-sans">Arriving Soon</span>
+                      </div>
+                  )}
                   <div className="absolute top-0 right-0 p-2 opacity-10 pointer-events-none">
                     {pass.reqType === 'category' && CATEGORIES[pass.targetCategory?.toUpperCase()]?.icon}
                   </div>
@@ -1079,6 +1169,7 @@ export default function App() {
             </div>
           </div>
         </div>
+
         <div className="flex-1 flex items-center justify-center rounded-xl overflow-hidden relative shadow-2xl backdrop-blur-sm">
            <div className="absolute inset-4 flex items-center justify-center"><Board interactive={false} isMobile={false} lastEvent={gameState.lastEvent} gameState={gameState} handlePlaceCard={handlePlaceCard} view={view} /></div>
         </div>
@@ -1098,7 +1189,7 @@ export default function App() {
       <div className="h-[100dvh] bg-gray-950 text-white flex flex-col overflow-hidden font-questrial">
         <AudioPlayer view="player" />
         <NotificationOverlay event={gameState.lastEvent} />
-        <div className={`border-b border-gray-800 shrink-0 z-20 shadow-md ${isMyTurn ? 'bg-green-800/80 border-green-600' : 'bg-gray-900 border-gray-800'}`}>
+        <div className={`border-b border-gray-800 shrink-0 z-20 shadow-md transition-colors duration-500 ${isMyTurn ? 'bg-green-900/90 border-green-600' : 'bg-gray-900 border-gray-800'}`}>
           <div className="max-w-5xl mx-auto">
             <div className="h-14 flex items-center justify-between px-4">
               <div className="flex items-center gap-3">
@@ -1110,7 +1201,7 @@ export default function App() {
                     <span className="text-[10px] text-gray-400 tracking-wider font-cal-sans">SCORE</span>
                     <span className="text-2xl font-black text-white font-cal-sans">{player.score}</span>
                  </div>
-                 {isMyTurn && <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]"></div>}
+                 {isMyTurn && <div className="w-4 h-4 bg-green-400 rounded-full animate-pulse shadow-[0_0_15px_#4ade80]"></div>}
                  <button onClick={leaveGame} className="text-gray-400 hover:text-white"><LogOut size={18}/></button>
               </div>
             </div>
@@ -1136,19 +1227,26 @@ export default function App() {
         </div>
         <div className="bg-gray-900 border-t border-gray-800 shrink-0 flex flex-col safe-area-pb shadow-[0_-4px_20px_rgba(0,0,0,0.5)] z-20">
           <div className="max-w-5xl mx-auto w-full">
-            {interactionMode && <div className="bg-yellow-600 text-black font-bold p-2 text-center animate-pulse font-cal-sans">{interactionMode === 'track_maint' ? "Select square to block" : "Select Landmark to move"}<button onClick={() => setInteractionMode(null)} className="ml-4 underline text-sm">Cancel</button></div>}
+            {interactionMode && (
+                <div className="bg-yellow-600 text-black font-bold p-2 text-center animate-pulse font-cal-sans">
+                    {interactionMode === 'track_maint' && "Select a square to block"}
+                    {interactionMode === 'grand_opening_select_source' && "Select a Landmark to replace"}
+                    <button onClick={() => setInteractionMode(null)} className="ml-4 underline text-sm">Cancel</button>
+                </div>
+            )}
+            
             {isMyTurn && selectedCardType === 'tracks' && (
               <div className="flex justify-center items-center gap-6 py-3 border-b border-gray-800 bg-gray-800/80 backdrop-blur-sm">
                  <div className="w-12 h-12 border-2 border-gray-500 bg-gray-900 rounded-lg flex items-center justify-center shadow-inner"><TrackSvg shape={player.hand.tracks[selectedCardIdx]?.shape} rotation={rotation} color={player.color} /></div>
-                <button onClick={() => setRotation((r) => (r + 90) % 360)} className="flex items-center gap-2 px-8 py-3 bg-blue-600 rounded-full font-bold text-lg shadow-lg font-cal-sans"><RotateCw size={20} /> Rotate</button>
+                <button onClick={() => { playSound('rotate-track'); setRotation((r) => (r + 90) % 360); }} className="flex items-center gap-2 px-8 py-3 bg-blue-600 rounded-full font-bold text-lg shadow-lg font-cal-sans"><RotateCw size={20} /> Rotate</button>
               </div>
             )}
             <div className="flex gap-2 overflow-x-auto p-3 pb-6 no-scrollbar">
               {player.hand.metro?.map((card, i) => <GameCard key={`m-${i}`} data={card} type="metro" selected={selectedCardType === 'metro' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; handleMetroCardAction(i); }} />)}
               {player.hand.metro?.length > 0 && <div className="w-px bg-yellow-700 mx-1 shrink-0 self-stretch my-2"></div>}
-              {player.hand.tracks.map((card, i) => <GameCard key={`t-${i}`} data={card} type="track" selected={selectedCardType === 'tracks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; setSelectedCardIdx(i); setSelectedCardType('tracks'); setRotation(0); setInteractionMode(null); }} />)}
+              {player.hand.tracks.map((card, i) => <GameCard key={`t-${i}`} data={card} type="track" selected={selectedCardType === 'tracks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; playSound('select-track'); setSelectedCardIdx(i); setSelectedCardType('tracks'); setRotation(0); setInteractionMode(null); }} />)}
               <div className="w-px bg-gray-700 mx-1 shrink-0 self-stretch my-2"></div>
-              {player.hand.landmarks.map((card, i) => <GameCard key={`l-${i}`} data={card} type="landmark" selected={selectedCardType === 'landmarks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; setSelectedCardIdx(i); setSelectedCardType('landmarks'); setRotation(0); setInteractionMode(null); }} />)}
+              {player.hand.landmarks.map((card, i) => <GameCard key={`l-${i}`} data={card} type="landmark" selected={selectedCardType === 'landmarks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; playSound('select-track'); setSelectedCardIdx(i); setSelectedCardType('landmarks'); setRotation(0); setInteractionMode(null); }} />)}
             </div>
           </div>
         </div>
