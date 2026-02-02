@@ -496,47 +496,24 @@ const NotificationOverlay = ({ event }) => {
       return () => clearTimeout(timer);
     }
   }, [event]);
-  if (!visible || !event) return null;
-  
-  if (event.type === 'claim-passenger') {
-      return (
-        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-10 fade-in duration-500 w-full max-w-2xl px-4 pointer-events-none">
-          <div className="bg-white text-gray-900 px-8 py-6 rounded-2xl shadow-[0_0_50px_rgba(255,255,0,0.5)] border-4 border-yellow-400 flex flex-col items-center gap-2 w-full">
-            <div className="flex items-center gap-2 text-yellow-600 font-black uppercase tracking-widest text-sm animate-pulse font-cal-sans">
-              <Star size={24} className="fill-current" /> Passenger Claimed! <Star size={24} className="fill-current" />
-            </div>
-            <div className="text-center w-full font-cal-sans">
-              <span className={`text-${event.playerColor}-600 font-black text-4xl drop-shadow-sm`}>{event.playerName}</span>
-              <span className="text-gray-500 font-bold text-xl mx-2 block md:inline">picked up</span>
-            </div>
-            <div className="text-3xl font-black font-cal-sans text-center leading-tight mt-2 text-gray-800">
-              {event.passengerNames.join(" & ")}
-            </div>
-          </div>
-        </div>
-      );
-  }
+  if (!visible || !event || event.type !== 'claim-passenger') return null;
 
-  if (event.type === 'most-connected') {
-      return (
-        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-10 fade-in duration-500 w-full max-w-2xl px-4 pointer-events-none">
-          <div className="bg-white text-gray-900 px-8 py-6 rounded-2xl shadow-[0_0_50px_rgba(0,0,255,0.5)] border-4 border-blue-500 flex flex-col items-center gap-2 w-full">
-             <div className="flex items-center gap-2 text-blue-600 font-black uppercase tracking-widest text-sm animate-pulse font-cal-sans">
-               <LinkIcon size={24} /> Most Connected!
-             </div>
-             <div className="text-center w-full font-cal-sans">
-               <span className={`text-${event.playerColor}-600 font-black text-4xl drop-shadow-sm`}>{event.playerName}</span>
-               <span className="text-gray-500 font-bold text-xl mx-2 block md:inline">takes the lead!</span>
-             </div>
-             <div className="text-3xl font-black font-cal-sans text-center leading-tight mt-2 text-gray-800">
-               {event.count} Connections (+2 PTS)
-             </div>
-          </div>
+  return (
+    <div className="fixed top-10 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-10 fade-in duration-500 w-full max-w-2xl px-4 pointer-events-none">
+      <div className="bg-white text-gray-900 px-8 py-6 rounded-2xl shadow-[0_0_50px_rgba(255,255,0,0.5)] border-4 border-yellow-400 flex flex-col items-center gap-2 w-full">
+        <div className="flex items-center gap-2 text-yellow-600 font-black uppercase tracking-widest text-sm animate-pulse font-cal-sans">
+          <Star size={24} className="fill-current" /> Passenger Claimed! <Star size={24} className="fill-current" />
         </div>
-      );
-  }
-
-  return null;
+        <div className="text-center w-full font-cal-sans">
+          <span className={`text-${event.playerColor}-600 font-black text-4xl drop-shadow-sm`}>{event.playerName}</span>
+          <span className="text-gray-500 font-bold text-xl mx-2 block md:inline">picked up</span>
+        </div>
+        <div className="text-3xl font-black font-cal-sans text-center leading-tight mt-2 text-gray-800">
+          {event.passengerNames.join(" & ")}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const playSound = (type) => {
@@ -614,31 +591,49 @@ const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, v
     // Only show surge for 2.5s
     if (Date.now() - gameState.lastEvent.timestamp > 2500) return new Set();
 
-    const { playerColor } = gameState.lastEvent;
+    const { playerColor, claimedLandmarkIds } = gameState.lastEvent;
     
-    // We need to find path from City Hall to the relevant landmarks
-    // But since landmarks can be anywhere, we just light up ALL tracks connected to start for that player
-    // as a "Power Surge" visual effect. Simple and effective.
+    // PATHFINDING FOR SURGE
+    // Dijkstra from Center to the Claimed Landmarks to highlight only relevant path
     const nodes = new Set();
+    // We need to run BFS to ALL claimed landmarks
+    if(!claimedLandmarkIds || claimedLandmarkIds.length === 0) return new Set();
+
+    // Run BFS from Start, keeping parent map
     const queue = [{ x: CENTER, y: CENTER }];
     const visited = new Set([`${CENTER},${CENTER}`]);
+    const cameFrom = {}; // key -> parentKey
+    
+    const targetsFound = new Set();
     
     while(queue.length > 0) {
        const curr = queue.shift();
-       nodes.add(`${curr.x},${curr.y}`);
+       const currKey = `${curr.x},${curr.y}`;
+       const cell = getCell(gameState.grid, curr.x, curr.y);
+       
+       if (cell && cell.type === 'landmark' && claimedLandmarkIds.includes(cell.id)) {
+           targetsFound.add(cell.id);
+           // Trace back
+           let trace = currKey;
+           while(trace) {
+               nodes.add(trace);
+               trace = cameFrom[trace];
+           }
+       }
        
        [0,1,2,3].forEach(dir => {
           const nc = getNeighborCoords(curr.x, curr.y, dir);
           const key = `${nc.x},${nc.y}`;
           if(!visited.has(key)) {
              const nextCell = getCell(gameState.grid, nc.x, nc.y);
-             const currCell = getCell(gameState.grid, curr.x, curr.y);
-             const currObj = isStart(curr.x, curr.y) ? {isStart:true, type:'start'} : currCell;
+             const currObj = isStart(curr.x, curr.y) ? {isStart:true, type:'start'} : cell;
              const nextObj = isStart(nc.x, nc.y) ? {isStart:true, type:'start'} : nextCell;
 
-             if(nextObj && (nextObj.isStart || (nextObj.type === 'track' && nextObj.owner === playerColor))) {
+             // Valid node if Start, Own Track, or Connected Landmark
+             if(nextObj && (nextObj.isStart || (nextObj.type === 'track' && nextObj.owner === playerColor) || (nextObj.type === 'landmark' && nextObj.connections?.[playerColor] > 0))) {
                  if(areConnected(currObj, nextObj, dir)) {
                      visited.add(key);
+                     cameFrom[key] = currKey;
                      queue.push(nc);
                  }
              }
@@ -1108,24 +1103,76 @@ export default function App() {
     }
 
     const claimedPassengerNames = [];
+    // --- UPDATED CLAIM TRACKING FOR SURGE ---
+    const claimedLandmarkIds = [];
+
     const checkPassenger = (p) => {
       if (p.unlockTurn && gameState.totalTurns < p.unlockTurn) return false;
       if (completedPassengerIds.includes(p.id)) return false;
       let match = false;
       const myLandmarks = []; newGrid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && playerConnectedLandmarks.has(c.id)) myLandmarks.push(c); }));
-      if (p.reqType === 'specific' && playerConnectedLandmarks.has(p.targetId)) match = true;
-      else if (p.reqType === 'category' && myLandmarks.some(l => l.category === p.targetCategory)) match = true;
-      else if (p.reqType === 'list') { if (p.targets.some(tid => playerConnectedLandmarks.has(tid))) match = true; } 
-      else if (p.reqType === 'combo' && playerConnectedLandmarks.has(p.targets[0]) && playerConnectedLandmarks.has(p.targets[1])) match = true;
-      else if (p.reqType === 'combo_cat') { if(playerConnectedLandmarks.has(p.targetId) && myLandmarks.some(l => l.category === p.cat2)) match = true; }
-      if (match) { pointsGained += p.points; completedPassengerIds.push(p.id); claimedPassengerNames.push(p.name); return true; }
+
+      const currentClaimed = []; // Temp store for this passenger
+
+      if (p.reqType === 'specific') {
+         if (playerConnectedLandmarks.has(p.targetId)) {
+             match = true;
+             currentClaimed.push(p.targetId);
+         }
+      } 
+      else if (p.reqType === 'category') {
+         const matches = myLandmarks.filter(l => l.category === p.targetCategory);
+         if (matches.length > 0) {
+             match = true;
+             matches.forEach(m => currentClaimed.push(m.id));
+         }
+      } 
+      else if (p.reqType === 'list') { 
+         const matches = p.targets.filter(tid => playerConnectedLandmarks.has(tid));
+         if (matches.length > 0) {
+             match = true;
+             currentClaimed.push(...matches);
+         }
+      } 
+      else if (p.reqType === 'combo') { 
+         if(playerConnectedLandmarks.has(p.targets[0]) && playerConnectedLandmarks.has(p.targets[1])) {
+             match = true;
+             currentClaimed.push(p.targets[0], p.targets[1]);
+         }
+      } 
+      else if (p.reqType === 'combo_cat') { 
+         // Ghost Tour / Botanist
+         const hasT1 = playerConnectedLandmarks.has(p.targetId);
+         const cat2Matches = myLandmarks.filter(l => l.category === p.cat2);
+         if(hasT1 && cat2Matches.length > 0) {
+             match = true;
+             currentClaimed.push(p.targetId);
+             cat2Matches.forEach(m => currentClaimed.push(m.id));
+         }
+      }
+
+      if (match) { 
+          pointsGained += p.points; 
+          completedPassengerIds.push(p.id); 
+          claimedPassengerNames.push(p.name); 
+          claimedLandmarkIds.push(...currentClaimed);
+          return true; 
+      }
       return false;
     };
     gameState.activePassengers.forEach(checkPassenger);
     
     let lastEvent = bonusEvent; 
     if (pointsGained > 0) {
-        lastEvent = { type: 'claim-passenger', playerColor: player.color, playerName: player.name, passengerNames: claimedPassengerNames, timestamp: Date.now(), coords: { x, y } };
+        lastEvent = { 
+            type: 'claim-passenger', 
+            playerColor: player.color, 
+            playerName: player.name, 
+            passengerNames: claimedPassengerNames, 
+            timestamp: Date.now(), 
+            coords: { x, y },
+            claimedLandmarkIds: claimedLandmarkIds // Pass to board for surge pathfinding
+        };
         playSound('claim-passenger');
     } else if (!lastEvent) {
         lastEvent = { type: card.type === 'track' ? 'place-track' : 'place-landmark', playerColor: player.color, timestamp: Date.now() };
