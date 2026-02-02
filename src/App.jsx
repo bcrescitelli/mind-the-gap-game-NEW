@@ -218,6 +218,7 @@ const generatePassengers = (allLandmarks) => {
   let idCounter = 1;
   const findL = (name) => allLandmarks.find(l => l.name === name);
 
+  // TIER 1
   const tier1 = [
     { name: "The Foodie", req: 'category', target: 'gastronomy', pts: 1, desc: "Any Gastronomy" },
     { name: "The Tourist", req: 'category', target: 'heritage', pts: 1, desc: "Any Heritage" },
@@ -226,6 +227,7 @@ const generatePassengers = (allLandmarks) => {
     { name: "The Adrenaline Junkie", req: 'category', target: 'thrilling', pts: 1, desc: "Any Thrilling" },
     { name: "The Medium", req: 'category', target: 'spiritual', pts: 2, desc: "Any Spiritual" } 
   ];
+  // TIER 2
   const tier2 = [
       { name: "The Sweet Tooth", req: 'list', targets: ["Ice Cream Shop", "Candy Store", "Bakery"], pts: 2 },
       { name: "The Scholar", req: 'list', targets: ["University", "Library", "Museum"], pts: 2 },
@@ -236,6 +238,7 @@ const generatePassengers = (allLandmarks) => {
       { name: "The Artist", req: 'list', targets: ["Opera House", "Theatre", "Tattoo Parlor"], pts: 2 },
       { name: "The Errand Runner", req: 'list', targets: ["Bank", "Post Office", "Tailors"], pts: 2 }
   ];
+  // TIER 3
   const tier3 = [
       { name: "The Pilot", target: "Airport", pts: 3 },
       { name: "The Astronomer", target: "Observatory", pts: 3 },
@@ -246,6 +249,7 @@ const generatePassengers = (allLandmarks) => {
       { name: "The Widow", target: "Cemetery", pts: 3 },
       { name: "The Gambler", target: "Casino", pts: 3 }
   ];
+  // TIER 4
   const tier4 = [
       { name: "The Date Night", targets: ["Cafe", "Cinema"], pts: 5 },
       { name: "The Ghost Tour", type: 'ghost', target1: "Haunted House", cat2: "heritage", pts: 4, desc: "Haunted House AND Any Heritage" },
@@ -349,6 +353,8 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked, animateTrain }) => {
   const isHost = view === 'host';
   
   let content = null;
+  // Host view gets transparent background to show map, NO borders.
+  // Player view gets dark contrast with borders.
   let bgClass = isHost ? "bg-transparent" : "bg-black/40 backdrop-blur-[2px]";
   let borderClass = isHost ? "border-0" : "border border-gray-700";
   const colorDotMap = { red: 'bg-red-500', blue: 'bg-blue-500', green: 'bg-green-500', yellow: 'bg-yellow-400' };
@@ -436,6 +442,7 @@ const WinnerModal = ({ winner, onRestart, onExit }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Simple CSS Confetti */}
         {[...Array(50)].map((_, i) => (
           <div key={i} className="absolute w-2 h-2 bg-yellow-500 rounded-full animate-ping" style={{ 
             top: `${Math.random()*100}%`, left: `${Math.random()*100}%`, 
@@ -466,10 +473,8 @@ const NotificationOverlay = ({ event }) => {
       return () => clearTimeout(timer);
     }
   }, [event]);
-  
   if (!visible || !event) return null;
-
-  // Render logic based on event type
+  
   if (event.type === 'claim-passenger') {
       return (
         <div className="fixed top-10 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-10 fade-in duration-500 w-full max-w-2xl px-4 pointer-events-none">
@@ -488,7 +493,7 @@ const NotificationOverlay = ({ event }) => {
         </div>
       );
   }
-  
+
   if (event.type === 'most-connected') {
       return (
         <div className="fixed top-10 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-10 fade-in duration-500 w-full max-w-2xl px-4 pointer-events-none">
@@ -507,7 +512,7 @@ const NotificationOverlay = ({ event }) => {
         </div>
       );
   }
-  
+
   return null;
 };
 
@@ -536,13 +541,15 @@ const AudioPlayer = ({ view }) => {
 
   useEffect(() => {
     if (view === 'host' && audioRef.current) {
-      audioRef.current.volume = 0.1; 
+      audioRef.current.volume = 0.1; // Reduced background music volume
       audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
       
+      // Ambient Sound Loop (Continuous)
       if (ambientRef.current) {
-          ambientRef.current.volume = 0.3; 
+          ambientRef.current.volume = 0.3; // Start low
           ambientRef.current.play().catch(e => console.log("Ambient fail", e));
           
+          // Random volume fluctuation
           const fluctuate = () => {
              if(ambientRef.current) {
                  ambientRef.current.volume = Math.random() * 0.4 + 0.1; 
@@ -613,7 +620,7 @@ export default function App() {
   const [entryCode, setEntryCode] = useState(""); 
   const [activeRoomId, setActiveRoomId] = useState(""); 
   const [playerName, setPlayerName] = useState("");
-  const [playerColor, setPlayerColor] = useState("red"); 
+  const [playerColor, setPlayerColor] = useState("red"); // Default
   const [gameState, setGameState] = useState(null);
   const [view, setView] = useState('home');
   const [error, setError] = useState("");
@@ -624,7 +631,6 @@ export default function App() {
   const [interactionMode, setInteractionMode] = useState(null); 
   const [selectedLandmarkForMove, setSelectedLandmarkForMove] = useState(null);
   const [selectedPlayerToSkip, setSelectedPlayerToSkip] = useState(null);
-
   const [zoom, setZoom] = useState(1);
   const lastPinchDist = useRef(null);
   const lastPlayedEventTime = useRef(Date.now());
@@ -632,14 +638,14 @@ export default function App() {
 
   useEffect(() => {
     const link = document.createElement('link');
-    link.href = "https://fonts.googleapis.com/css2?family=Cal+Sans&family=Nabla&family=Questrial&display=swap";
+    link.href = "https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Nabla&family=Questrial&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
     const style = document.createElement('style');
     style.innerHTML = `
       .font-nabla { font-family: 'Nabla', system-ui; }
       .font-questrial { font-family: 'Questrial', sans-serif; }
-      .font-cal-sans { font-family: 'Cal Sans', sans-serif; }
+      .font-cal-sans { font-family: 'Outfit', sans-serif; } /* Aliased to Outfit for reliability */
     `;
     document.head.appendChild(style);
   }, []);
@@ -656,6 +662,7 @@ export default function App() {
     if (savedRoom && !activeRoomId) setActiveRoomId(savedRoom);
   }, []);
   
+  // Watch for available colors
   useEffect(() => {
     if (entryCode.length === 5) {
        const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'games', entryCode.toUpperCase()), (docSnap) => {
@@ -700,6 +707,7 @@ export default function App() {
     }
   }, [gameState?.lastEvent, view]);
 
+  // ZOOM HANDLERS
   const handleTouchStart = (e) => {
     if (e.touches.length === 2) {
       const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
@@ -729,9 +737,7 @@ export default function App() {
       grid: JSON.stringify(initialGrid), turnIndex: 0, totalTurns: 0, 
       decks: { tracks: generateTrackDeck(), landmarks, passengers, metro: metroDeck },
       activePassengers, blockedCells: [], winner: null, lastEvent: null,
-      mostConnected: null, // { playerId: '', count: 0 }
-      movesLeft: 1, // Start with 1 move
-      skippedPlayers: [] // [uid1, uid2]
+      mostConnected: null, movesLeft: 1, skippedPlayers: []
     };
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', newRoomId), initialData);
     setEntryCode(newRoomId); setActiveRoomId(newRoomId);
@@ -751,6 +757,7 @@ export default function App() {
         if (data.players.length >= 4) throw "Room full";
         if (data.players.find(p => p.id === user.uid)) return;
         if (data.players.find(p => p.color === playerColor)) throw "Color taken";
+        
         const newPlayer = {
           id: user.uid, name: playerName, color: playerColor,
           score: 0, hand: { tracks: [], landmarks: [], metro: [] }, completedPassengers: []
@@ -775,16 +782,13 @@ export default function App() {
 
   const endTurn = async (updates, winner, lastEvent) => {
     const nextTurn = (gameState.turnIndex + 1) % gameState.players.length;
-    // Check for skipping
     let actualNextTurn = nextTurn;
     let newSkipped = updates.skippedPlayers || gameState.skippedPlayers || [];
     
-    // Simple skip logic check for next player
+    // Check skip logic
     const nextPlayerId = gameState.players[actualNextTurn].id;
     if (newSkipped.includes(nextPlayerId)) {
-        // Skip them!
         actualNextTurn = (actualNextTurn + 1) % gameState.players.length;
-        // Remove from skip list
         newSkipped = newSkipped.filter(id => id !== nextPlayerId);
     }
 
@@ -806,8 +810,7 @@ export default function App() {
       turnIndex: actualNextTurn, winner: winner || null,
       lastEvent: lastEvent || gameState.lastEvent,
       totalTurns: (gameState.totalTurns || 0) + 1,
-      movesLeft: 1, // Reset moves for next player
-      skippedPlayers: newSkipped
+      movesLeft: 1, skippedPlayers: newSkipped
     });
     setSelectedCardIdx(null); setSelectedCardType(null); setRotation(0);
     setInteractionMode(null); setSelectedLandmarkForMove(null); setSelectedPlayerToSkip(null);
@@ -819,15 +822,42 @@ export default function App() {
     const passengers = generatePassengers(landmarks);
     const activePassengers = passengers.splice(0, 3);
     const metroDeck = generateMetroDeck();
-    const resetPlayers = gameState.players.map(p => ({ ...p, score: 0, hand: { tracks: [], landmarks: [], metro: [] }, completedPassengers: [] }));
-    const dealPlayers = resetPlayers.map(p => { const tracks = generateTrackDeck().splice(0,3); const lms = landmarks.splice(0,2); return { ...p, hand: { tracks, landmarks: lms, metro: [] }}; });
+    
+    const resetPlayers = gameState.players.map(p => ({
+        ...p, score: 0, hand: { tracks: [], landmarks: [], metro: [] }, completedPassengers: []
+    }));
+    
+    const dealPlayers = resetPlayers.map(p => {
+        const tracks = generateTrackDeck().splice(0,3);
+        const lms = landmarks.splice(0,2);
+        return { ...p, hand: { tracks, landmarks: lms, metro: [] }};
+    });
+
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
-      grid: JSON.stringify(initialGrid), players: dealPlayers, decks: { tracks: generateTrackDeck(), landmarks, passengers, metro: metroDeck },
-      activePassengers, totalTurns: 0, turnIndex: 0, winner: null, blockedCells: [], mostConnected: null, skippedPlayers: [], movesLeft: 1
+      grid: JSON.stringify(initialGrid),
+      players: dealPlayers,
+      decks: { tracks: generateTrackDeck(), landmarks, passengers, metro: metroDeck },
+      activePassengers,
+      totalTurns: 0,
+      turnIndex: 0,
+      winner: null,
+      blockedCells: [], mostConnected: null, skippedPlayers: [], movesLeft: 1
     });
   };
   
   const leaveGame = () => { sessionStorage.removeItem('mind_the_gap_room'); setActiveRoomId(""); setGameState(null); setView('home'); setEntryCode(""); };
+
+  const handleSignalFailureSelect = (victimId) => {
+      const playerIdx = gameState.players.findIndex(p => p.id === user.uid);
+      const newSkipped = [...(gameState.skippedPlayers || []), victimId];
+      
+      const newHand = { ...gameState.players[playerIdx].hand };
+      newHand.metro.splice(selectedCardIdx, 1);
+      const newPlayers = [...gameState.players];
+      newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
+      
+      endTurn({ skippedPlayers: newSkipped, players: newPlayers }, null, null);
+  };
 
   const handleMetroCardAction = (idx) => {
       const playerIdx = gameState.players.findIndex(p => p.id === user.uid);
@@ -836,16 +866,14 @@ export default function App() {
       const card = gameState.players[playerIdx].hand.metro[idx];
       setSelectedCardIdx(idx); setSelectedCardType('metro');
 
-      // Helper to remove card and end turn (unless Express Service)
       const consumeCard = (updates = {}, skipEndTurn = false) => {
           const newHand = { ...gameState.players[playerIdx].hand };
           newHand.metro.splice(idx, 1);
           const newPlayers = [...gameState.players];
           newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
           if(skipEndTurn) {
-             // Update local state without ending turn (for express service)
               updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), { players: newPlayers, ...updates });
-              setSelectedCardIdx(null); setSelectedCardType(null); // Deselect
+              setSelectedCardIdx(null); setSelectedCardType(null); 
           } else {
              endTurn({ players: newPlayers, ...updates }, null, null);
           }
@@ -859,17 +887,11 @@ export default function App() {
           consumeCard({ decks: newDecks, activePassengers: newActive });
       } 
       else if (card.id === 'express_service') {
-          // Grant 2 moves
-          // We consume the card but do NOT end turn yet.
-          // We increase movesLeft to 2 (current move + 1 extra). 
-          // Wait, if I play this card, that's my action? No, "Place two track cards *this turn*".
-          // So playing it counts as a free action to buff the turn.
           consumeCard({ movesLeft: 2 }, true);
           alert("Express Service Active! You can place 2 cards this turn.");
       }
       else if (card.id === 'signal_failure') {
           setInteractionMode('signal_failure');
-          // No alert needed, UI will show
       }
       else if (card.id === 'track_maint') { setInteractionMode('track_maint'); alert("Select an empty grid square to block.");
       } else if (card.id === 'grand_opening') { setInteractionMode('grand_opening_select_source'); alert("Select a Landmark to replace.");
@@ -905,25 +927,12 @@ export default function App() {
           endTurn({ players: newPlayers }, null, null);
       }
   };
-  
-  const handleSignalFailureSelect = (victimId) => {
-      const playerIdx = gameState.players.findIndex(p => p.id === user.uid);
-      const newSkipped = [...(gameState.skippedPlayers || []), victimId];
-      
-      const newHand = { ...gameState.players[playerIdx].hand };
-      newHand.metro.splice(selectedCardIdx, 1);
-      const newPlayers = [...gameState.players];
-      newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
-      
-      endTurn({ skippedPlayers: newSkipped, players: newPlayers }, null, null);
-  };
 
   const handlePlaceCard = (x, y) => {
     if (view !== 'player') return;
     const playerIdx = gameState.players.findIndex(p => p.id === user.uid);
     if (playerIdx !== gameState.turnIndex) { alert("Not your turn!"); return; }
     
-    // Interaction Mode Handling
     if (interactionMode === 'track_maint') {
         const cell = getCell(gameState.grid, x, y);
         if (cell !== null || isStart(x, y) || gameState.blockedCells?.includes(`${x},${y}`)) { alert("Must select an empty square."); return; }
@@ -935,24 +944,11 @@ export default function App() {
     if (interactionMode === 'grand_opening_select_source') {
         const cell = getCell(gameState.grid, x, y);
         if (!cell || cell.type !== 'landmark') { alert("Select a Landmark to replace."); return; }
-        setSelectedLandmarkForMove({x, y, data: cell}); setInteractionMode('grand_opening_select_dest'); return;
-    }
-    if (interactionMode === 'grand_opening_select_dest') {
-        // ... (Grand opening logic from previous code, simplified to direct replace now)
-        // Wait, requested logic change was "replace current landmark with one from hand"
-        // So we don't need dest select anymore. 
-        // Correct logic: Click Board Landmark -> Replace with Hand Landmark [0]
-        
-        // Let's fix this interaction flow:
-        // 1. User played card -> interactionMode = 'grand_opening_select_source'
-        // 2. User clicks a landmark on board
-        const cell = getCell(gameState.grid, x, y);
-        if (!cell || cell.type !== 'landmark') { alert("Select a Landmark to replace."); return; }
-        
-        const newLandmark = gameState.players[playerIdx].hand.landmarks[0];
-        if (!newLandmark) { alert("You need a landmark in hand!"); return; }
         
         const newGrid = [...gameState.grid];
+        const newLandmark = gameState.players[playerIdx].hand.landmarks[0];
+        if (!newLandmark) { alert("You need a landmark in hand to replace!"); return; }
+        
         newGrid[y][x] = { ...newLandmark, connections: cell.connections, type: 'landmark' };
         
         const newHand = { ...gameState.players[playerIdx].hand };
@@ -1007,18 +1003,15 @@ export default function App() {
     newGrid[y][x] = { ...card, owner: player.color, rotation, connectedColors: card.type === 'track' ? [player.color] : [] };
     playSound(card.type === 'track' ? 'place-track' : 'place-landmark');
 
-    // SCORING & MOST CONNECTED
     let pointsGained = 0;
     const completedPassengerIds = [];
     const playerConnectedLandmarks = new Set();
-    
     const refreshConnections = () => {
       playerConnectedLandmarks.clear();
       newGrid.forEach(row => row.forEach(c => {
         if (c && c.type === 'landmark' && c.connections && c.connections[player.color] > 0) playerConnectedLandmarks.add(c.id);
       }));
     };
-
     if (card.type === 'landmark') newGrid[y][x].connections = { [player.color]: 1 };
     else {
       neighbors.forEach((n, dir) => {
@@ -1036,19 +1029,16 @@ export default function App() {
     refreshConnections();
 
     // MOST CONNECTED BONUS LOGIC
-    let currentMostConnected = gameState.mostConnected; // { playerId, count }
+    let currentMostConnected = gameState.mostConnected; 
     let bonusEvent = null;
     const myCount = playerConnectedLandmarks.size;
     
-    // Check if I deserve it
     if (myCount >= 10) {
         if (!currentMostConnected || myCount > currentMostConnected.count) {
-            // Take the lead!
             currentMostConnected = { playerId: player.id, count: myCount };
             bonusEvent = { type: 'most-connected', playerColor: player.color, playerName: player.name, count: myCount, timestamp: Date.now() };
-            playSound('success'); // Reusing success sound for bonus
+            playSound('success'); 
         } else if (currentMostConnected.playerId === player.id) {
-            // Update my own count if I'm already leader
             currentMostConnected.count = myCount;
         }
     }
@@ -1069,7 +1059,7 @@ export default function App() {
     };
     gameState.activePassengers.forEach(checkPassenger);
     
-    let lastEvent = bonusEvent; // Prioritize Bonus event if it happens
+    let lastEvent = bonusEvent; 
     if (pointsGained > 0) {
         lastEvent = { type: 'claim-passenger', playerColor: player.color, playerName: player.name, passengerNames: claimedPassengerNames, timestamp: Date.now(), coords: { x, y } };
         playSound('claim-passenger');
@@ -1098,36 +1088,25 @@ export default function App() {
     }
 
     const newPlayers = [...gameState.players];
-    // Calc base score + check bonus
     let currentScore = player.score + pointsGained;
-    
-    // NOTE: For simplicity, we just store the RAW score in player.score
-    // And calculate final "Effective Score" including bonus on the fly for Win Check
-    // But to display it correctly, we should probably update the player object? 
-    // Let's keep player.score as raw points from passengers.
     newPlayers[playerIdx] = { ...player, hand: newHand, score: currentScore };
 
-    // Win Check with Bonus
     let winner = null;
     const hasBonus = currentMostConnected?.playerId === player.id;
     const effectiveScore = currentScore + (hasBonus ? 2 : 0);
-    
     if (effectiveScore >= WIN_SCORE) { 
         winner = newPlayers[playerIdx]; 
         lastEvent = { type: 'win-game', playerColor: player.color, playerName: player.name, timestamp: Date.now() }; 
         playSound('win-game');
     }
 
-    // MULTI-MOVE LOGIC (Express Service)
     const movesLeft = (gameState.movesLeft || 1) - 1;
     if (movesLeft > 0) {
-        // Do not end turn, just update state
         updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
           grid: JSON.stringify(newGrid), players: newPlayers, decks: newDecks, 
           activePassengers: newActivePassengers, winner, lastEvent, mostConnected: currentMostConnected,
           movesLeft: movesLeft
         });
-        // Reset card selection but keep turn
         setSelectedCardIdx(null); setSelectedCardType(null); setRotation(0);
     } else {
         endTurn({ 
@@ -1137,8 +1116,45 @@ export default function App() {
     }
   };
 
-  // --- RENDERERS ---
-  
+  if (view === 'home') {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans p-4 relative overflow-hidden">
+        <h1 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-cal-sans">
+          MIND THE GAP
+        </h1>
+        <div className="flex flex-col gap-4 w-full max-w-md z-10 font-questrial">
+          <div className="flex flex-col gap-2 w-full bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
+            <h3 className="text-xl font-bold text-center mb-4 font-cal-sans">Join Room</h3>
+            <input 
+              type="text" placeholder="Room Code" 
+              className="px-4 py-2 rounded bg-gray-900 border border-gray-700 focus:border-blue-500 outline-none text-center uppercase tracking-widest w-full font-bold"
+              value={entryCode} onChange={e => setEntryCode(e.target.value.toUpperCase())}
+            />
+            {entryCode.length === 5 && (
+                <div className="grid grid-cols-4 gap-2 my-2">
+                    {COLORS.map(c => (
+                        <button key={c} onClick={() => setPlayerColor(c)} disabled={!availableColors.includes(c)} className={`h-10 rounded-lg transition-all ${playerColor === c ? 'ring-4 ring-white scale-105' : ''} ${!availableColors.includes(c) ? 'opacity-20 cursor-not-allowed' : 'hover:opacity-80'}`} style={{ backgroundColor: c === 'yellow' ? '#EAB308' : c === 'red' ? '#EF4444' : c === 'blue' ? '#3B82F6' : '#22C55E' }}>
+                            {playerColor === c && <Check size={20} className="mx-auto text-white drop-shadow-md" />}
+                        </button>
+                    ))}
+                </div>
+            )}
+            <input 
+              type="text" placeholder="Your Name" 
+              className="px-4 py-2 rounded bg-gray-900 border border-gray-700 focus:border-blue-500 outline-none text-center w-full"
+              value={playerName} onChange={e => setPlayerName(e.target.value)}
+            />
+            <button onClick={joinGame} className="px-8 py-3 bg-green-600 hover:bg-green-500 rounded-lg font-bold shadow-lg w-full mt-2 transition-transform active:scale-95">Join Game</button>
+          </div>
+          <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-gray-700"></div><span className="flex-shrink mx-4 text-gray-500 text-xs uppercase">OR</span><div className="flex-grow border-t border-gray-700"></div>
+          </div>
+          <button onClick={createGame} className="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-xl shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 w-full"><Crown size={24}/> Create New Room</button>
+        </div>
+      </div>
+    );
+  }
+
   if (gameState?.winner) return <WinnerModal winner={gameState.winner} onRestart={restartGame} onExit={leaveGame} />;
 
   if (view === 'lobby') {
@@ -1173,7 +1189,6 @@ export default function App() {
              <div className="text-xs text-gray-400 uppercase tracking-widest">Room Code</div>
              <div className="text-4xl font-black tracking-widest text-white font-nabla">{activeRoomId}</div>
           </div>
-
           <div className="bg-gray-900 p-4 rounded-xl shadow-lg border border-gray-800 flex-shrink-0">
             <h3 className="text-lg font-bold text-gray-400 mb-3 flex items-center gap-2 uppercase tracking-wide font-cal-sans"><Trophy size={18}/> Standings</h3>
             <div className="space-y-3">
@@ -1182,15 +1197,12 @@ export default function App() {
                   <div className="flex items-center gap-3">
                     <div className={`w-4 h-4 rounded-full bg-${p.color}-500 shadow-md`}></div>
                     <span className="font-bold text-lg truncate max-w-[100px] font-cal-sans">{p.name}</span>
-                    {gameState.mostConnected?.playerId === p.id && <LinkIcon size={16} className="text-blue-400 animate-pulse" />}
                   </div>
-                  {/* Calculate Display Score (Raw + Bonus) */}
                   <span className="text-2xl font-black font-cal-sans">{p.score + (gameState.mostConnected?.playerId === p.id ? 2 : 0)}</span>
                 </div>
               ))}
             </div>
           </div>
-
           <div className="flex-1 flex flex-col gap-2 overflow-auto">
             <h3 className="text-lg font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wide font-cal-sans"><Users size={18}/> Passengers</h3>
             <div className="space-y-3">
@@ -1219,7 +1231,6 @@ export default function App() {
             </div>
           </div>
         </div>
-
         <div className="flex-1 flex items-center justify-center rounded-xl overflow-hidden relative shadow-2xl backdrop-blur-sm">
            <div className="absolute inset-4 flex items-center justify-center"><Board interactive={false} isMobile={false} lastEvent={gameState.lastEvent} gameState={gameState} handlePlaceCard={handlePlaceCard} view={view} /></div>
         </div>
@@ -1241,8 +1252,7 @@ export default function App() {
       <div className="h-[100dvh] bg-gray-950 text-white flex flex-col overflow-hidden font-questrial">
         <AudioPlayer view="player" />
         <NotificationOverlay event={gameState.lastEvent} />
-        
-        {/* Interaction Mode Overlay (Signal Failure) */}
+        {/* Signal Failure Modal */}
         {interactionMode === 'signal_failure' && (
              <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
                  <h2 className="text-2xl font-bold mb-6 font-cal-sans">Choose Player to Skip</h2>
@@ -1298,7 +1308,6 @@ export default function App() {
                </div>
            </div>
         </div>
-
         <div className="bg-gray-900 border-t border-gray-800 shrink-0 flex flex-col safe-area-pb shadow-[0_-4px_20px_rgba(0,0,0,0.5)] z-20">
           <div className="max-w-5xl mx-auto w-full">
             {interactionMode && interactionMode !== 'signal_failure' && (
