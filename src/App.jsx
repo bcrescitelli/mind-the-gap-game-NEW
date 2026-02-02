@@ -139,6 +139,7 @@ const getDistanceToStart = (grid, targetX, targetY, playerColor) => {
   while (queue.length > 0) {
     const current = queue.shift();
     if (isStart(current.x, current.y)) return current.dist;
+
     [0,1,2,3].forEach(dir => {
       const nc = getNeighborCoords(current.x, current.y, dir);
       const key = `${nc.x},${nc.y}`;
@@ -683,8 +684,13 @@ export default function App() {
         const data = docSnap.data();
         if (typeof data.grid === 'string') data.grid = JSON.parse(data.grid);
         setGameState(data);
+        
         const isHost = data.hostId === user.uid;
-        if (isHost) setView('host');
+        if (isHost) {
+            // FIX: If game is playing, go to host view. If lobby, go to lobby view.
+            if (data.status === 'playing') setView('host'); 
+            else setView('lobby');
+        }
         else {
             const isPlayer = data.players.find(p => p.id === user.uid);
             if (isPlayer) {
@@ -933,6 +939,7 @@ export default function App() {
     const playerIdx = gameState.players.findIndex(p => p.id === user.uid);
     if (playerIdx !== gameState.turnIndex) { alert("Not your turn!"); return; }
     
+    // Interaction Mode Handling
     if (interactionMode === 'track_maint') {
         const cell = getCell(gameState.grid, x, y);
         if (cell !== null || isStart(x, y) || gameState.blockedCells?.includes(`${x},${y}`)) { alert("Must select an empty square."); return; }
@@ -952,8 +959,10 @@ export default function App() {
         newGrid[y][x] = { ...newLandmark, connections: cell.connections, type: 'landmark' };
         
         const newHand = { ...gameState.players[playerIdx].hand };
-        newHand.landmarks.splice(0, 1); newHand.metro.splice(selectedCardIdx, 1);
-        const newPlayers = [...gameState.players]; newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
+        newHand.landmarks.splice(0, 1); 
+        newHand.metro.splice(selectedCardIdx, 1); 
+        const newPlayers = [...gameState.players];
+        newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
         
         endTurn({ grid: JSON.stringify(newGrid), players: newPlayers }, null, null); 
         return;
@@ -970,6 +979,7 @@ export default function App() {
 
     const candidateCell = { ...card, owner: player.color, rotation: rotation, type: card.type, isStart: false };
     
+    // Connectivity
     let validConnectionFound = false;
     const neighbors = [0,1,2,3].map(d => getNeighborCoords(x, y, d));
     for (let i = 0; i < neighbors.length; i++) {
@@ -1003,6 +1013,7 @@ export default function App() {
     newGrid[y][x] = { ...card, owner: player.color, rotation, connectedColors: card.type === 'track' ? [player.color] : [] };
     playSound(card.type === 'track' ? 'place-track' : 'place-landmark');
 
+    // SCORING
     let pointsGained = 0;
     const completedPassengerIds = [];
     const playerConnectedLandmarks = new Set();
@@ -1300,7 +1311,6 @@ export default function App() {
             )}
           </div>
         </div>
-
         <div className="flex-1 overflow-auto bg-black/40 relative" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
            <div style={{ width: `${100 * zoom}%`, minWidth: '100%', minHeight: '100%', transformOrigin: '0 0' }}> 
                <div style={{ transform: `scale(${zoom})`, transformOrigin: '0 0' }}>
