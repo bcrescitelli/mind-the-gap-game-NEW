@@ -10,7 +10,8 @@ import {
 import { 
   Train, Map, Users, RotateCw, CheckCircle, 
   AlertCircle, Trophy, Coffee, Landmark, Trees, 
-  ShoppingBag, Zap, Crown, Play, User, Music, Volume2, VolumeX, Link as LinkIcon, RefreshCw, Star
+  ShoppingBag, Zap, Crown, Play, User, Music, Volume2, VolumeX, 
+  Link as LinkIcon, RefreshCw, Star, Ticket, Cone, Construction, Shuffle, Move, Repeat
 } from 'lucide-react';
 
 // --- FIREBASE CONFIGURATION ---
@@ -287,6 +288,23 @@ const generatePassengers = (allLandmarks) => {
   return passengers.sort(() => Math.random() - 0.5);
 };
 
+const METRO_CARDS_DATA = {
+  rush_hour: { name: 'Rush Hour', desc: 'Swap all 3 Passengers for new ones.', icon: <Shuffle size={16}/> },
+  track_maint: { name: 'Track Maintenance', desc: 'Block a grid square permanently.', icon: <Cone size={16}/> },
+  carpool: { name: 'Carpool', desc: 'Steal a random card from an opponent.', icon: <Users size={16}/> },
+  grand_opening: { name: 'Grand Opening', desc: 'Move a Landmark to an adjacent empty square.', icon: <Move size={16}/> },
+  rezoning: { name: 'Rezoning', desc: 'Swap your landmarks for 2 new ones.', icon: <RefreshCw size={16}/> },
+};
+
+const generateMetroDeck = () => {
+  const deck = [];
+  // 5 of each type = 25 cards
+  Object.keys(METRO_CARDS_DATA).forEach(key => {
+    for(let i=0; i<5; i++) deck.push({ id: key, uid: Math.random().toString(36).substr(2,9) });
+  });
+  return deck.sort(() => Math.random() - 0.5);
+};
+
 const generateTrackDeck = () => {
   const deck = [];
   // 150 Total
@@ -298,47 +316,65 @@ const generateTrackDeck = () => {
 
 // --- REACT COMPONENTS ---
 
-const TrackSvg = ({ shape, rotation, color }) => {
+const TrackSvg = ({ shape, rotation, color, animate }) => {
   const colorMap = { red: '#ef4444', blue: '#3b82f6', green: '#22c55e', yellow: '#eab308', gray: '#9ca3af' };
   const strokeColor = colorMap[color] || '#9ca3af';
+  
+  // Define paths for usage in both stroke and motion
+  const pathId = `track-${shape}-${Math.random().toString(36).substr(2, 5)}`;
+  let d = "";
+  if (shape === 'straight') d = "M 50 0 L 50 100"; // Top to Bottom
+  if (shape === 'curved') d = "M 50 100 Q 50 50 100 50"; // Bottom to Right
+  if (shape === 't-shape') d = "M 0 50 L 100 50 M 50 50 L 50 100"; // Multi-path, complex to animate perfectly on one go, we'll animate main line
+
   return (
     <div className="w-full h-full" style={{ transform: `rotate(${rotation}deg)` }}>
-      <svg viewBox="0 0 100 100" className="w-full h-full">
-        {shape === 'straight' && <line x1="50" y1="0" x2="50" y2="100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />}
-        {shape === 'curved' && <path d="M 50 100 Q 50 50 100 50" fill="none" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />}
+      <svg viewBox="0 0 100 100" className="w-full h-full" shapeRendering="geometricPrecision">
+        {shape === 'straight' && <path id={pathId} d="M 50 0 L 50 100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" fill="none" />}
+        {shape === 'curved' && <path id={pathId} d="M 50 100 Q 50 50 100 50" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" fill="none" />}
         {shape === 't-shape' && (
           <>
-            <line x1="0" y1="50" x2="100" y2="50" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
-            <line x1="50" y1="50" x2="50" y2="100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
+            <path d="M 0 50 L 100 50" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
+            <path d="M 50 50 L 50 100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
+            {/* For T-shape animation, we pick the horizontal line as default path */}
+            {animate && <path id={pathId} d="M 0 50 L 100 50" fill="none" />} 
           </>
+        )}
+        
+        {animate && (
+          <circle r="8" fill="white">
+            <animateMotion dur="2s" repeatCount="indefinite" path={d} />
+          </circle>
         )}
       </svg>
     </div>
   );
 };
 
-const Cell = ({ x, y, cellData, onClick, view }) => {
+const Cell = ({ x, y, cellData, onClick, view, isBlocked, animateTrain }) => {
   const isCenter = x === CENTER && y === CENTER;
   const isHost = view === 'host';
   
   let content = null;
-  // Host: Transparent background to show map, NO borders.
-  // Player: Dark contrast with borders.
+  // Host view gets transparent background to show map, NO borders.
+  // Player view gets dark contrast with borders.
   let bgClass = isHost ? "bg-transparent" : "bg-black/40 backdrop-blur-[2px]";
   let borderClass = isHost ? "border-0" : "border border-gray-700";
   const colorDotMap = { red: 'bg-red-500', blue: 'bg-blue-500', green: 'bg-green-500', yellow: 'bg-yellow-400' };
 
-  if (isCenter) {
-    content = <div className="flex flex-col items-center justify-center h-full w-full bg-white text-black font-bold text-[6px] md:text-[10px] z-10 text-center leading-none border-2 border-black">CITY HALL</div>;
+  if (isBlocked) {
+    content = <div className="w-full h-full flex items-center justify-center bg-yellow-900/50"><Cone size={24} className="text-yellow-500 animate-pulse" /></div>;
+  } else if (isCenter) {
+    content = <div className="flex flex-col items-center justify-center h-full w-full bg-white text-black font-bold text-[6px] md:text-[10px] z-10 text-center leading-none border-2 border-black font-questrial">CITY HALL</div>;
     bgClass = "bg-white/90";
   } else if (cellData?.type === 'track') {
     if (!isHost) bgClass = "bg-gray-900/80"; 
-    content = <TrackSvg shape={cellData.shape} rotation={cellData.rotation} color={cellData.owner} />;
+    content = <TrackSvg shape={cellData.shape} rotation={cellData.rotation} color={cellData.owner} animate={animateTrain} />;
   } else if (cellData?.type === 'landmark') {
     content = (
       <div className="w-full h-full bg-white/90 flex flex-col items-center justify-center p-0.5 border-2 border-gray-400 shadow-md relative">
          <div className={`text-black scale-75 md:scale-100 ${CATEGORIES[cellData.category?.toUpperCase()]?.color}`}>{CATEGORIES[cellData.category?.toUpperCase()]?.icon}</div>
-         <div className="text-[5px] md:text-[8px] text-black font-bold text-center leading-none mt-0.5 break-words w-full overflow-hidden">{cellData.name}</div>
+         <div className="text-[5px] md:text-[8px] text-black font-bold text-center leading-none mt-0.5 break-words w-full overflow-hidden font-questrial">{cellData.name}</div>
          {cellData.connections && Object.keys(cellData.connections).map((c, i) => (
            <div key={c} className={`absolute w-2 h-2 rounded-full border border-white ${colorDotMap[c]} bottom-0.5 right-${i * 2 + 1}`}></div>
          ))}
@@ -360,6 +396,20 @@ const Cell = ({ x, y, cellData, onClick, view }) => {
 const GameCard = ({ data, selected, onClick, type }) => {
   if (!data) return <div className="w-16 h-24 bg-gray-800 rounded opacity-50"></div>;
   
+  if (type === 'metro') {
+    const info = METRO_CARDS_DATA[data.id] || {};
+    return (
+      <div 
+        onClick={onClick}
+        className={`relative w-16 h-24 md:w-24 md:h-32 rounded-lg border-2 flex flex-col items-center justify-center p-1 cursor-pointer transition-all shadow-md shrink-0 bg-yellow-900 ${selected ? 'border-yellow-400 -translate-y-2' : 'border-yellow-700 hover:border-yellow-500'}`}
+      >
+        <div className="text-yellow-500 mb-1">{info.icon}</div>
+        <div className="text-[9px] md:text-xs text-center font-bold text-white leading-tight font-questrial">{info.name}</div>
+        <div className="text-[7px] text-center text-yellow-200 mt-1 leading-tight font-questrial">{info.desc}</div>
+      </div>
+    );
+  }
+
   return (
     <div 
       onClick={onClick}
@@ -370,7 +420,7 @@ const GameCard = ({ data, selected, onClick, type }) => {
     >
       {type === 'track' && (
         <>
-          <div className="text-[10px] md:text-xs text-gray-400 mb-1 md:mb-2 uppercase font-bold text-center truncate w-full">{data.shape}</div>
+          <div className="text-[10px] md:text-xs text-gray-400 mb-1 md:mb-2 uppercase font-bold text-center truncate w-full font-questrial">{data.shape}</div>
           <div className="w-8 h-8 md:w-12 md:h-12 border border-gray-600 rounded flex items-center justify-center bg-gray-900">
              <TrackSvg shape={data.shape} rotation={0} color="gray" />
           </div>
@@ -382,8 +432,8 @@ const GameCard = ({ data, selected, onClick, type }) => {
           <div className="absolute top-1 right-1 text-gray-500 scale-75 md:scale-100">
              {CATEGORIES[data.category?.toUpperCase()]?.icon}
           </div>
-          <div className="text-[8px] md:text-[10px] text-center font-bold text-white leading-tight mt-2 line-clamp-2">{data.name}</div>
-          <div className="text-[8px] md:text-[9px] text-gray-400 mt-1">{CATEGORIES[data.category?.toUpperCase()]?.label}</div>
+          <div className="text-[8px] md:text-[10px] text-center font-bold text-white leading-tight mt-2 line-clamp-2 font-questrial">{data.name}</div>
+          <div className="text-[8px] md:text-[9px] text-gray-400 mt-1 font-questrial">{CATEGORIES[data.category?.toUpperCase()]?.label}</div>
         </>
       )}
     </div>
@@ -395,7 +445,6 @@ const WinnerModal = ({ winner, onRestart }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Simple CSS Confetti */}
         {[...Array(50)].map((_, i) => (
           <div key={i} className="absolute w-2 h-2 bg-yellow-500 rounded-full animate-ping" style={{ 
             top: `${Math.random()*100}%`, left: `${Math.random()*100}%`, 
@@ -405,10 +454,10 @@ const WinnerModal = ({ winner, onRestart }) => {
       </div>
       <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl border-4 border-yellow-500 shadow-2xl text-center max-w-md w-full transform scale-110">
         <Crown size={64} className="text-yellow-400 mx-auto mb-4 animate-bounce" />
-        <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-widest">Winner!</h2>
-        <div className={`text-5xl font-black mb-6 text-${winner.color}-500 drop-shadow-lg`}>{winner.name}</div>
-        <p className="text-gray-400 mb-8 text-xl">Final Score: <span className="text-white font-bold">{winner.score}</span></p>
-        <button onClick={onRestart} className="px-8 py-4 bg-green-600 hover:bg-green-500 text-white rounded-full font-bold text-xl shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 w-full">
+        <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-widest font-nabla">Winner!</h2>
+        <div className={`text-5xl font-black mb-6 text-${winner.color}-500 drop-shadow-lg font-nabla`}>{winner.name}</div>
+        <p className="text-gray-400 mb-8 text-xl font-questrial">Final Score: <span className="text-white font-bold">{winner.score}</span></p>
+        <button onClick={onRestart} className="px-8 py-4 bg-green-600 hover:bg-green-500 text-white rounded-full font-bold text-xl shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 w-full font-questrial">
           <RefreshCw size={24}/> Play Again
         </button>
       </div>
@@ -416,7 +465,6 @@ const WinnerModal = ({ winner, onRestart }) => {
   );
 };
 
-// --- NOTIFICATION OVERLAY ---
 const NotificationOverlay = ({ event }) => {
   const [visible, setVisible] = useState(false);
   
@@ -433,14 +481,14 @@ const NotificationOverlay = ({ event }) => {
   return (
     <div className="fixed top-10 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-10 fade-in duration-500 w-full max-w-2xl px-4 pointer-events-none">
       <div className="bg-white text-gray-900 px-8 py-6 rounded-2xl shadow-[0_0_50px_rgba(255,255,0,0.5)] border-4 border-yellow-400 flex flex-col items-center gap-2 w-full">
-        <div className="flex items-center gap-2 text-yellow-600 font-black uppercase tracking-widest text-sm animate-pulse">
+        <div className="flex items-center gap-2 text-yellow-600 font-black uppercase tracking-widest text-sm animate-pulse font-questrial">
           <Star size={24} className="fill-current" /> Passenger Claimed! <Star size={24} className="fill-current" />
         </div>
-        <div className="text-center w-full">
+        <div className="text-center w-full font-questrial">
           <span className={`text-${event.playerColor}-600 font-black text-4xl drop-shadow-sm`}>{event.playerName}</span>
           <span className="text-gray-500 font-bold text-xl mx-2 block md:inline">picked up</span>
         </div>
-        <div className="text-3xl font-black font-serif text-center leading-tight mt-2 text-gray-800">
+        <div className="text-3xl font-black font-serif text-center leading-tight mt-2 text-gray-800 font-nabla">
           {event.passengerNames.join(" & ")}
         </div>
       </div>
@@ -448,7 +496,6 @@ const NotificationOverlay = ({ event }) => {
   );
 };
 
-// --- AUDIO PLAYER ---
 const playSound = (type) => {
   const soundFileMap = {
     'place-track': 'place-track.m4a',
@@ -460,7 +507,7 @@ const playSound = (type) => {
   const file = soundFileMap[type];
   if (file) {
     const audio = new Audio(`/${file}`);
-    audio.volume = 0.5;
+    audio.volume = 1.0; 
     audio.play().catch(e => console.log("Audio play failed", e));
   }
 };
@@ -471,7 +518,7 @@ const AudioPlayer = ({ view }) => {
 
   useEffect(() => {
     if (view === 'host' && audioRef.current) {
-      audioRef.current.volume = 0.15;
+      audioRef.current.volume = 0.3; 
       audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
     }
   }, [view]);
@@ -507,8 +554,26 @@ export default function App() {
   const [selectedCardType, setSelectedCardType] = useState(null);
   const [rotation, setRotation] = useState(0);
   
-  // HOST SOUND LOGIC
+  const [interactionMode, setInteractionMode] = useState(null); 
+  const [selectedLandmarkForMove, setSelectedLandmarkForMove] = useState(null);
+
   const lastPlayedEventTime = useRef(Date.now());
+
+  // Inject Google Fonts
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.href = "https://fonts.googleapis.com/css2?family=Nabla&family=Questrial&display=swap";
+    link.rel = "stylesheet";
+    document.head.appendChild(link);
+    
+    // Add CSS global style
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .font-nabla { font-family: 'Nabla', system-ui; }
+      .font-questrial { font-family: 'Questrial', sans-serif; }
+    `;
+    document.head.appendChild(style);
+  }, []);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -537,11 +602,9 @@ export default function App() {
     return () => unsub();
   }, [user, activeRoomId]);
 
-  // --- HOST SOUND EFFECT TRIGGER ---
   useEffect(() => {
     if (view === 'host' && gameState?.lastEvent) {
       const event = gameState.lastEvent;
-      // Play only if new event
       if (event.timestamp > lastPlayedEventTime.current) {
         playSound(event.type);
         lastPlayedEventTime.current = event.timestamp;
@@ -556,6 +619,7 @@ export default function App() {
     const landmarks = generateLandmarks();
     const passengers = generatePassengers(landmarks);
     const activePassengers = passengers.splice(0, 3);
+    const metroDeck = generateMetroDeck();
 
     const initialData = {
       hostId: user.uid,
@@ -563,8 +627,10 @@ export default function App() {
       players: [],
       grid: JSON.stringify(initialGrid),
       turnIndex: 0,
-      decks: { tracks: generateTrackDeck(), landmarks, passengers },
+      totalTurns: 0, 
+      decks: { tracks: generateTrackDeck(), landmarks, passengers, metro: metroDeck },
       activePassengers,
+      blockedCells: [], 
       winner: null,
       lastEvent: null
     };
@@ -593,7 +659,7 @@ export default function App() {
           name: playerName,
           color: COLORS[data.players.length],
           score: 0,
-          hand: { tracks: [], landmarks: [] },
+          hand: { tracks: [], landmarks: [], metro: [] },
           completedPassengers: []
         };
         transaction.update(roomRef, { players: arrayUnion(newPlayer) });
@@ -608,7 +674,7 @@ export default function App() {
     const updatedPlayers = gameState.players.map(p => {
       const tracks = gameState.decks.tracks.splice(0, 3);
       const landmarks = gameState.decks.landmarks.splice(0, 2);
-      return { ...p, hand: { tracks, landmarks } };
+      return { ...p, hand: { tracks, landmarks, metro: [] } };
     });
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
       status: 'playing', players: updatedPlayers, decks: gameState.decks 
@@ -620,25 +686,120 @@ export default function App() {
     const landmarks = generateLandmarks();
     const passengers = generatePassengers(landmarks);
     const activePassengers = passengers.splice(0, 3);
+    const metroDeck = generateMetroDeck();
     
     const resetPlayers = gameState.players.map(p => ({
-        ...p, score: 0, hand: { tracks: [], landmarks: [] }, completedPassengers: []
+        ...p, score: 0, hand: { tracks: [], landmarks: [], metro: [] }, completedPassengers: []
     }));
     
     const dealPlayers = resetPlayers.map(p => {
         const tracks = generateTrackDeck().splice(0,3);
         const lms = landmarks.splice(0,2);
-        return { ...p, hand: { tracks, landmarks: lms }};
+        return { ...p, hand: { tracks, landmarks: lms, metro: [] }};
     });
 
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
       grid: JSON.stringify(initialGrid),
       players: dealPlayers,
-      decks: { tracks: generateTrackDeck(), landmarks, passengers },
+      decks: { tracks: generateTrackDeck(), landmarks, passengers, metro: metroDeck },
       activePassengers,
+      totalTurns: 0,
       turnIndex: 0,
-      winner: null
+      winner: null,
+      blockedCells: []
     });
+  };
+
+  const endTurn = async (updates, winner, lastEvent) => {
+    const nextTurn = (gameState.turnIndex + 1) % gameState.players.length;
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
+      ...updates,
+      turnIndex: nextTurn, winner: winner || null,
+      lastEvent: lastEvent || gameState.lastEvent,
+      totalTurns: (gameState.totalTurns || 0) + 1
+    });
+    setSelectedCardIdx(null);
+    setSelectedCardType(null);
+    setRotation(0);
+    setInteractionMode(null);
+    setSelectedLandmarkForMove(null);
+  };
+
+  const handleMetroCardAction = (idx) => {
+      const playerIdx = gameState.players.findIndex(p => p.id === user.uid);
+      if (playerIdx !== gameState.turnIndex) { alert("Not your turn!"); return; }
+      
+      const card = gameState.players[playerIdx].hand.metro[idx];
+      setSelectedCardIdx(idx); 
+      setSelectedCardType('metro');
+
+      if (card.id === 'rush_hour') {
+          const newDecks = { ...gameState.decks };
+          let newActive = [];
+          newDecks.passengers = [...newDecks.passengers, ...gameState.activePassengers];
+          for(let i=0; i<3; i++) {
+              if (newDecks.passengers.length > 0) {
+                  const p = newDecks.passengers.shift();
+                  p.unlockTurn = (gameState.totalTurns || 0) + gameState.players.length;
+                  newActive.push(p);
+              }
+          }
+          const newHand = { ...gameState.players[playerIdx].hand };
+          newHand.metro.splice(idx, 1);
+          const newPlayers = [...gameState.players];
+          newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
+          endTurn({ decks: newDecks, activePassengers: newActive, players: newPlayers }, null, null);
+      } 
+      else if (card.id === 'track_maint') {
+          setInteractionMode('track_maint');
+          alert("Select an empty grid square to block.");
+      }
+      else if (card.id === 'grand_opening') {
+          setInteractionMode('grand_opening_select_source');
+          alert("Select a Landmark to move.");
+      }
+      else if (card.id === 'rezoning') {
+          const newDecks = { ...gameState.decks };
+          const newHand = { ...gameState.players[playerIdx].hand };
+          newDecks.landmarks.push(...newHand.landmarks);
+          newHand.landmarks = [];
+          if(newDecks.landmarks.length >= 2) {
+              newHand.landmarks.push(newDecks.landmarks.pop());
+              newHand.landmarks.push(newDecks.landmarks.pop());
+          }
+          newHand.metro.splice(idx, 1);
+          const newPlayers = [...gameState.players];
+          newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
+          endTurn({ decks: newDecks, players: newPlayers }, null, null);
+      }
+      else if (card.id === 'carpool') {
+          const opponents = gameState.players.filter(p => p.id !== user.uid);
+          if (opponents.length === 0) return;
+          const victim = opponents[Math.floor(Math.random() * opponents.length)];
+          const victimIdx = gameState.players.findIndex(p => p.id === victim.id);
+          
+          const newVictimHand = { ...victim.hand };
+          const newPlayerHand = { ...gameState.players[playerIdx].hand };
+          
+          const pool = [];
+          newVictimHand.tracks.forEach((_, i) => pool.push({type: 'tracks', idx: i}));
+          newVictimHand.landmarks.forEach((_, i) => pool.push({type: 'landmarks', idx: i}));
+          
+          if (pool.length > 0) {
+              const stealTarget = pool[Math.floor(Math.random() * pool.length)];
+              const stolenCard = newVictimHand[stealTarget.type].splice(stealTarget.idx, 1)[0];
+              if (stealTarget.type === 'tracks') newPlayerHand.tracks.push(stolenCard);
+              else newPlayerHand.landmarks.push(stolenCard);
+          }
+          newPlayerHand.metro.splice(idx, 1);
+          
+          const newPlayers = [...gameState.players];
+          newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newPlayerHand };
+          newPlayers[victimIdx] = { ...gameState.players[victimIdx], hand: newVictimHand };
+          
+          alert(`You stole a card from ${victim.name}!`);
+          endTurn({ players: newPlayers }, null, null);
+      }
   };
 
   const handlePlaceCard = (x, y) => {
@@ -646,8 +807,54 @@ export default function App() {
     const playerIdx = gameState.players.findIndex(p => p.id === user.uid);
     if (playerIdx !== gameState.turnIndex) { alert("Not your turn!"); return; }
     
+    if (interactionMode === 'track_maint') {
+        const cell = getCell(gameState.grid, x, y);
+        if (cell !== null || isStart(x, y) || gameState.blockedCells?.includes(`${x},${y}`)) {
+            alert("Must select an empty square."); return;
+        }
+        const newBlocked = [...(gameState.blockedCells || []), `${x},${y}`];
+        const newHand = { ...gameState.players[playerIdx].hand };
+        newHand.metro.splice(selectedCardIdx, 1);
+        const newPlayers = [...gameState.players];
+        newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
+        endTurn({ blockedCells: newBlocked, players: newPlayers }, null, null);
+        return;
+    }
+
+    if (interactionMode === 'grand_opening_select_source') {
+        const cell = getCell(gameState.grid, x, y);
+        if (!cell || cell.type !== 'landmark') { alert("Select a Landmark to move."); return; }
+        setSelectedLandmarkForMove({x, y, data: cell});
+        setInteractionMode('grand_opening_select_dest');
+        return;
+    }
+
+    if (interactionMode === 'grand_opening_select_dest') {
+        const cell = getCell(gameState.grid, x, y);
+        if (cell !== null || isStart(x,y) || gameState.blockedCells?.includes(`${x},${y}`)) {
+            alert("Destination must be empty."); return;
+        }
+        const dx = Math.abs(x - selectedLandmarkForMove.x);
+        const dy = Math.abs(y - selectedLandmarkForMove.y);
+        if (dx + dy !== 1) { alert("Must be adjacent."); return; }
+
+        const newGrid = [...gameState.grid];
+        newGrid[y][x] = selectedLandmarkForMove.data; 
+        newGrid[selectedLandmarkForMove.y][selectedLandmarkForMove.x] = null; 
+
+        const newHand = { ...gameState.players[playerIdx].hand };
+        newHand.metro.splice(selectedCardIdx, 1);
+        const newPlayers = [...gameState.players];
+        newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
+
+        endTurn({ grid: JSON.stringify(newGrid), players: newPlayers }, null, null);
+        return;
+    }
+
     if (selectedCardIdx === null) return;
     const player = gameState.players[playerIdx];
+    if (selectedCardType === 'metro') return;
+
     const card = selectedCardType === 'tracks' 
       ? player.hand.tracks[selectedCardIdx] 
       : player.hand.landmarks[selectedCardIdx];
@@ -655,6 +862,7 @@ export default function App() {
 
     const grid = gameState.grid;
     if (grid[y][x] !== null) { alert("Space occupied"); return; }
+    if (gameState.blockedCells?.includes(`${x},${y}`)) { alert("This square is under construction!"); return; }
 
     const candidateCell = {
       ...card, owner: player.color, rotation: rotation, type: card.type, isStart: false
@@ -712,8 +920,7 @@ export default function App() {
     const newGrid = [...grid];
     newGrid[y][x] = { ...card, owner: player.color, rotation, connectedColors: card.type === 'track' ? [player.color] : [] };
     
-    // NOTE: Removed local playSound here. We will set the event, and Host will play it.
-
+    // --- SCORING & TRAIN ANIMATION TRIGGER ---
     let pointsGained = 0;
     const completedPassengerIds = [];
     const playerConnectedLandmarks = new Set();
@@ -749,6 +956,7 @@ export default function App() {
 
     const claimedPassengerNames = [];
     const checkPassenger = (p) => {
+      if (p.unlockTurn && gameState.totalTurns < p.unlockTurn) return false;
       if (completedPassengerIds.includes(p.id)) return false;
       let match = false;
       
@@ -784,24 +992,19 @@ export default function App() {
 
     gameState.activePassengers.forEach(checkPassenger);
     
-    // --- EVENT GENERATION FOR SOUNDS ---
     let lastEvent = null;
-    
     if (pointsGained > 0) {
-      lastEvent = {
-        type: 'claim-passenger',
-        playerColor: player.color,
-        playerName: player.name,
-        passengerNames: claimedPassengerNames,
-        timestamp: Date.now()
+      lastEvent = { 
+        type: 'claim-passenger', 
+        playerColor: player.color, 
+        playerName: player.name, 
+        passengerNames: claimedPassengerNames, 
+        timestamp: Date.now(),
+        // Pass coordinates for train animation
+        coords: { x, y } 
       };
     } else {
-        // Just placement sound
-        lastEvent = {
-            type: card.type === 'track' ? 'place-track' : 'place-landmark',
-            playerColor: player.color,
-            timestamp: Date.now()
-        };
+      lastEvent = { type: card.type === 'track' ? 'place-track' : 'place-landmark', playerColor: player.color, timestamp: Date.now() };
     }
 
     const newHand = { ...player.hand };
@@ -811,33 +1014,18 @@ export default function App() {
     const newDecks = { ...gameState.decks };
     if (selectedCardType === 'tracks' && newDecks.tracks.length > 0) newHand.tracks.push(newDecks.tracks.pop());
     if (selectedCardType === 'landmarks' && newDecks.landmarks.length > 0) newHand.landmarks.push(newDecks.landmarks.pop());
+    
+    if (pointsGained > 0 && newDecks.metro && newDecks.metro.length > 0) {
+        newHand.metro.push(newDecks.metro.pop());
+    }
 
     let newActivePassengers = [...gameState.activePassengers];
     if (completedPassengerIds.length > 0) {
       newActivePassengers = newActivePassengers.filter(p => !completedPassengerIds.includes(p.id));
       while (newActivePassengers.length < 3 && newDecks.passengers.length > 0) {
         const nextPass = newDecks.passengers.pop();
+        nextPass.unlockTurn = (gameState.totalTurns || 0) + gameState.players.length; 
         newActivePassengers.push(nextPass);
-        
-        const potentialWinners = gameState.players.map(pl => {
-           const pLandmarks = new Set();
-           newGrid.forEach(r => r.forEach(c => {
-             if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) pLandmarks.add(c.id);
-           }));
-           if (nextPass.reqType === 'specific' && pLandmarks.has(nextPass.targetId)) return pl;
-           return null;
-        }).filter(Boolean);
-
-        if (potentialWinners.length > 0) {
-           let bestPlayer = null;
-           let minDist = Infinity;
-           potentialWinners.forEach(winner => {
-             let tx, ty;
-             newGrid.forEach((r,y) => r.forEach((c,x) => { if(c?.id === nextPass.targetId) { tx=x; ty=y; }}));
-             const dist = getDistanceToStart(newGrid, tx, ty, winner.color);
-             if (dist < minDist) { minDist = dist; bestPlayer = winner; }
-           });
-        }
       }
     }
 
@@ -847,37 +1035,20 @@ export default function App() {
     let winner = null;
     if (newPlayers[playerIdx].score >= 7) {
        winner = newPlayers[playerIdx];
-       lastEvent = {
-           type: 'win-game',
-           playerColor: player.color,
-           playerName: player.name,
-           timestamp: Date.now()
-       };
+       lastEvent = { type: 'win-game', playerColor: player.color, playerName: player.name, timestamp: Date.now() };
     }
 
-    endTurn(newGrid, newPlayers, newDecks, newActivePassengers, winner, lastEvent);
-  };
-
-  const endTurn = async (newGrid, newPlayers, newDecks, newActivePassengers, winner, lastEvent) => {
-    const nextTurn = (gameState.turnIndex + 1) % gameState.players.length;
-    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
-      grid: JSON.stringify(newGrid), players: newPlayers, decks: newDecks,
-      activePassengers: newActivePassengers, turnIndex: nextTurn, winner: winner || null,
-      lastEvent: lastEvent || gameState.lastEvent 
-    });
-    setSelectedCardIdx(null);
-    setSelectedCardType(null);
-    setRotation(0);
+    endTurn({ grid: JSON.stringify(newGrid), players: newPlayers, decks: newDecks, activePassengers: newActivePassengers }, winner, lastEvent);
   };
 
   if (view === 'home') {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans p-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('/city-map.jpg')] bg-cover opacity-20 blur-sm pointer-events-none"></div>
-        <h1 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-green-500 to-blue-500 mb-8 tracking-tighter text-center z-10 drop-shadow-lg">
+        <h1 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-green-500 to-blue-500 mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-nabla">
           MIND THE GAP
         </h1>
-        <div className="flex flex-col md:flex-row gap-4 w-full max-w-md z-10">
+        <div className="flex flex-col md:flex-row gap-4 w-full max-w-md z-10 font-questrial">
           <button onClick={createGame} className="px-8 py-4 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-xl shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 w-full md:w-auto">
             <Crown size={24}/> Host
           </button>
@@ -896,13 +1067,11 @@ export default function App() {
             <button onClick={joinGame} className="px-8 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-bold shadow-lg transition-transform hover:scale-105 w-full">Join Game</button>
           </div>
         </div>
-        {error && <p className="text-red-500 mt-4 font-bold bg-red-900/20 px-4 py-2 rounded z-10">{error}</p>}
+        {error && <p className="text-red-500 mt-4 font-bold bg-red-900/20 px-4 py-2 rounded z-10 font-questrial">{error}</p>}
       </div>
     );
   }
 
-  // --- RENDERERS ---
-  
   if (gameState?.winner) {
     return <WinnerModal winner={gameState.winner} onRestart={restartGame} />;
   }
@@ -911,29 +1080,29 @@ export default function App() {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4">
         <AudioPlayer view={view} />
-        <h2 className="text-4xl font-bold mb-2">Lobby: {activeRoomId}</h2>
-        <p className="text-gray-400 mb-8">Waiting for players...</p>
+        <h2 className="text-4xl font-bold mb-2 font-nabla">Lobby: {activeRoomId}</h2>
+        <p className="text-gray-400 mb-8 font-questrial">Waiting for players...</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {gameState?.players.map((p, i) => (
             <div key={i} className={`p-6 rounded-xl bg-gray-800 border-2 border-${p.color}-500 flex flex-col items-center`}>
               <div className={`w-12 h-12 rounded-full bg-${p.color}-500 mb-2`}></div>
-              <span className="font-bold text-lg">{p.name}</span>
+              <span className="font-bold text-lg font-questrial">{p.name}</span>
             </div>
           ))}
           {[...Array(4 - (gameState?.players.length || 0))].map((_, i) => (
-             <div key={i} className="p-6 rounded-xl bg-gray-800/50 border-2 border-dashed border-gray-700 flex flex-col items-center justify-center text-gray-600">Waiting...</div>
+             <div key={i} className="p-6 rounded-xl bg-gray-800/50 border-2 border-dashed border-gray-700 flex flex-col items-center justify-center text-gray-600 font-questrial">Waiting...</div>
           ))}
         </div>
         {gameState?.hostId === user.uid ? (
-          <button onClick={startGame} disabled={gameState?.players.length < 2} className="px-12 py-4 bg-yellow-500 hover:bg-yellow-400 text-black rounded-full font-black text-2xl shadow-lg transition-all disabled:opacity-50">START GAME</button>
+          <button onClick={startGame} disabled={gameState?.players.length < 2} className="px-12 py-4 bg-yellow-500 hover:bg-yellow-400 text-black rounded-full font-black text-2xl shadow-lg transition-all disabled:opacity-50 font-questrial">START GAME</button>
         ) : (
-          <p className="animate-pulse text-xl font-medium text-center">Host will start the game soon...</p>
+          <p className="animate-pulse text-xl font-medium text-center font-questrial">Host will start the game soon...</p>
         )}
       </div>
     );
   }
 
-  const Board = ({ interactive, isMobile }) => (
+  const Board = ({ interactive, isMobile, lastEvent }) => (
     <div 
       className={`grid ${isMobile ? 'gap-[1px]' : 'gap-0'} ${isMobile ? 'bg-black/10 border border-gray-600/30' : 'bg-transparent border-0'} rounded-lg shadow-2xl overflow-hidden select-none mx-auto relative backdrop-blur-sm`}
       style={{ 
@@ -950,7 +1119,16 @@ export default function App() {
     >
       {gameState.grid.map((row, y) => (
         row.map((cell, x) => (
-          <Cell key={`${x}-${y}`} x={x} y={y} cellData={cell} onClick={interactive ? handlePlaceCard : () => {}} view={view} />
+          <Cell 
+            key={`${x}-${y}`} 
+            x={x} y={y} 
+            cellData={cell} 
+            onClick={interactive ? handlePlaceCard : () => {}} 
+            view={view}
+            isBlocked={gameState.blockedCells?.includes(`${x},${y}`)}
+            // Train Animation Logic
+            animateTrain={lastEvent?.type === 'claim-passenger' && lastEvent.coords?.x === x && lastEvent.coords?.y === y && (Date.now() - lastEvent.timestamp < 3000)}
+          />
         ))
       ))}
     </div>
@@ -958,13 +1136,13 @@ export default function App() {
 
   if (view === 'host') {
     return (
-      <div className="h-screen bg-gray-950 text-white flex p-4 gap-4 overflow-hidden relative">
+      <div className="h-screen bg-gray-950 text-white flex p-4 gap-4 overflow-hidden relative font-questrial">
         <AudioPlayer view="host" />
         <NotificationOverlay event={gameState.lastEvent} />
         <div className="w-1/4 max-w-sm flex flex-col gap-4 h-full z-10">
           <div className="bg-gray-800 p-3 rounded-lg text-center shadow-lg border border-gray-700">
              <div className="text-xs text-gray-400 uppercase tracking-widest">Room Code</div>
-             <div className="text-4xl font-black tracking-widest text-white">{activeRoomId}</div>
+             <div className="text-4xl font-black tracking-widest text-white font-nabla">{activeRoomId}</div>
           </div>
 
           <div className="bg-gray-900 p-4 rounded-xl shadow-lg border border-gray-800 flex-shrink-0">
@@ -986,7 +1164,12 @@ export default function App() {
             <h3 className="text-lg font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wide"><Users size={18}/> Passengers</h3>
             <div className="space-y-3">
               {gameState.activePassengers.map(pass => (
-                <div key={pass.id} className="bg-white text-gray-900 p-4 rounded-xl shadow-xl flex flex-col gap-1 border-4 border-gray-200 relative overflow-hidden transform hover:scale-105 transition-transform duration-300">
+                <div key={pass.id} className={`bg-white text-gray-900 p-4 rounded-xl shadow-xl flex flex-col gap-1 border-4 border-gray-200 relative overflow-hidden transform transition-all duration-300 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 scale-95 grayscale' : 'hover:scale-105'}`}>
+                  {gameState.totalTurns < pass.unlockTurn && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
+                          <span className="bg-red-600 text-white px-3 py-1 font-bold rounded uppercase text-xs">Arriving Soon</span>
+                      </div>
+                  )}
                   <div className="absolute top-0 right-0 p-2 opacity-10 pointer-events-none">
                     {pass.reqType === 'category' && CATEGORIES[pass.targetCategory?.toUpperCase()]?.icon}
                   </div>
@@ -1009,7 +1192,7 @@ export default function App() {
 
         <div className="flex-1 flex items-center justify-center rounded-xl overflow-hidden relative shadow-2xl backdrop-blur-sm">
            <div className="absolute inset-4 flex items-center justify-center">
-              <Board interactive={false} isMobile={false} />
+              <Board interactive={false} isMobile={false} lastEvent={gameState.lastEvent} />
            </div>
         </div>
       </div>
@@ -1051,7 +1234,7 @@ export default function App() {
     }
 
     return (
-      <div className="h-[100dvh] bg-gray-950 text-white flex flex-col overflow-hidden">
+      <div className="h-[100dvh] bg-gray-950 text-white flex flex-col overflow-hidden font-questrial">
         <AudioPlayer view="player" />
         <NotificationOverlay event={gameState.lastEvent} />
         <div className="bg-gray-900 border-b border-gray-800 shrink-0 z-20 shadow-md">
@@ -1083,11 +1266,20 @@ export default function App() {
 
         <div className="flex-1 overflow-auto bg-black/40 relative">
            <div className="inline-block min-w-full min-h-full p-4">
-             <Board interactive={isMyTurn} isMobile={true} />
+             <Board interactive={isMyTurn} isMobile={true} lastEvent={gameState.lastEvent} />
            </div>
         </div>
 
         <div className="bg-gray-900 border-t border-gray-800 shrink-0 flex flex-col safe-area-pb shadow-[0_-4px_20px_rgba(0,0,0,0.5)] z-20">
+          {interactionMode && (
+              <div className="bg-yellow-600 text-black font-bold p-2 text-center animate-pulse">
+                  {interactionMode === 'track_maint' && "Select a square to block"}
+                  {interactionMode === 'grand_opening_select_source' && "Select a Landmark to move"}
+                  {interactionMode === 'grand_opening_select_dest' && "Select adjacent destination"}
+                  <button onClick={() => setInteractionMode(null)} className="ml-4 underline text-sm">Cancel</button>
+              </div>
+          )}
+          
           {isMyTurn && selectedCardType === 'tracks' && (
             <div className="flex justify-center items-center gap-6 py-3 border-b border-gray-800 bg-gray-800/80 backdrop-blur-sm">
                <div className="w-12 h-12 border-2 border-gray-500 bg-gray-900 rounded-lg flex items-center justify-center shadow-inner">
@@ -1098,13 +1290,19 @@ export default function App() {
               </button>
             </div>
           )}
+          
           <div className="flex gap-2 overflow-x-auto p-3 pb-6 no-scrollbar">
+            {player.hand.metro?.map((card, i) => (
+                <GameCard key={`m-${i}`} data={card} type="metro" selected={selectedCardType === 'metro' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; handleMetroCardAction(i); }} />
+            ))}
+            {player.hand.metro?.length > 0 && <div className="w-px bg-yellow-700 mx-1 shrink-0 self-stretch my-2"></div>}
+            
             {player.hand.tracks.map((card, i) => (
-              <GameCard key={`t-${i}`} data={card} type="track" selected={selectedCardType === 'tracks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; setSelectedCardIdx(i); setSelectedCardType('tracks'); setRotation(0); }} />
+              <GameCard key={`t-${i}`} data={card} type="track" selected={selectedCardType === 'tracks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; setSelectedCardIdx(i); setSelectedCardType('tracks'); setRotation(0); setInteractionMode(null); }} />
             ))}
             <div className="w-px bg-gray-700 mx-1 shrink-0 self-stretch my-2"></div>
             {player.hand.landmarks.map((card, i) => (
-              <GameCard key={`l-${i}`} data={card} type="landmark" selected={selectedCardType === 'landmarks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; setSelectedCardIdx(i); setSelectedCardType('landmarks'); setRotation(0); }} />
+              <GameCard key={`l-${i}`} data={card} type="landmark" selected={selectedCardType === 'landmarks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; setSelectedCardIdx(i); setSelectedCardType('landmarks'); setRotation(0); setInteractionMode(null); }} />
             ))}
           </div>
         </div>
