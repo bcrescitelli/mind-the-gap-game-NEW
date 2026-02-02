@@ -132,14 +132,13 @@ const areConnected = (cellA, cellB, dirFromAtoB) => {
   return true;
 };
 
-// BFS
+// BFS for distance
 const getDistanceToStart = (grid, targetX, targetY, playerColor) => {
   const queue = [{ x: targetX, y: targetY, dist: 0 }];
   const visited = new Set([`${targetX},${targetY}`]);
   while (queue.length > 0) {
     const current = queue.shift();
     if (isStart(current.x, current.y)) return current.dist;
-
     [0,1,2,3].forEach(dir => {
       const nc = getNeighborCoords(current.x, current.y, dir);
       const key = `${nc.x},${nc.y}`;
@@ -160,6 +159,40 @@ const getDistanceToStart = (grid, targetX, targetY, playerColor) => {
   }
   return Infinity;
 };
+
+// BFS to FIND PATH (Array of "x,y")
+const findPathToStart = (grid, targetX, targetY, playerColor) => {
+  const queue = [{ x: targetX, y: targetY, path: [] }];
+  const visited = new Set([`${targetX},${targetY}`]);
+  
+  while (queue.length > 0) {
+    const { x, y, path } = queue.shift();
+    const currentPath = [...path, `${x},${y}`];
+    
+    if (isStart(x, y)) return currentPath;
+
+    for (let dir = 0; dir < 4; dir++) {
+      const nc = getNeighborCoords(x, y, dir);
+      const key = `${nc.x},${nc.y}`;
+      if (!visited.has(key)) {
+        const nextCell = getCell(grid, nc.x, nc.y);
+        const currCell = getCell(grid, x, y);
+        const currObj = isStart(x, y) ? { isStart: true, type: 'start' } : currCell;
+        const nextObj = isStart(nc.x, nc.y) ? { isStart: true, type: 'start' } : nextCell;
+
+        if (nextObj) {
+           const validNode = nextObj.isStart || (nextObj.type === 'track' && nextObj.owner === playerColor) || (nextObj.type === 'landmark' && nextObj.connections?.[playerColor] > 0);
+           if (validNode && areConnected(currObj, nextObj, dir)) {
+             visited.add(key);
+             queue.push({ x: nc.x, y: nc.y, path: currentPath });
+           }
+        }
+      }
+    }
+  }
+  return [];
+};
+
 
 const check3TrackRule = (grid, startX, startY, playerColor) => {
   const queue = [];
@@ -316,46 +349,65 @@ const generateTrackDeck = () => {
 
 // --- REACT COMPONENTS ---
 
-const TrackSvg = ({ shape, rotation, color, animate }) => {
+// OPTIMIZED: Removed animateMotion for performance
+const TrackSvg = ({ shape, rotation, color, isSurge }) => {
   const colorMap = { red: '#ef4444', blue: '#3b82f6', green: '#22c55e', yellow: '#eab308', gray: '#9ca3af' };
   const strokeColor = colorMap[color] || '#9ca3af';
   
   const pathId = `track-${shape}-${Math.random().toString(36).substr(2, 5)}`;
-  let d = "";
-  if (shape === 'straight') d = "M 50 0 L 50 100";
-  if (shape === 'curved') d = "M 50 100 Q 50 50 100 50";
-  if (shape === 't-shape') d = "M 0 50 L 100 50 M 50 50 L 50 100"; 
-
+  
   return (
     <div className="w-full h-full" style={{ transform: `rotate(${rotation}deg)` }}>
       <svg viewBox="0 0 100 100" className="w-full h-full" shapeRendering="geometricPrecision">
-        {shape === 'straight' && <path id={pathId} d="M 50 0 L 50 100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" fill="none" />}
-        {shape === 'curved' && <path id={pathId} d="M 50 100 Q 50 50 100 50" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" fill="none" />}
+        {/* SURGE EFFECT STYLES */}
+        <defs>
+            <style>
+                {`
+                 .surge-anim { animation: surge 2s ease-out infinite; }
+                 @keyframes surge {
+                     0% { stroke-opacity: 0.2; stroke-width: 30; filter: brightness(1); }
+                     50% { stroke-opacity: 1; stroke-width: 35; filter: brightness(2) drop-shadow(0 0 4px white); }
+                     100% { stroke-opacity: 0.2; stroke-width: 30; filter: brightness(1); }
+                 }
+                `}
+            </style>
+        </defs>
+
+        {shape === 'straight' && (
+            <>
+                <path d="M 50 0 L 50 100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" fill="none" />
+                {isSurge && <path d="M 50 0 L 50 100" stroke="white" strokeWidth="30" className="surge-anim" fill="none" />}
+            </>
+        )}
+        {shape === 'curved' && (
+            <>
+                <path d="M 50 100 Q 50 50 100 50" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" fill="none" />
+                {isSurge && <path d="M 50 100 Q 50 50 100 50" stroke="white" strokeWidth="30" className="surge-anim" fill="none" />}
+            </>
+        )}
         {shape === 't-shape' && (
           <>
             <path d="M 0 50 L 100 50" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
             <path d="M 50 50 L 50 100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
-            {animate && <path id={pathId} d="M 0 50 L 100 50" fill="none" />} 
+            {isSurge && (
+                <>
+                    <path d="M 0 50 L 100 50" stroke="white" strokeWidth="30" className="surge-anim" />
+                    <path d="M 50 50 L 50 100" stroke="white" strokeWidth="30" className="surge-anim" />
+                </>
+            )}
           </>
-        )}
-        
-        {(animate || color !== 'gray') && (
-          <circle r="6" fill="white" opacity="0.8">
-            <animateMotion dur="3s" repeatCount="indefinite" path={d} />
-          </circle>
         )}
       </svg>
     </div>
   );
 };
 
-const Cell = ({ x, y, cellData, onClick, view, isBlocked, animateTrain }) => {
+// OPTIMIZED: React.memo to prevent grid re-renders
+const Cell = React.memo(({ x, y, cellData, onClick, view, isBlocked, isSurge }) => {
   const isCenter = x === CENTER && y === CENTER;
   const isHost = view === 'host';
   
   let content = null;
-  // Host view gets transparent background to show map, NO borders.
-  // Player view gets dark contrast with borders.
   let bgClass = isHost ? "bg-transparent" : "bg-black/40 backdrop-blur-[2px]";
   let borderClass = isHost ? "border-0" : "border border-gray-700";
   const colorDotMap = { red: 'bg-red-500', blue: 'bg-blue-500', green: 'bg-green-500', yellow: 'bg-yellow-400' };
@@ -367,7 +419,7 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked, animateTrain }) => {
     bgClass = "bg-white/90";
   } else if (cellData?.type === 'track') {
     if (!isHost) bgClass = "bg-gray-900/80"; 
-    content = <TrackSvg shape={cellData.shape} rotation={cellData.rotation} color={cellData.owner} animate={animateTrain} />;
+    content = <TrackSvg shape={cellData.shape} rotation={cellData.rotation} color={cellData.owner} isSurge={isSurge} />;
   } else if (cellData?.type === 'landmark') {
     content = (
       <div className="w-full h-full bg-white/90 flex flex-col items-center justify-center p-0.5 border-2 border-gray-400 shadow-md relative">
@@ -389,7 +441,15 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked, animateTrain }) => {
       {content}
     </div>
   );
-};
+}, (prev, next) => {
+    // Custom comparison for performance
+    return (
+        prev.cellData === next.cellData && 
+        prev.isBlocked === next.isBlocked && 
+        prev.isSurge === next.isSurge &&
+        prev.view === next.view
+    );
+});
 
 const GameCard = ({ data, selected, onClick, type }) => {
   if (!data) return <div className="w-16 h-24 bg-gray-800 rounded opacity-50"></div>;
@@ -542,15 +602,13 @@ const AudioPlayer = ({ view }) => {
 
   useEffect(() => {
     if (view === 'host' && audioRef.current) {
-      audioRef.current.volume = 0.1; // Reduced background music volume
+      audioRef.current.volume = 0.1; 
       audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
       
-      // Ambient Sound Loop (Continuous)
       if (ambientRef.current) {
-          ambientRef.current.volume = 0.3; // Start low
+          ambientRef.current.volume = 0.3; 
           ambientRef.current.play().catch(e => console.log("Ambient fail", e));
           
-          // Random volume fluctuation
           const fluctuate = () => {
              if(ambientRef.current) {
                  ambientRef.current.volume = Math.random() * 0.4 + 0.1; 
@@ -585,7 +643,49 @@ const AudioPlayer = ({ view }) => {
 };
 
 // --- MAIN COMPONENT ---
-const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, view }) => (
+const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, view }) => {
+  // Memoized surge path calculation
+  const surgePath = useMemo(() => {
+    if (!gameState?.lastEvent || gameState.lastEvent.type !== 'claim-passenger') return new Set();
+    // Only show surge for 2.5s
+    if (Date.now() - gameState.lastEvent.timestamp > 2500) return new Set();
+
+    const { playerColor, passengerNames, claimedLandmarkIds } = gameState.lastEvent;
+    
+    // We need to find path from City Hall to the relevant landmarks
+    // But since landmarks can be anywhere, we just light up ALL tracks connected to start for that player
+    // as a "Power Surge" visual effect. Simple and effective.
+    // To be more precise, we can run BFS from start and keep all visited nodes.
+    const nodes = new Set();
+    const queue = [{ x: CENTER, y: CENTER }];
+    const visited = new Set([`${CENTER},${CENTER}`]);
+    
+    while(queue.length > 0) {
+       const curr = queue.shift();
+       nodes.add(`${curr.x},${curr.y}`);
+       
+       [0,1,2,3].forEach(dir => {
+          const nc = getNeighborCoords(curr.x, curr.y, dir);
+          const key = `${nc.x},${nc.y}`;
+          if(!visited.has(key)) {
+             const nextCell = getCell(gameState.grid, nc.x, nc.y);
+             const currCell = getCell(gameState.grid, curr.x, curr.y);
+             const currObj = isStart(curr.x, curr.y) ? {isStart:true, type:'start'} : currCell;
+             const nextObj = isStart(nc.x, nc.y) ? {isStart:true, type:'start'} : nextCell;
+
+             if(nextObj && (nextObj.isStart || (nextObj.type === 'track' && nextObj.owner === playerColor))) {
+                 if(areConnected(currObj, nextObj, dir)) {
+                     visited.add(key);
+                     queue.push(nc);
+                 }
+             }
+          }
+       });
+    }
+    return nodes;
+  }, [gameState?.lastEvent, gameState?.grid]);
+
+  return (
     <div 
       className={`grid ${isMobile ? 'gap-[1px]' : 'gap-0'} ${isMobile ? 'bg-black/10 border border-gray-600/30' : 'bg-transparent border-0'} rounded-lg shadow-2xl overflow-hidden select-none mx-auto relative backdrop-blur-sm`}
       style={{ 
@@ -609,19 +709,20 @@ const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, v
             onClick={interactive ? handlePlaceCard : () => {}} 
             view={view}
             isBlocked={gameState.blockedCells?.includes(`${x},${y}`)}
-            animateTrain={true} 
+            isSurge={surgePath.has(`${x},${y}`)}
           />
         ))
       ))}
     </div>
-);
+  );
+};
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [entryCode, setEntryCode] = useState(""); 
   const [activeRoomId, setActiveRoomId] = useState(""); 
   const [playerName, setPlayerName] = useState("");
-  const [playerColor, setPlayerColor] = useState("red"); // Default
+  const [playerColor, setPlayerColor] = useState("red"); 
   const [gameState, setGameState] = useState(null);
   const [view, setView] = useState('home');
   const [error, setError] = useState("");
@@ -663,7 +764,6 @@ export default function App() {
     if (savedRoom && !activeRoomId) setActiveRoomId(savedRoom);
   }, []);
   
-  // Watch for available colors
   useEffect(() => {
     if (entryCode.length === 5) {
        const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'games', entryCode.toUpperCase()), (docSnap) => {
@@ -687,7 +787,6 @@ export default function App() {
         
         const isHost = data.hostId === user.uid;
         if (isHost) {
-            // FIX: If game is playing, go to host view. If lobby, go to lobby view.
             if (data.status === 'playing') setView('host'); 
             else setView('lobby');
         }
@@ -713,7 +812,6 @@ export default function App() {
     }
   }, [gameState?.lastEvent, view]);
 
-  // ZOOM HANDLERS
   const handleTouchStart = (e) => {
     if (e.touches.length === 2) {
       const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
@@ -791,7 +889,6 @@ export default function App() {
     let actualNextTurn = nextTurn;
     let newSkipped = updates.skippedPlayers || gameState.skippedPlayers || [];
     
-    // Check skip logic
     const nextPlayerId = gameState.players[actualNextTurn].id;
     if (newSkipped.includes(nextPlayerId)) {
         actualNextTurn = (actualNextTurn + 1) % gameState.players.length;
@@ -939,7 +1036,6 @@ export default function App() {
     const playerIdx = gameState.players.findIndex(p => p.id === user.uid);
     if (playerIdx !== gameState.turnIndex) { alert("Not your turn!"); return; }
     
-    // Interaction Mode Handling
     if (interactionMode === 'track_maint') {
         const cell = getCell(gameState.grid, x, y);
         if (cell !== null || isStart(x, y) || gameState.blockedCells?.includes(`${x},${y}`)) { alert("Must select an empty square."); return; }
@@ -963,9 +1059,7 @@ export default function App() {
         newHand.metro.splice(selectedCardIdx, 1); 
         const newPlayers = [...gameState.players];
         newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
-        
-        endTurn({ grid: JSON.stringify(newGrid), players: newPlayers }, null, null); 
-        return;
+        endTurn({ grid: JSON.stringify(newGrid), players: newPlayers }, null, null); return;
     }
 
     if (selectedCardIdx === null || selectedCardType === 'metro') return;
@@ -979,7 +1073,6 @@ export default function App() {
 
     const candidateCell = { ...card, owner: player.color, rotation: rotation, type: card.type, isStart: false };
     
-    // Connectivity
     let validConnectionFound = false;
     const neighbors = [0,1,2,3].map(d => getNeighborCoords(x, y, d));
     for (let i = 0; i < neighbors.length; i++) {
@@ -1013,7 +1106,6 @@ export default function App() {
     newGrid[y][x] = { ...card, owner: player.color, rotation, connectedColors: card.type === 'track' ? [player.color] : [] };
     playSound(card.type === 'track' ? 'place-track' : 'place-landmark');
 
-    // SCORING
     let pointsGained = 0;
     const completedPassengerIds = [];
     const playerConnectedLandmarks = new Set();
@@ -1039,11 +1131,9 @@ export default function App() {
     }
     refreshConnections();
 
-    // MOST CONNECTED BONUS LOGIC
     let currentMostConnected = gameState.mostConnected; 
     let bonusEvent = null;
     const myCount = playerConnectedLandmarks.size;
-    
     if (myCount >= 10) {
         if (!currentMostConnected || myCount > currentMostConnected.count) {
             currentMostConnected = { playerId: player.id, count: myCount };
