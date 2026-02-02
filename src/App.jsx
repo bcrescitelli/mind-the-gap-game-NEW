@@ -132,7 +132,7 @@ const areConnected = (cellA, cellB, dirFromAtoB) => {
   return true;
 };
 
-// BFS for distance
+// BFS
 const getDistanceToStart = (grid, targetX, targetY, playerColor) => {
   const queue = [{ x: targetX, y: targetY, dist: 0 }];
   const visited = new Set([`${targetX},${targetY}`]);
@@ -159,40 +159,6 @@ const getDistanceToStart = (grid, targetX, targetY, playerColor) => {
   }
   return Infinity;
 };
-
-// BFS to FIND PATH (Array of "x,y")
-const findPathToStart = (grid, targetX, targetY, playerColor) => {
-  const queue = [{ x: targetX, y: targetY, path: [] }];
-  const visited = new Set([`${targetX},${targetY}`]);
-  
-  while (queue.length > 0) {
-    const { x, y, path } = queue.shift();
-    const currentPath = [...path, `${x},${y}`];
-    
-    if (isStart(x, y)) return currentPath;
-
-    for (let dir = 0; dir < 4; dir++) {
-      const nc = getNeighborCoords(x, y, dir);
-      const key = `${nc.x},${nc.y}`;
-      if (!visited.has(key)) {
-        const nextCell = getCell(grid, nc.x, nc.y);
-        const currCell = getCell(grid, x, y);
-        const currObj = isStart(x, y) ? { isStart: true, type: 'start' } : currCell;
-        const nextObj = isStart(nc.x, nc.y) ? { isStart: true, type: 'start' } : nextCell;
-
-        if (nextObj) {
-           const validNode = nextObj.isStart || (nextObj.type === 'track' && nextObj.owner === playerColor) || (nextObj.type === 'landmark' && nextObj.connections?.[playerColor] > 0);
-           if (validNode && areConnected(currObj, nextObj, dir)) {
-             visited.add(key);
-             queue.push({ x: nc.x, y: nc.y, path: currentPath });
-           }
-        }
-      }
-    }
-  }
-  return [];
-};
-
 
 const check3TrackRule = (grid, startX, startY, playerColor) => {
   const queue = [];
@@ -349,13 +315,16 @@ const generateTrackDeck = () => {
 
 // --- REACT COMPONENTS ---
 
-// OPTIMIZED: Removed animateMotion for performance
-const TrackSvg = ({ shape, rotation, color, isSurge }) => {
+const TrackSvg = ({ shape, rotation, color, animate }) => {
   const colorMap = { red: '#ef4444', blue: '#3b82f6', green: '#22c55e', yellow: '#eab308', gray: '#9ca3af' };
   const strokeColor = colorMap[color] || '#9ca3af';
   
   const pathId = `track-${shape}-${Math.random().toString(36).substr(2, 5)}`;
-  
+  let d = "";
+  if (shape === 'straight') d = "M 50 0 L 50 100";
+  if (shape === 'curved') d = "M 50 100 Q 50 50 100 50";
+  if (shape === 't-shape') d = "M 0 50 L 100 50 M 50 50 L 50 100"; 
+
   return (
     <div className="w-full h-full" style={{ transform: `rotate(${rotation}deg)` }}>
       <svg viewBox="0 0 100 100" className="w-full h-full" shapeRendering="geometricPrecision">
@@ -375,21 +344,21 @@ const TrackSvg = ({ shape, rotation, color, isSurge }) => {
 
         {shape === 'straight' && (
             <>
-                <path d="M 50 0 L 50 100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" fill="none" />
-                {isSurge && <path d="M 50 0 L 50 100" stroke="white" strokeWidth="30" className="surge-anim" fill="none" />}
+                <path id={pathId} d="M 50 0 L 50 100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" fill="none" />
+                {animate && <path d="M 50 0 L 50 100" stroke="white" strokeWidth="30" className="surge-anim" fill="none" />}
             </>
         )}
         {shape === 'curved' && (
             <>
-                <path d="M 50 100 Q 50 50 100 50" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" fill="none" />
-                {isSurge && <path d="M 50 100 Q 50 50 100 50" stroke="white" strokeWidth="30" className="surge-anim" fill="none" />}
+                <path id={pathId} d="M 50 100 Q 50 50 100 50" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" fill="none" />
+                {animate && <path d="M 50 100 Q 50 50 100 50" stroke="white" strokeWidth="30" className="surge-anim" fill="none" />}
             </>
         )}
         {shape === 't-shape' && (
           <>
             <path d="M 0 50 L 100 50" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
             <path d="M 50 50 L 50 100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
-            {isSurge && (
+            {animate && (
                 <>
                     <path d="M 0 50 L 100 50" stroke="white" strokeWidth="30" className="surge-anim" />
                     <path d="M 50 50 L 50 100" stroke="white" strokeWidth="30" className="surge-anim" />
@@ -402,8 +371,8 @@ const TrackSvg = ({ shape, rotation, color, isSurge }) => {
   );
 };
 
-// OPTIMIZED: React.memo to prevent grid re-renders
-const Cell = React.memo(({ x, y, cellData, onClick, view, isBlocked, isSurge }) => {
+// REVERTED MEMOIZATION FOR FUNCTIONALITY
+const Cell = ({ x, y, cellData, onClick, view, isBlocked, isSurge }) => {
   const isCenter = x === CENTER && y === CENTER;
   const isHost = view === 'host';
   
@@ -419,7 +388,8 @@ const Cell = React.memo(({ x, y, cellData, onClick, view, isBlocked, isSurge }) 
     bgClass = "bg-white/90";
   } else if (cellData?.type === 'track') {
     if (!isHost) bgClass = "bg-gray-900/80"; 
-    content = <TrackSvg shape={cellData.shape} rotation={cellData.rotation} color={cellData.owner} isSurge={isSurge} />;
+    // ONLY animate if it is a surge event
+    content = <TrackSvg shape={cellData.shape} rotation={cellData.rotation} color={cellData.owner} animate={isSurge} />;
   } else if (cellData?.type === 'landmark') {
     content = (
       <div className="w-full h-full bg-white/90 flex flex-col items-center justify-center p-0.5 border-2 border-gray-400 shadow-md relative">
@@ -441,15 +411,7 @@ const Cell = React.memo(({ x, y, cellData, onClick, view, isBlocked, isSurge }) 
       {content}
     </div>
   );
-}, (prev, next) => {
-    // Custom comparison for performance
-    return (
-        prev.cellData === next.cellData && 
-        prev.isBlocked === next.isBlocked && 
-        prev.isSurge === next.isSurge &&
-        prev.view === next.view
-    );
-});
+};
 
 const GameCard = ({ data, selected, onClick, type }) => {
   if (!data) return <div className="w-16 h-24 bg-gray-800 rounded opacity-50"></div>;
@@ -602,13 +564,15 @@ const AudioPlayer = ({ view }) => {
 
   useEffect(() => {
     if (view === 'host' && audioRef.current) {
-      audioRef.current.volume = 0.1; 
+      audioRef.current.volume = 0.1; // Reduced background music volume
       audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
       
+      // Ambient Sound Loop (Continuous)
       if (ambientRef.current) {
-          ambientRef.current.volume = 0.3; 
+          ambientRef.current.volume = 0.3; // Start low
           ambientRef.current.play().catch(e => console.log("Ambient fail", e));
           
+          // Random volume fluctuation
           const fluctuate = () => {
              if(ambientRef.current) {
                  ambientRef.current.volume = Math.random() * 0.4 + 0.1; 
@@ -650,12 +614,11 @@ const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, v
     // Only show surge for 2.5s
     if (Date.now() - gameState.lastEvent.timestamp > 2500) return new Set();
 
-    const { playerColor, passengerNames, claimedLandmarkIds } = gameState.lastEvent;
+    const { playerColor } = gameState.lastEvent;
     
     // We need to find path from City Hall to the relevant landmarks
     // But since landmarks can be anywhere, we just light up ALL tracks connected to start for that player
     // as a "Power Surge" visual effect. Simple and effective.
-    // To be more precise, we can run BFS from start and keep all visited nodes.
     const nodes = new Set();
     const queue = [{ x: CENTER, y: CENTER }];
     const visited = new Set([`${CENTER},${CENTER}`]);
@@ -1273,7 +1236,11 @@ export default function App() {
           ))}
           {[...Array(4 - (gameState?.players.length || 0))].map((_, i) => <div key={i} className="p-6 rounded-xl bg-gray-800/50 border-2 border-dashed border-gray-700 flex flex-col items-center justify-center text-gray-600 font-questrial">Waiting...</div>)}
         </div>
-        {gameState?.hostId === user.uid ? <button onClick={startGame} disabled={gameState?.players.length < 2} className="px-12 py-4 bg-yellow-500 hover:bg-yellow-400 text-black rounded-full font-black text-2xl shadow-lg font-cal-sans">START GAME</button> : <p className="animate-pulse text-xl font-medium text-center font-questrial">Host will start the game soon...</p>}
+        {gameState?.hostId === user.uid ? (
+          <button onClick={startGame} disabled={gameState?.players.length < 2} className="px-12 py-4 bg-yellow-500 hover:bg-yellow-400 text-black rounded-full font-black text-2xl shadow-lg font-cal-sans">START GAME</button> 
+        ) : (
+          <p className="animate-pulse text-xl font-medium text-center font-questrial">Host will start the game soon...</p>
+        )}
         <button onClick={leaveGame} className="absolute top-4 right-4 p-2 bg-red-600/20 hover:bg-red-600 text-red-200 rounded-full z-50 transition-colors"><X size={20} /></button>
       </div>
     );
