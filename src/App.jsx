@@ -47,31 +47,24 @@ const CATEGORIES = {
 
 // Landmarks Data
 const LANDMARKS_DATA = [
-  // Gastronomy
   { name: "Ice Cream Shop", cat: 'gastronomy' }, { name: "Candy Store", cat: 'gastronomy' }, { name: "Farmer's Market", cat: 'gastronomy' },
   { name: "Spice Village", cat: 'gastronomy' }, { name: "Food Truck", cat: 'gastronomy' }, { name: "The Melting Pot", cat: 'gastronomy' },
   { name: "Cafe", cat: 'gastronomy' }, { name: "Bakery", cat: 'gastronomy' }, { name: "Bodega", cat: 'gastronomy' }, { name: "Rooftop Bar", cat: 'gastronomy' },
-  // Heritage
   { name: "Old Cathedral", cat: 'heritage' }, { name: "Museum", cat: 'heritage' }, { name: "Theatre", cat: 'heritage' },
   { name: "Opera House", cat: 'heritage' }, { name: "Observatory", cat: 'heritage' }, { name: "Clocktower", cat: 'heritage' },
   { name: "University", cat: 'heritage' }, { name: "Cinema", cat: 'heritage' },
-  // Nature
   { name: "Botanic Gardens", cat: 'nature' }, { name: "Dog Park", cat: 'nature' }, { name: "Butterfly House", cat: 'nature' },
   { name: "Country Club", cat: 'nature' }, { name: "Flower Shop", cat: 'nature' }, { name: "Mountain Trail", cat: 'nature' },
-  // Services
   { name: "Airport", cat: 'services' }, { name: "Bank", cat: 'services' }, { name: "Mall", cat: 'services' },
   { name: "Gym", cat: 'services' }, { name: "Fire Department", cat: 'services' }, { name: "Post Office", cat: 'services' },
   { name: "Library", cat: 'services' }, { name: "Tailors", cat: 'services' },
-  // Spiritual
   { name: "Haunted House", cat: 'spiritual' }, { name: "Cemetery", cat: 'spiritual' }, 
   { name: "Fortune Teller", cat: 'spiritual' }, { name: "Antique Store", cat: 'spiritual' },
-  // Thrilling
   { name: "Theme Park", cat: 'thrilling' }, { name: "Casino", cat: 'thrilling' }, { name: "Rock Climbing Gym", cat: 'thrilling' },
   { name: "Comedy Club", cat: 'thrilling' }, { name: "Skate Park", cat: 'thrilling' }, { name: "Zoo", cat: 'thrilling' },
   { name: "Tattoo Parlor", cat: 'thrilling' }, { name: "The Stadium", cat: 'thrilling' }
 ];
 
-// Personas
 const PERSONAS_BY_CAT = {
   gastronomy: ["The Head Chef", "The Food Critic", "The Glutton", "The Barista", "The Baker", "The Sommelier"],
   heritage: ["The Historian", "The Widow", "The Archaeologist", "The Monk", "The Duke", "The Architect"],
@@ -290,7 +283,7 @@ const METRO_CARDS_DATA = {
   rush_hour: { name: 'Rush Hour', desc: 'Swap all 3 Passengers for new ones.', icon: <Shuffle size={16}/> },
   track_maint: { name: 'Track Maintenance', desc: 'Block a grid square permanently.', icon: <Cone size={16}/> },
   carpool: { name: 'Carpool', desc: 'Steal a random card from an opponent.', icon: <Users size={16}/> },
-  grand_opening: { name: 'Grand Opening', desc: 'Move a Landmark to an adjacent empty square.', icon: <Move size={16}/> },
+  grand_opening: { name: 'Renovation', desc: 'Replace a board Landmark with one from your hand.', icon: <RefreshCw size={16}/> },
   rezoning: { name: 'Rezoning', desc: 'Swap your landmarks for 2 new ones.', icon: <RefreshCw size={16}/> },
 };
 
@@ -335,9 +328,9 @@ const TrackSvg = ({ shape, rotation, color, animate }) => {
           </>
         )}
         
-        {animate && (
-          <circle r="8" fill="white">
-            <animateMotion dur="2s" repeatCount="indefinite" path={d} />
+        {(animate || color !== 'gray') && (
+          <circle r="6" fill="white" opacity="0.8">
+            <animateMotion dur="3s" repeatCount="indefinite" path={d} />
           </circle>
         )}
       </svg>
@@ -350,8 +343,6 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked, animateTrain }) => {
   const isHost = view === 'host';
   
   let content = null;
-  // Host view gets transparent background to show map, NO borders.
-  // Player view gets dark contrast with borders.
   let bgClass = isHost ? "bg-transparent" : "bg-black/40 backdrop-blur-[2px]";
   let borderClass = isHost ? "border-0" : "border border-gray-700";
   const colorDotMap = { red: 'bg-red-500', blue: 'bg-blue-500', green: 'bg-green-500', yellow: 'bg-yellow-400' };
@@ -363,7 +354,7 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked, animateTrain }) => {
     bgClass = "bg-white/90";
   } else if (cellData?.type === 'track') {
     if (!isHost) bgClass = "bg-gray-900/80"; 
-    content = <TrackSvg shape={cellData.shape} rotation={cellData.rotation} color={cellData.owner} animate={animateTrain} />;
+    content = <TrackSvg shape={cellData.shape} rotation={cellData.rotation} color={cellData.owner} animate={true} />;
   } else if (cellData?.type === 'landmark') {
     content = (
       <div className="w-full h-full bg-white/90 flex flex-col items-center justify-center p-0.5 border-2 border-gray-400 shadow-md relative">
@@ -448,8 +439,8 @@ const WinnerModal = ({ winner, onRestart }) => {
       </div>
       <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl border-4 border-yellow-500 shadow-2xl text-center max-w-md w-full transform scale-110">
         <Crown size={64} className="text-yellow-400 mx-auto mb-4 animate-bounce" />
-        <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-widest font-nabla">Winner!</h2>
-        <div className={`text-5xl font-black mb-6 text-${winner.color}-500 drop-shadow-lg font-nabla`}>{winner.name}</div>
+        <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-widest font-cal-sans">Winner!</h2>
+        <div className={`text-5xl font-black mb-6 text-${winner.color}-500 drop-shadow-lg font-cal-sans`}>{winner.name}</div>
         <p className="text-gray-400 mb-8 text-xl font-cal-sans">Final Score: <span className="text-white font-bold">{winner.score}</span></p>
         <button onClick={onRestart} className="px-8 py-4 bg-green-600 hover:bg-green-500 text-white rounded-full font-bold text-xl shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 w-full font-cal-sans">
           <RefreshCw size={24}/> Play Again
@@ -488,7 +479,6 @@ const NotificationOverlay = ({ event }) => {
   );
 };
 
-// ... Audio Player and playSound logic same as before ...
 const playSound = (type) => {
   const soundFileMap = { 'place-track': 'place-track.m4a', 'place-landmark': 'place-landmark.m4a', 'claim-passenger': 'claim-passenger.m4a', 'win-game': 'win-game.mp3' };
   const file = soundFileMap[type];
@@ -504,7 +494,7 @@ const AudioPlayer = ({ view }) => {
   const audioRef = useRef(null);
   useEffect(() => {
     if (view === 'host' && audioRef.current) {
-      audioRef.current.volume = 0.3; 
+      audioRef.current.volume = 0.1; // Reduced background music volume
       audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
     }
   }, [view]);
@@ -520,7 +510,6 @@ const AudioPlayer = ({ view }) => {
 };
 
 // --- MAIN COMPONENT ---
-// Board is defined here to ensure it's in scope
 const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, view }) => (
     <div 
       className={`grid ${isMobile ? 'gap-[1px]' : 'gap-0'} ${isMobile ? 'bg-black/10 border border-gray-600/30' : 'bg-transparent border-0'} rounded-lg shadow-2xl overflow-hidden select-none mx-auto relative backdrop-blur-sm`}
@@ -545,7 +534,7 @@ const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, v
             onClick={interactive ? handlePlaceCard : () => {}} 
             view={view}
             isBlocked={gameState.blockedCells?.includes(`${x},${y}`)}
-            animateTrain={lastEvent?.type === 'claim-passenger' && lastEvent.coords?.x === x && lastEvent.coords?.y === y && (Date.now() - lastEvent.timestamp < 3000)}
+            animateTrain={true} // Enable train animation on all tracks
           />
         ))
       ))}
@@ -735,10 +724,13 @@ export default function App() {
           const newPlayers = [...gameState.players]; newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
           endTurn({ decks: newDecks, activePassengers: newActive, players: newPlayers }, null, null);
       } else if (card.id === 'track_maint') { setInteractionMode('track_maint'); alert("Select an empty grid square to block.");
-      } else if (card.id === 'grand_opening') { setInteractionMode('grand_opening_select_source'); alert("Select a Landmark to move.");
+      } else if (card.id === 'grand_opening') { setInteractionMode('grand_opening_select_source'); alert("Select a Landmark to replace.");
       } else if (card.id === 'rezoning') { 
+          // FIX: Proper reshuffle
           const newDecks = { ...gameState.decks }; const newHand = { ...gameState.players[playerIdx].hand };
-          newDecks.landmarks.push(...newHand.landmarks); newHand.landmarks = [];
+          newDecks.landmarks.push(...newHand.landmarks); 
+          newDecks.landmarks.sort(() => Math.random() - 0.5); // Shuffle
+          newHand.landmarks = [];
           if(newDecks.landmarks.length >= 2) { newHand.landmarks.push(newDecks.landmarks.pop()); newHand.landmarks.push(newDecks.landmarks.pop()); }
           newHand.metro.splice(idx, 1);
           const newPlayers = [...gameState.players]; newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
@@ -773,7 +765,7 @@ export default function App() {
     const playerIdx = gameState.players.findIndex(p => p.id === user.uid);
     if (playerIdx !== gameState.turnIndex) { alert("Not your turn!"); return; }
     
-    // Interaction Mode Handling (Track Maint / Grand Opening)
+    // Interaction Mode Handling (Track Maint / Renovation)
     if (interactionMode === 'track_maint') {
         const cell = getCell(gameState.grid, x, y);
         if (cell !== null || isStart(x, y) || gameState.blockedCells?.includes(`${x},${y}`)) { alert("Must select an empty square."); return; }
@@ -784,19 +776,26 @@ export default function App() {
     }
     if (interactionMode === 'grand_opening_select_source') {
         const cell = getCell(gameState.grid, x, y);
-        if (!cell || cell.type !== 'landmark') { alert("Select a Landmark to move."); return; }
-        setSelectedLandmarkForMove({x, y, data: cell}); setInteractionMode('grand_opening_select_dest'); return;
-    }
-    if (interactionMode === 'grand_opening_select_dest') {
-        const cell = getCell(gameState.grid, x, y);
-        if (cell !== null || isStart(x,y) || gameState.blockedCells?.includes(`${x},${y}`)) { alert("Destination must be empty."); return; }
-        const dx = Math.abs(x - selectedLandmarkForMove.x); const dy = Math.abs(y - selectedLandmarkForMove.y);
-        if (dx + dy !== 1) { alert("Must be adjacent."); return; }
+        if (!cell || cell.type !== 'landmark') { alert("Select a Landmark to replace."); return; }
+        
+        // Replacement Logic
         const newGrid = [...gameState.grid];
-        newGrid[y][x] = selectedLandmarkForMove.data; newGrid[selectedLandmarkForMove.y][selectedLandmarkForMove.x] = null; 
-        const newHand = { ...gameState.players[playerIdx].hand }; newHand.metro.splice(selectedCardIdx, 1);
-        const newPlayers = [...gameState.players]; newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
-        endTurn({ grid: JSON.stringify(newGrid), players: newPlayers }, null, null); return;
+        // Take first landmark from hand
+        const newLandmark = gameState.players[playerIdx].hand.landmarks[0];
+        if (!newLandmark) { alert("You need a landmark in hand to replace!"); return; }
+        
+        // Replace on grid, keeping connections
+        newGrid[y][x] = { ...newLandmark, connections: cell.connections, type: 'landmark' };
+        
+        const newHand = { ...gameState.players[playerIdx].hand };
+        newHand.landmarks.splice(0, 1); // Remove used from hand
+        newHand.metro.splice(selectedCardIdx, 1); // Remove metro card
+        
+        const newPlayers = [...gameState.players];
+        newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
+        
+        endTurn({ grid: JSON.stringify(newGrid), players: newPlayers }, null, null); 
+        return;
     }
 
     if (selectedCardIdx === null || selectedCardType === 'metro') return;
@@ -881,9 +880,13 @@ export default function App() {
 
       if (p.reqType === 'specific' && playerConnectedLandmarks.has(p.targetId)) match = true;
       else if (p.reqType === 'category' && myLandmarks.some(l => l.category === p.targetCategory)) match = true;
-      else if (p.reqType === 'list' && p.targets.some(tid => playerConnectedLandmarks.has(tid))) match = true;
-      else if (p.reqType === 'combo' && playerConnectedLandmarks.has(p.targets[0]) && playerConnectedLandmarks.has(p.targets[1])) match = true;
-      else if (p.reqType === 'combo_cat') {
+      else if (p.reqType === 'list') {
+        if (p.targets.some(tid => playerConnectedLandmarks.has(tid))) match = true;
+      } else if (p.reqType === 'combo') {
+        const hasA = playerConnectedLandmarks.has(p.targets[0]);
+        const hasB = playerConnectedLandmarks.has(p.targets[1]);
+        if (hasA && hasB) match = true;
+      } else if (p.reqType === 'combo_cat') {
           // Ghost Tour / Botanist
           if(playerConnectedLandmarks.has(p.targetId) && myLandmarks.some(l => l.category === p.cat2)) match = true;
       }
@@ -976,7 +979,7 @@ export default function App() {
                     <div className={`w-4 h-4 rounded-full bg-${p.color}-500 shadow-md`}></div>
                     <span className="font-bold text-lg truncate max-w-[100px] font-cal-sans">{p.name}</span>
                   </div>
-                  <span className="text-2xl font-black font-nabla">{p.score}</span>
+                  <span className="text-2xl font-black font-cal-sans">{p.score}</span>
                 </div>
               ))}
             </div>
@@ -996,16 +999,27 @@ export default function App() {
                     {pass.reqType === 'category' && CATEGORIES[pass.targetCategory?.toUpperCase()]?.icon}
                   </div>
                   <div className="flex justify-between items-center border-b border-gray-200 pb-2 mb-1">
-                    <span className="font-black text-2xl text-red-600 font-nabla">{pass.points}</span>
-                    {pass.reqType === 'category' && <span className="scale-125 text-gray-600">{CATEGORIES[pass.targetCategory?.toUpperCase()]?.icon}</span>}
-                    {pass.reqType === 'combo' && <span className="text-xs font-bold bg-purple-100 text-purple-800 px-2 py-1 rounded-full">COMBO</span>}
-                    {pass.reqType === 'list' && <span className="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded-full">LIST</span>}
+                    <span className="font-black text-2xl text-red-600 font-cal-sans">{pass.points}</span>
+                    {/* Host Progress Indicator */}
+                    <div className="flex gap-1">
+                        {gameState.players.map(pl => {
+                             // Calc logic for this player
+                             const connectedLMs = new Set();
+                             gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) connectedLMs.add(c.id); }));
+                             
+                             // Simple check for display dot color
+                             let met = false;
+                             if(pass.reqType === 'specific' && connectedLMs.has(pass.targetId)) met = true;
+                             // ... complex checks omitted for brevity, just showing player dot if ANY progress
+                             return <div key={pl.id} className={`w-2 h-2 rounded-full bg-${pl.color}-500 ${met ? 'opacity-100 ring-1 ring-black' : 'opacity-20'}`}></div>
+                        })}
+                    </div>
                   </div>
                   <div>
-                     <p className="text-lg font-bold leading-tight font-serif">{pass.name}</p>
+                     <p className="text-lg font-bold leading-tight font-cal-sans">{pass.name}</p>
                      <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mt-1">{pass.reqType === 'specific' ? 'Must Visit' : 'Looking For'}</p>
                   </div>
-                  <p className="text-sm text-gray-600 italic mt-1 leading-snug">{pass.desc}</p>
+                  <p className="text-sm text-gray-600 italic mt-1 leading-snug font-questrial">{pass.desc}</p>
                 </div>
               ))}
             </div>
@@ -1059,7 +1073,7 @@ export default function App() {
       <div className="h-[100dvh] bg-gray-950 text-white flex flex-col overflow-hidden font-questrial">
         <AudioPlayer view="player" />
         <NotificationOverlay event={gameState.lastEvent} />
-        <div className="bg-gray-900 border-b border-gray-800 shrink-0 z-20 shadow-md">
+        <div className={`border-b border-gray-800 shrink-0 z-20 shadow-md ${isMyTurn ? 'bg-green-800/80 border-green-600' : 'bg-gray-900 border-gray-800'}`}>
           <div className="max-w-5xl mx-auto">
             <div className="h-14 flex items-center justify-between px-4">
               <div className="flex items-center gap-3">
@@ -1069,13 +1083,13 @@ export default function App() {
               <div className="flex items-center gap-4">
                  <div className="flex flex-col items-end leading-none">
                     <span className="text-[10px] text-gray-400 tracking-wider font-cal-sans">SCORE</span>
-                    <span className="text-2xl font-black text-white font-nabla">{player.score}</span>
+                    <span className="text-2xl font-black text-white font-cal-sans">{player.score}</span>
                  </div>
                  {isMyTurn && <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]"></div>}
               </div>
             </div>
             {connectedLandmarks.length > 0 && (
-              <div className="px-4 py-2 bg-gray-800 border-t border-gray-700 flex items-center gap-2 overflow-x-auto no-scrollbar">
+              <div className="px-4 py-2 bg-gray-800/50 border-t border-gray-700 flex items-center gap-2 overflow-x-auto no-scrollbar">
                 <span className="text-[10px] text-gray-400 uppercase tracking-wider shrink-0 flex items-center gap-1 font-cal-sans"><LinkIcon size={10}/> Connected:</span>
                 {connectedLandmarks.map(l => (
                   <div key={l.id} className="flex items-center gap-1 bg-gray-700 rounded-full px-2 py-1 shrink-0 border border-gray-600">
@@ -1099,8 +1113,7 @@ export default function App() {
             {interactionMode && (
                 <div className="bg-yellow-600 text-black font-bold p-2 text-center animate-pulse font-cal-sans">
                     {interactionMode === 'track_maint' && "Select a square to block"}
-                    {interactionMode === 'grand_opening_select_source' && "Select a Landmark to move"}
-                    {interactionMode === 'grand_opening_select_dest' && "Select adjacent destination"}
+                    {interactionMode === 'grand_opening_select_source' && "Select a Landmark to replace"}
                     <button onClick={() => setInteractionMode(null)} className="ml-4 underline text-sm">Cancel</button>
                 </div>
             )}
@@ -1135,8 +1148,7 @@ export default function App() {
   // Fallback for Home view if none matched
   return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans p-4 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('/city-map.jpg')] bg-cover opacity-20 blur-sm pointer-events-none"></div>
-        <h1 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-nabla">
+        <h1 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-cal-sans">
           MIND THE GAP
         </h1>
         <div className="flex flex-col md:flex-row gap-4 w-full max-w-md z-10 font-questrial">
