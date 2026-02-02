@@ -312,12 +312,16 @@ const generateTrackDeck = () => {
 
 // --- REACT COMPONENTS ---
 
-const TrackSvg = ({ shape, rotation, color }) => {
+const TrackSvg = ({ shape, rotation, color, animate }) => {
   const colorMap = { red: '#ef4444', blue: '#3b82f6', green: '#22c55e', yellow: '#eab308', gray: '#9ca3af' };
   const strokeColor = colorMap[color] || '#9ca3af';
   
   const pathId = `track-${shape}-${Math.random().toString(36).substr(2, 5)}`;
-  
+  let d = "";
+  if (shape === 'straight') d = "M 50 0 L 50 100";
+  if (shape === 'curved') d = "M 50 100 Q 50 50 100 50";
+  if (shape === 't-shape') d = "M 0 50 L 100 50 M 50 50 L 50 100"; 
+
   return (
     <div className="w-full h-full" style={{ transform: `rotate(${rotation}deg)` }}>
       <svg viewBox="0 0 100 100" className="w-full h-full" shapeRendering="geometricPrecision">
@@ -327,14 +331,21 @@ const TrackSvg = ({ shape, rotation, color }) => {
           <>
             <path d="M 0 50 L 100 50" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
             <path d="M 50 50 L 50 100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
+            {animate && <path id={pathId} d="M 0 50 L 100 50" fill="none" />} 
           </>
+        )}
+        
+        {(animate || color !== 'gray') && (
+          <circle r="6" fill="white" opacity="0.8">
+            <animateMotion dur="3s" repeatCount="indefinite" path={d} />
+          </circle>
         )}
       </svg>
     </div>
   );
 };
 
-const Cell = ({ x, y, cellData, onClick, view, isBlocked }) => {
+const Cell = ({ x, y, cellData, onClick, view, isBlocked, animateTrain }) => {
   const isCenter = x === CENTER && y === CENTER;
   const isHost = view === 'host';
   
@@ -352,7 +363,7 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked }) => {
     bgClass = "bg-white/90";
   } else if (cellData?.type === 'track') {
     if (!isHost) bgClass = "bg-gray-900/80"; 
-    content = <TrackSvg shape={cellData.shape} rotation={cellData.rotation} color={cellData.owner} />;
+    content = <TrackSvg shape={cellData.shape} rotation={cellData.rotation} color={cellData.owner} animate={animateTrain} />;
   } else if (cellData?.type === 'landmark') {
     content = (
       <div className="w-full h-full bg-white/90 flex flex-col items-center justify-center p-0.5 border-2 border-gray-400 shadow-md relative">
@@ -428,6 +439,7 @@ const WinnerModal = ({ winner, onRestart }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Simple CSS Confetti */}
         {[...Array(50)].map((_, i) => (
           <div key={i} className="absolute w-2 h-2 bg-yellow-500 rounded-full animate-ping" style={{ 
             top: `${Math.random()*100}%`, left: `${Math.random()*100}%`, 
@@ -591,16 +603,18 @@ export default function App() {
         const data = docSnap.data();
         if (typeof data.grid === 'string') data.grid = JSON.parse(data.grid);
         setGameState(data);
+        
         const isHost = data.hostId === user.uid;
-        if (isHost) setView('host');
-        else {
-            const isPlayer = data.players.find(p => p.id === user.uid);
-            if (isPlayer) {
-                if (data.status === 'playing') setView('player'); else setView('lobby');
-                localStorage.setItem('mind_the_gap_room', activeRoomId);
-            } else {
-               // User not in this game, maybe stale session
-            }
+        const isPlayer = data.players.find(p => p.id === user.uid);
+        
+        if (isHost || isPlayer) localStorage.setItem('mind_the_gap_room', activeRoomId);
+
+        if (data.status === 'lobby') {
+            setView('lobby');
+        } else {
+            if (isHost) setView('host');
+            else if (isPlayer) setView('player');
+            else { setError("Game in progress."); setView('home'); }
         }
       } else { setError("Room not found"); setGameState(null); localStorage.removeItem('mind_the_gap_room'); }
     }, (err) => console.error("Sync error", err));
@@ -757,6 +771,7 @@ export default function App() {
       } else if (card.id === 'track_maint') { setInteractionMode('track_maint'); alert("Select an empty grid square to block.");
       } else if (card.id === 'grand_opening') { setInteractionMode('grand_opening_select_source'); alert("Select a Landmark to replace.");
       } else if (card.id === 'rezoning') { 
+          // FIX: Proper reshuffle
           const newDecks = { ...gameState.decks }; const newHand = { ...gameState.players[playerIdx].hand };
           newDecks.landmarks.push(...newHand.landmarks); 
           newDecks.landmarks.sort(() => Math.random() - 0.5); // Shuffle
@@ -864,7 +879,8 @@ export default function App() {
 
     const newGrid = [...grid];
     newGrid[y][x] = { ...card, owner: player.color, rotation, connectedColors: card.type === 'track' ? [player.color] : [] };
-    
+    playSound(card.type === 'track' ? 'place-track' : 'place-landmark');
+
     // SCORING
     let pointsGained = 0;
     const completedPassengerIds = [];
@@ -946,6 +962,7 @@ export default function App() {
   if (view === 'home') {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans p-4 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('/city-map.jpg')] bg-cover opacity-20 blur-sm pointer-events-none"></div>
         <h1 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-cal-sans">MIND THE GAP</h1>
         <div className="flex flex-col md:flex-row gap-4 w-full max-w-md z-10 font-questrial">
           <button onClick={createGame} className="px-8 py-4 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-xl shadow-lg flex items-center justify-center gap-2 w-full md:w-auto"><Crown size={24}/> Host</button>
@@ -1023,8 +1040,6 @@ export default function App() {
                              gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) connectedLMs.add(c.id); }));
                              let met = false;
                              if(pass.reqType === 'specific' && connectedLMs.has(pass.targetId)) met = true;
-                             // Simplify dot logic for visual clarity: show if ANY relevant connection made? 
-                             // Let's stick to simple "met" logic for specific targets as it's clearest
                              return <div key={pl.id} className={`w-2 h-2 rounded-full bg-${pl.color}-500 ${met ? 'opacity-100 ring-1 ring-black' : 'opacity-20'}`}></div>
                         })}
                     </div>
