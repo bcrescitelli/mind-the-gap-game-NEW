@@ -445,6 +445,7 @@ const WinnerModal = ({ winner, onRestart }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Simple CSS Confetti */}
         {[...Array(50)].map((_, i) => (
           <div key={i} className="absolute w-2 h-2 bg-yellow-500 rounded-full animate-ping" style={{ 
             top: `${Math.random()*100}%`, left: `${Math.random()*100}%`, 
@@ -1045,7 +1046,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans p-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('/city-map.jpg')] bg-cover opacity-20 blur-sm pointer-events-none"></div>
-        <h1 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-green-500 to-blue-500 mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-nabla">
+        <h1 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-nabla">
           MIND THE GAP
         </h1>
         <div className="flex flex-col md:flex-row gap-4 w-full max-w-md z-10 font-questrial">
@@ -1119,16 +1120,7 @@ export default function App() {
     >
       {gameState.grid.map((row, y) => (
         row.map((cell, x) => (
-          <Cell 
-            key={`${x}-${y}`} 
-            x={x} y={y} 
-            cellData={cell} 
-            onClick={interactive ? handlePlaceCard : () => {}} 
-            view={view}
-            isBlocked={gameState.blockedCells?.includes(`${x},${y}`)}
-            // Train Animation Logic
-            animateTrain={lastEvent?.type === 'claim-passenger' && lastEvent.coords?.x === x && lastEvent.coords?.y === y && (Date.now() - lastEvent.timestamp < 3000)}
-          />
+          <Cell key={`${x}-${y}`} x={x} y={y} cellData={cell} onClick={interactive ? handlePlaceCard : () => {}} view={view} />
         ))
       ))}
     </div>
@@ -1237,73 +1229,81 @@ export default function App() {
       <div className="h-[100dvh] bg-gray-950 text-white flex flex-col overflow-hidden font-questrial">
         <AudioPlayer view="player" />
         <NotificationOverlay event={gameState.lastEvent} />
+        
+        {/* Top Bar - Centered Max Width */}
         <div className="bg-gray-900 border-b border-gray-800 shrink-0 z-20 shadow-md">
-          <div className="h-14 flex items-center justify-between px-4">
-            <div className="flex items-center gap-3">
-              <div className={`w-4 h-4 rounded-full bg-${player.color}-500 shadow-[0_0_10px_currentColor] ring-2 ring-white/20`}></div>
-              <span className="font-bold text-lg truncate max-w-[120px]">{player.name}</span>
+          <div className="max-w-5xl mx-auto">
+            <div className="h-14 flex items-center justify-between px-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-4 h-4 rounded-full bg-${player.color}-500 shadow-[0_0_10px_currentColor] ring-2 ring-white/20`}></div>
+                <span className="font-bold text-lg truncate max-w-[120px]">{player.name}</span>
+              </div>
+              <div className="flex items-center gap-4">
+                 <div className="flex flex-col items-end leading-none">
+                    <span className="text-[10px] text-gray-400 tracking-wider">SCORE</span>
+                    <span className="text-2xl font-black text-white">{player.score}</span>
+                 </div>
+                 {isMyTurn && <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]"></div>}
+              </div>
             </div>
-            <div className="flex items-center gap-4">
-               <div className="flex flex-col items-end leading-none">
-                  <span className="text-[10px] text-gray-400 tracking-wider">SCORE</span>
-                  <span className="text-2xl font-black text-white">{player.score}</span>
-               </div>
-               {isMyTurn && <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]"></div>}
-            </div>
+            {connectedLandmarks.length > 0 && (
+              <div className="px-4 py-2 bg-gray-800 border-t border-gray-700 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                <span className="text-[10px] text-gray-400 uppercase tracking-wider shrink-0 flex items-center gap-1"><LinkIcon size={10}/> Connected:</span>
+                {connectedLandmarks.map(l => (
+                  <div key={l.id} className="flex items-center gap-1 bg-gray-700 rounded-full px-2 py-1 shrink-0 border border-gray-600">
+                    <span className={`text-${CATEGORIES[l.category?.toUpperCase()]?.color?.split('-')[1]}-400`}>{CATEGORIES[l.category?.toUpperCase()]?.icon}</span>
+                    <span className="text-[10px] font-bold truncate max-w-[80px]">{l.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          {connectedLandmarks.length > 0 && (
-            <div className="px-4 py-2 bg-gray-800 border-t border-gray-700 flex items-center gap-2 overflow-x-auto no-scrollbar">
-              <span className="text-[10px] text-gray-400 uppercase tracking-wider shrink-0 flex items-center gap-1"><LinkIcon size={10}/> Connected:</span>
-              {connectedLandmarks.map(l => (
-                <div key={l.id} className="flex items-center gap-1 bg-gray-700 rounded-full px-2 py-1 shrink-0 border border-gray-600">
-                  <span className={`text-${CATEGORIES[l.category?.toUpperCase()]?.color?.split('-')[1]}-400`}>{CATEGORIES[l.category?.toUpperCase()]?.icon}</span>
-                  <span className="text-[10px] font-bold truncate max-w-[80px]">{l.name}</span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
-        <div className="flex-1 overflow-auto bg-black/40 relative">
-           <div className="inline-block min-w-full min-h-full p-4">
+        {/* Main Content Area - Center Board */}
+        <div className="flex-1 overflow-auto bg-black/40 relative flex items-center justify-center">
+           <div className="m-auto p-4">
              <Board interactive={isMyTurn} isMobile={true} lastEvent={gameState.lastEvent} />
            </div>
         </div>
 
+        {/* Bottom Bar - Centered Max Width */}
         <div className="bg-gray-900 border-t border-gray-800 shrink-0 flex flex-col safe-area-pb shadow-[0_-4px_20px_rgba(0,0,0,0.5)] z-20">
-          {interactionMode && (
-              <div className="bg-yellow-600 text-black font-bold p-2 text-center animate-pulse">
-                  {interactionMode === 'track_maint' && "Select a square to block"}
-                  {interactionMode === 'grand_opening_select_source' && "Select a Landmark to move"}
-                  {interactionMode === 'grand_opening_select_dest' && "Select adjacent destination"}
-                  <button onClick={() => setInteractionMode(null)} className="ml-4 underline text-sm">Cancel</button>
-              </div>
-          )}
-          
-          {isMyTurn && selectedCardType === 'tracks' && (
-            <div className="flex justify-center items-center gap-6 py-3 border-b border-gray-800 bg-gray-800/80 backdrop-blur-sm">
-               <div className="w-12 h-12 border-2 border-gray-500 bg-gray-900 rounded-lg flex items-center justify-center shadow-inner">
-                 <TrackSvg shape={player.hand.tracks[selectedCardIdx]?.shape} rotation={rotation} color={player.color} />
-               </div>
-              <button onClick={() => setRotation((r) => (r + 90) % 360)} className="flex items-center gap-2 px-8 py-3 bg-blue-600 rounded-full font-bold text-lg shadow-lg active:scale-95 transition-transform hover:bg-blue-500">
-                <RotateCw size={20} /> Rotate
-              </button>
-            </div>
-          )}
-          
-          <div className="flex gap-2 overflow-x-auto p-3 pb-6 no-scrollbar">
-            {player.hand.metro?.map((card, i) => (
-                <GameCard key={`m-${i}`} data={card} type="metro" selected={selectedCardType === 'metro' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; handleMetroCardAction(i); }} />
-            ))}
-            {player.hand.metro?.length > 0 && <div className="w-px bg-yellow-700 mx-1 shrink-0 self-stretch my-2"></div>}
+          <div className="max-w-5xl mx-auto w-full">
+            {interactionMode && (
+                <div className="bg-yellow-600 text-black font-bold p-2 text-center animate-pulse">
+                    {interactionMode === 'track_maint' && "Select a square to block"}
+                    {interactionMode === 'grand_opening_select_source' && "Select a Landmark to move"}
+                    {interactionMode === 'grand_opening_select_dest' && "Select adjacent destination"}
+                    <button onClick={() => setInteractionMode(null)} className="ml-4 underline text-sm">Cancel</button>
+                </div>
+            )}
             
-            {player.hand.tracks.map((card, i) => (
-              <GameCard key={`t-${i}`} data={card} type="track" selected={selectedCardType === 'tracks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; setSelectedCardIdx(i); setSelectedCardType('tracks'); setRotation(0); setInteractionMode(null); }} />
-            ))}
-            <div className="w-px bg-gray-700 mx-1 shrink-0 self-stretch my-2"></div>
-            {player.hand.landmarks.map((card, i) => (
-              <GameCard key={`l-${i}`} data={card} type="landmark" selected={selectedCardType === 'landmarks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; setSelectedCardIdx(i); setSelectedCardType('landmarks'); setRotation(0); setInteractionMode(null); }} />
-            ))}
+            {isMyTurn && selectedCardType === 'tracks' && (
+              <div className="flex justify-center items-center gap-6 py-3 border-b border-gray-800 bg-gray-800/80 backdrop-blur-sm">
+                 <div className="w-12 h-12 border-2 border-gray-500 bg-gray-900 rounded-lg flex items-center justify-center shadow-inner">
+                   <TrackSvg shape={player.hand.tracks[selectedCardIdx]?.shape} rotation={rotation} color={player.color} />
+                 </div>
+                <button onClick={() => setRotation((r) => (r + 90) % 360)} className="flex items-center gap-2 px-8 py-3 bg-blue-600 rounded-full font-bold text-lg shadow-lg active:scale-95 transition-transform hover:bg-blue-500">
+                  <RotateCw size={20} /> Rotate
+                </button>
+              </div>
+            )}
+            
+            <div className="flex gap-2 overflow-x-auto p-3 pb-6 no-scrollbar">
+              {player.hand.metro?.map((card, i) => (
+                  <GameCard key={`m-${i}`} data={card} type="metro" selected={selectedCardType === 'metro' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; handleMetroCardAction(i); }} />
+              ))}
+              {player.hand.metro?.length > 0 && <div className="w-px bg-yellow-700 mx-1 shrink-0 self-stretch my-2"></div>}
+              
+              {player.hand.tracks.map((card, i) => (
+                <GameCard key={`t-${i}`} data={card} type="track" selected={selectedCardType === 'tracks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; setSelectedCardIdx(i); setSelectedCardType('tracks'); setRotation(0); setInteractionMode(null); }} />
+              ))}
+              <div className="w-px bg-gray-700 mx-1 shrink-0 self-stretch my-2"></div>
+              {player.hand.landmarks.map((card, i) => (
+                <GameCard key={`l-${i}`} data={card} type="landmark" selected={selectedCardType === 'landmarks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; setSelectedCardIdx(i); setSelectedCardType('landmarks'); setRotation(0); setInteractionMode(null); }} />
+              ))}
+            </div>
           </div>
         </div>
       </div>
