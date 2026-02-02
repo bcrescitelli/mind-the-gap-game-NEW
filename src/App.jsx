@@ -12,7 +12,7 @@ import {
   AlertCircle, Trophy, Coffee, Landmark, Trees, 
   ShoppingBag, Zap, Crown, Play, User, Music, Volume2, VolumeX, 
   Link as LinkIcon, RefreshCw, Star, Ticket, Cone, Construction, Shuffle, Move, Repeat,
-  Plane, Banknote, Ghost, Heart, Smile, LogOut, X, Check
+  Plane, Banknote, Ghost, Heart, Smile, LogOut, X, Check, FastForward, Ban
 } from 'lucide-react';
 
 // --- FIREBASE CONFIGURATION ---
@@ -34,7 +34,7 @@ const appId = "mind-the-gap-v1";
 const GRID_SIZE = 19; 
 const CENTER = Math.floor(GRID_SIZE / 2); 
 const COLORS = ['red', 'blue', 'green', 'yellow'];
-const WIN_SCORE = 10; // Updated to 10
+const WIN_SCORE = 10; 
 
 // Categories
 const CATEGORIES = {
@@ -218,7 +218,6 @@ const generatePassengers = (allLandmarks) => {
   let idCounter = 1;
   const findL = (name) => allLandmarks.find(l => l.name === name);
 
-  // TIER 1
   const tier1 = [
     { name: "The Foodie", req: 'category', target: 'gastronomy', pts: 1, desc: "Any Gastronomy" },
     { name: "The Tourist", req: 'category', target: 'heritage', pts: 1, desc: "Any Heritage" },
@@ -227,7 +226,6 @@ const generatePassengers = (allLandmarks) => {
     { name: "The Adrenaline Junkie", req: 'category', target: 'thrilling', pts: 1, desc: "Any Thrilling" },
     { name: "The Medium", req: 'category', target: 'spiritual', pts: 2, desc: "Any Spiritual" } 
   ];
-  // TIER 2
   const tier2 = [
       { name: "The Sweet Tooth", req: 'list', targets: ["Ice Cream Shop", "Candy Store", "Bakery"], pts: 2 },
       { name: "The Scholar", req: 'list', targets: ["University", "Library", "Museum"], pts: 2 },
@@ -238,7 +236,6 @@ const generatePassengers = (allLandmarks) => {
       { name: "The Artist", req: 'list', targets: ["Opera House", "Theatre", "Tattoo Parlor"], pts: 2 },
       { name: "The Errand Runner", req: 'list', targets: ["Bank", "Post Office", "Tailors"], pts: 2 }
   ];
-  // TIER 3
   const tier3 = [
       { name: "The Pilot", target: "Airport", pts: 3 },
       { name: "The Astronomer", target: "Observatory", pts: 3 },
@@ -249,7 +246,6 @@ const generatePassengers = (allLandmarks) => {
       { name: "The Widow", target: "Cemetery", pts: 3 },
       { name: "The Gambler", target: "Casino", pts: 3 }
   ];
-  // TIER 4
   const tier4 = [
       { name: "The Date Night", targets: ["Cafe", "Cinema"], pts: 5 },
       { name: "The Ghost Tour", type: 'ghost', target1: "Haunted House", cat2: "heritage", pts: 4, desc: "Haunted House AND Any Heritage" },
@@ -293,6 +289,8 @@ const METRO_CARDS_DATA = {
   carpool: { name: 'Carpool', desc: 'Steal a random card from an opponent.', icon: <Users size={16}/> },
   grand_opening: { name: 'Renovation', desc: 'Replace a board Landmark with one from your hand.', icon: <RefreshCw size={16}/> },
   rezoning: { name: 'Rezoning', desc: 'Swap your landmarks for 2 new ones.', icon: <RefreshCw size={16}/> },
+  express_service: { name: 'Express Service', desc: 'Place TWO Track cards this turn.', icon: <FastForward size={16}/> },
+  signal_failure: { name: 'Signal Failure', desc: 'Skip a chosen opponent for one round.', icon: <Ban size={16}/> },
 };
 
 const generateMetroDeck = () => {
@@ -351,8 +349,6 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked, animateTrain }) => {
   const isHost = view === 'host';
   
   let content = null;
-  // Host view gets transparent background to show map, NO borders.
-  // Player view gets dark contrast with borders.
   let bgClass = isHost ? "bg-transparent" : "bg-black/40 backdrop-blur-[2px]";
   let borderClass = isHost ? "border-0" : "border border-gray-700";
   const colorDotMap = { red: 'bg-red-500', blue: 'bg-blue-500', green: 'bg-green-500', yellow: 'bg-yellow-400' };
@@ -440,7 +436,6 @@ const WinnerModal = ({ winner, onRestart, onExit }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Simple CSS Confetti */}
         {[...Array(50)].map((_, i) => (
           <div key={i} className="absolute w-2 h-2 bg-yellow-500 rounded-full animate-ping" style={{ 
             top: `${Math.random()*100}%`, left: `${Math.random()*100}%`, 
@@ -471,24 +466,49 @@ const NotificationOverlay = ({ event }) => {
       return () => clearTimeout(timer);
     }
   }, [event]);
-  if (!visible || !event || event.type !== 'claim-passenger') return null;
+  
+  if (!visible || !event) return null;
 
-  return (
-    <div className="fixed top-10 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-10 fade-in duration-500 w-full max-w-2xl px-4 pointer-events-none">
-      <div className="bg-white text-gray-900 px-8 py-6 rounded-2xl shadow-[0_0_50px_rgba(255,255,0,0.5)] border-4 border-yellow-400 flex flex-col items-center gap-2 w-full">
-        <div className="flex items-center gap-2 text-yellow-600 font-black uppercase tracking-widest text-sm animate-pulse font-cal-sans">
-          <Star size={24} className="fill-current" /> Passenger Claimed! <Star size={24} className="fill-current" />
+  // Render logic based on event type
+  if (event.type === 'claim-passenger') {
+      return (
+        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-10 fade-in duration-500 w-full max-w-2xl px-4 pointer-events-none">
+          <div className="bg-white text-gray-900 px-8 py-6 rounded-2xl shadow-[0_0_50px_rgba(255,255,0,0.5)] border-4 border-yellow-400 flex flex-col items-center gap-2 w-full">
+            <div className="flex items-center gap-2 text-yellow-600 font-black uppercase tracking-widest text-sm animate-pulse font-cal-sans">
+              <Star size={24} className="fill-current" /> Passenger Claimed! <Star size={24} className="fill-current" />
+            </div>
+            <div className="text-center w-full font-cal-sans">
+              <span className={`text-${event.playerColor}-600 font-black text-4xl drop-shadow-sm`}>{event.playerName}</span>
+              <span className="text-gray-500 font-bold text-xl mx-2 block md:inline">picked up</span>
+            </div>
+            <div className="text-3xl font-black font-cal-sans text-center leading-tight mt-2 text-gray-800">
+              {event.passengerNames.join(" & ")}
+            </div>
+          </div>
         </div>
-        <div className="text-center w-full font-cal-sans">
-          <span className={`text-${event.playerColor}-600 font-black text-4xl drop-shadow-sm`}>{event.playerName}</span>
-          <span className="text-gray-500 font-bold text-xl mx-2 block md:inline">picked up</span>
+      );
+  }
+  
+  if (event.type === 'most-connected') {
+      return (
+        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-10 fade-in duration-500 w-full max-w-2xl px-4 pointer-events-none">
+          <div className="bg-white text-gray-900 px-8 py-6 rounded-2xl shadow-[0_0_50px_rgba(0,0,255,0.5)] border-4 border-blue-500 flex flex-col items-center gap-2 w-full">
+             <div className="flex items-center gap-2 text-blue-600 font-black uppercase tracking-widest text-sm animate-pulse font-cal-sans">
+               <LinkIcon size={24} /> Most Connected!
+             </div>
+             <div className="text-center w-full font-cal-sans">
+               <span className={`text-${event.playerColor}-600 font-black text-4xl drop-shadow-sm`}>{event.playerName}</span>
+               <span className="text-gray-500 font-bold text-xl mx-2 block md:inline">takes the lead!</span>
+             </div>
+             <div className="text-3xl font-black font-cal-sans text-center leading-tight mt-2 text-gray-800">
+               {event.count} Connections (+2 PTS)
+             </div>
+          </div>
         </div>
-        <div className="text-3xl font-black font-cal-sans text-center leading-tight mt-2 text-gray-800">
-          {event.passengerNames.join(" & ")}
-        </div>
-      </div>
-    </div>
-  );
+      );
+  }
+  
+  return null;
 };
 
 const playSound = (type) => {
@@ -516,18 +536,16 @@ const AudioPlayer = ({ view }) => {
 
   useEffect(() => {
     if (view === 'host' && audioRef.current) {
-      audioRef.current.volume = 0.1; // Reduced background music volume
+      audioRef.current.volume = 0.1; 
       audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
       
-      // Ambient Sound Loop (Continuous)
       if (ambientRef.current) {
-          ambientRef.current.volume = 0.3; // Start low
+          ambientRef.current.volume = 0.3; 
           ambientRef.current.play().catch(e => console.log("Ambient fail", e));
           
-          // Random volume fluctuation
           const fluctuate = () => {
              if(ambientRef.current) {
-                 ambientRef.current.volume = Math.random() * 0.4 + 0.1; // 0.1 to 0.5
+                 ambientRef.current.volume = Math.random() * 0.4 + 0.1; 
                  setTimeout(fluctuate, Math.random() * 10000 + 5000);
              }
           };
@@ -595,7 +613,7 @@ export default function App() {
   const [entryCode, setEntryCode] = useState(""); 
   const [activeRoomId, setActiveRoomId] = useState(""); 
   const [playerName, setPlayerName] = useState("");
-  const [playerColor, setPlayerColor] = useState("red"); // Default
+  const [playerColor, setPlayerColor] = useState("red"); 
   const [gameState, setGameState] = useState(null);
   const [view, setView] = useState('home');
   const [error, setError] = useState("");
@@ -605,6 +623,8 @@ export default function App() {
   const [rotation, setRotation] = useState(0);
   const [interactionMode, setInteractionMode] = useState(null); 
   const [selectedLandmarkForMove, setSelectedLandmarkForMove] = useState(null);
+  const [selectedPlayerToSkip, setSelectedPlayerToSkip] = useState(null);
+
   const [zoom, setZoom] = useState(1);
   const lastPinchDist = useRef(null);
   const lastPlayedEventTime = useRef(Date.now());
@@ -636,7 +656,6 @@ export default function App() {
     if (savedRoom && !activeRoomId) setActiveRoomId(savedRoom);
   }, []);
   
-  // Watch for available colors
   useEffect(() => {
     if (entryCode.length === 5) {
        const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'games', entryCode.toUpperCase()), (docSnap) => {
@@ -657,18 +676,14 @@ export default function App() {
         const data = docSnap.data();
         if (typeof data.grid === 'string') data.grid = JSON.parse(data.grid);
         setGameState(data);
-        
         const isHost = data.hostId === user.uid;
-        const isPlayer = data.players.find(p => p.id === user.uid);
-        
-        if (isHost || isPlayer) sessionStorage.setItem('mind_the_gap_room', activeRoomId);
-
-        if (data.status === 'lobby') {
-            setView('lobby');
-        } else {
-            if (isHost) setView('host');
-            else if (isPlayer) setView('player');
-            else { setError("Game in progress."); setView('home'); }
+        if (isHost) setView('host');
+        else {
+            const isPlayer = data.players.find(p => p.id === user.uid);
+            if (isPlayer) {
+                if (data.status === 'playing') setView('player'); else setView('lobby');
+                sessionStorage.setItem('mind_the_gap_room', activeRoomId);
+            }
         }
       } else { setError("Room not found"); setGameState(null); sessionStorage.removeItem('mind_the_gap_room'); }
     }, (err) => console.error("Sync error", err));
@@ -685,7 +700,6 @@ export default function App() {
     }
   }, [gameState?.lastEvent, view]);
 
-  // ZOOM HANDLERS
   const handleTouchStart = (e) => {
     if (e.touches.length === 2) {
       const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
@@ -714,7 +728,10 @@ export default function App() {
       hostId: user.uid, status: 'lobby', players: [],
       grid: JSON.stringify(initialGrid), turnIndex: 0, totalTurns: 0, 
       decks: { tracks: generateTrackDeck(), landmarks, passengers, metro: metroDeck },
-      activePassengers, blockedCells: [], winner: null, lastEvent: null
+      activePassengers, blockedCells: [], winner: null, lastEvent: null,
+      mostConnected: null, // { playerId: '', count: 0 }
+      movesLeft: 1, // Start with 1 move
+      skippedPlayers: [] // [uid1, uid2]
     };
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', newRoomId), initialData);
     setEntryCode(newRoomId); setActiveRoomId(newRoomId);
@@ -734,7 +751,6 @@ export default function App() {
         if (data.players.length >= 4) throw "Room full";
         if (data.players.find(p => p.id === user.uid)) return;
         if (data.players.find(p => p.color === playerColor)) throw "Color taken";
-        
         const newPlayer = {
           id: user.uid, name: playerName, color: playerColor,
           score: 0, hand: { tracks: [], landmarks: [], metro: [] }, completedPassengers: []
@@ -759,7 +775,19 @@ export default function App() {
 
   const endTurn = async (updates, winner, lastEvent) => {
     const nextTurn = (gameState.turnIndex + 1) % gameState.players.length;
-    // ROUND LOGIC REFILL
+    // Check for skipping
+    let actualNextTurn = nextTurn;
+    let newSkipped = updates.skippedPlayers || gameState.skippedPlayers || [];
+    
+    // Simple skip logic check for next player
+    const nextPlayerId = gameState.players[actualNextTurn].id;
+    if (newSkipped.includes(nextPlayerId)) {
+        // Skip them!
+        actualNextTurn = (actualNextTurn + 1) % gameState.players.length;
+        // Remove from skip list
+        newSkipped = newSkipped.filter(id => id !== nextPlayerId);
+    }
+
     let newPlayers = updates.players || gameState.players;
     const isRoundEnd = (gameState.totalTurns + 1) % gameState.players.length === 0;
     let newDecks = updates.decks || gameState.decks;
@@ -775,12 +803,14 @@ export default function App() {
 
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
       ...updates, players: newPlayers, decks: newDecks,
-      turnIndex: nextTurn, winner: winner || null,
+      turnIndex: actualNextTurn, winner: winner || null,
       lastEvent: lastEvent || gameState.lastEvent,
-      totalTurns: (gameState.totalTurns || 0) + 1
+      totalTurns: (gameState.totalTurns || 0) + 1,
+      movesLeft: 1, // Reset moves for next player
+      skippedPlayers: newSkipped
     });
     setSelectedCardIdx(null); setSelectedCardType(null); setRotation(0);
-    setInteractionMode(null); setSelectedLandmarkForMove(null);
+    setInteractionMode(null); setSelectedLandmarkForMove(null); setSelectedPlayerToSkip(null);
   };
 
   const restartGame = async () => {
@@ -789,51 +819,59 @@ export default function App() {
     const passengers = generatePassengers(landmarks);
     const activePassengers = passengers.splice(0, 3);
     const metroDeck = generateMetroDeck();
-    
-    const resetPlayers = gameState.players.map(p => ({
-        ...p, score: 0, hand: { tracks: [], landmarks: [], metro: [] }, completedPassengers: []
-    }));
-    
-    const dealPlayers = resetPlayers.map(p => {
-        const tracks = generateTrackDeck().splice(0,3);
-        const lms = landmarks.splice(0,2);
-        return { ...p, hand: { tracks, landmarks: lms, metro: [] }};
-    });
-
+    const resetPlayers = gameState.players.map(p => ({ ...p, score: 0, hand: { tracks: [], landmarks: [], metro: [] }, completedPassengers: [] }));
+    const dealPlayers = resetPlayers.map(p => { const tracks = generateTrackDeck().splice(0,3); const lms = landmarks.splice(0,2); return { ...p, hand: { tracks, landmarks: lms, metro: [] }}; });
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
-      grid: JSON.stringify(initialGrid),
-      players: dealPlayers,
-      decks: { tracks: generateTrackDeck(), landmarks, passengers, metro: metroDeck },
-      activePassengers,
-      totalTurns: 0,
-      turnIndex: 0,
-      winner: null,
-      blockedCells: []
+      grid: JSON.stringify(initialGrid), players: dealPlayers, decks: { tracks: generateTrackDeck(), landmarks, passengers, metro: metroDeck },
+      activePassengers, totalTurns: 0, turnIndex: 0, winner: null, blockedCells: [], mostConnected: null, skippedPlayers: [], movesLeft: 1
     });
   };
   
-  const leaveGame = () => {
-    sessionStorage.removeItem('mind_the_gap_room');
-    setActiveRoomId("");
-    setGameState(null);
-    setView('home');
-    setEntryCode("");
-  };
+  const leaveGame = () => { sessionStorage.removeItem('mind_the_gap_room'); setActiveRoomId(""); setGameState(null); setView('home'); setEntryCode(""); };
 
   const handleMetroCardAction = (idx) => {
       const playerIdx = gameState.players.findIndex(p => p.id === user.uid);
+      if (playerIdx !== gameState.turnIndex) { alert("Not your turn!"); return; }
+      
       const card = gameState.players[playerIdx].hand.metro[idx];
       setSelectedCardIdx(idx); setSelectedCardType('metro');
+
+      // Helper to remove card and end turn (unless Express Service)
+      const consumeCard = (updates = {}, skipEndTurn = false) => {
+          const newHand = { ...gameState.players[playerIdx].hand };
+          newHand.metro.splice(idx, 1);
+          const newPlayers = [...gameState.players];
+          newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
+          if(skipEndTurn) {
+             // Update local state without ending turn (for express service)
+              updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), { players: newPlayers, ...updates });
+              setSelectedCardIdx(null); setSelectedCardType(null); // Deselect
+          } else {
+             endTurn({ players: newPlayers, ...updates }, null, null);
+          }
+      };
 
       if (card.id === 'rush_hour') { 
           const newDecks = { ...gameState.decks };
           let newActive = [];
           newDecks.passengers = [...newDecks.passengers, ...gameState.activePassengers];
           for(let i=0; i<3; i++) { if (newDecks.passengers.length > 0) { const p = newDecks.passengers.shift(); p.unlockTurn = (gameState.totalTurns || 0) + gameState.players.length; newActive.push(p); } }
-          const newHand = { ...gameState.players[playerIdx].hand }; newHand.metro.splice(idx, 1);
-          const newPlayers = [...gameState.players]; newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
-          endTurn({ decks: newDecks, activePassengers: newActive, players: newPlayers }, null, null);
-      } else if (card.id === 'track_maint') { setInteractionMode('track_maint'); alert("Select an empty grid square to block.");
+          consumeCard({ decks: newDecks, activePassengers: newActive });
+      } 
+      else if (card.id === 'express_service') {
+          // Grant 2 moves
+          // We consume the card but do NOT end turn yet.
+          // We increase movesLeft to 2 (current move + 1 extra). 
+          // Wait, if I play this card, that's my action? No, "Place two track cards *this turn*".
+          // So playing it counts as a free action to buff the turn.
+          consumeCard({ movesLeft: 2 }, true);
+          alert("Express Service Active! You can place 2 cards this turn.");
+      }
+      else if (card.id === 'signal_failure') {
+          setInteractionMode('signal_failure');
+          // No alert needed, UI will show
+      }
+      else if (card.id === 'track_maint') { setInteractionMode('track_maint'); alert("Select an empty grid square to block.");
       } else if (card.id === 'grand_opening') { setInteractionMode('grand_opening_select_source'); alert("Select a Landmark to replace.");
       } else if (card.id === 'rezoning') { 
           const newDecks = { ...gameState.decks }; const newHand = { ...gameState.players[playerIdx].hand };
@@ -867,6 +905,18 @@ export default function App() {
           endTurn({ players: newPlayers }, null, null);
       }
   };
+  
+  const handleSignalFailureSelect = (victimId) => {
+      const playerIdx = gameState.players.findIndex(p => p.id === user.uid);
+      const newSkipped = [...(gameState.skippedPlayers || []), victimId];
+      
+      const newHand = { ...gameState.players[playerIdx].hand };
+      newHand.metro.splice(selectedCardIdx, 1);
+      const newPlayers = [...gameState.players];
+      newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
+      
+      endTurn({ skippedPlayers: newSkipped, players: newPlayers }, null, null);
+  };
 
   const handlePlaceCard = (x, y) => {
     if (view !== 'player') return;
@@ -885,19 +935,32 @@ export default function App() {
     if (interactionMode === 'grand_opening_select_source') {
         const cell = getCell(gameState.grid, x, y);
         if (!cell || cell.type !== 'landmark') { alert("Select a Landmark to replace."); return; }
+        setSelectedLandmarkForMove({x, y, data: cell}); setInteractionMode('grand_opening_select_dest'); return;
+    }
+    if (interactionMode === 'grand_opening_select_dest') {
+        // ... (Grand opening logic from previous code, simplified to direct replace now)
+        // Wait, requested logic change was "replace current landmark with one from hand"
+        // So we don't need dest select anymore. 
+        // Correct logic: Click Board Landmark -> Replace with Hand Landmark [0]
+        
+        // Let's fix this interaction flow:
+        // 1. User played card -> interactionMode = 'grand_opening_select_source'
+        // 2. User clicks a landmark on board
+        const cell = getCell(gameState.grid, x, y);
+        if (!cell || cell.type !== 'landmark') { alert("Select a Landmark to replace."); return; }
+        
+        const newLandmark = gameState.players[playerIdx].hand.landmarks[0];
+        if (!newLandmark) { alert("You need a landmark in hand!"); return; }
         
         const newGrid = [...gameState.grid];
-        const newLandmark = gameState.players[playerIdx].hand.landmarks[0];
-        if (!newLandmark) { alert("You need a landmark in hand to replace!"); return; }
-        
         newGrid[y][x] = { ...newLandmark, connections: cell.connections, type: 'landmark' };
         
         const newHand = { ...gameState.players[playerIdx].hand };
-        newHand.landmarks.splice(0, 1); 
-        newHand.metro.splice(selectedCardIdx, 1); 
-        const newPlayers = [...gameState.players];
-        newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
-        endTurn({ grid: JSON.stringify(newGrid), players: newPlayers }, null, null); return;
+        newHand.landmarks.splice(0, 1); newHand.metro.splice(selectedCardIdx, 1);
+        const newPlayers = [...gameState.players]; newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
+        
+        endTurn({ grid: JSON.stringify(newGrid), players: newPlayers }, null, null); 
+        return;
     }
 
     if (selectedCardIdx === null || selectedCardType === 'metro') return;
@@ -911,7 +974,6 @@ export default function App() {
 
     const candidateCell = { ...card, owner: player.color, rotation: rotation, type: card.type, isStart: false };
     
-    // Connectivity
     let validConnectionFound = false;
     const neighbors = [0,1,2,3].map(d => getNeighborCoords(x, y, d));
     for (let i = 0; i < neighbors.length; i++) {
@@ -945,16 +1007,18 @@ export default function App() {
     newGrid[y][x] = { ...card, owner: player.color, rotation, connectedColors: card.type === 'track' ? [player.color] : [] };
     playSound(card.type === 'track' ? 'place-track' : 'place-landmark');
 
-    // SCORING
+    // SCORING & MOST CONNECTED
     let pointsGained = 0;
     const completedPassengerIds = [];
     const playerConnectedLandmarks = new Set();
+    
     const refreshConnections = () => {
       playerConnectedLandmarks.clear();
       newGrid.forEach(row => row.forEach(c => {
         if (c && c.type === 'landmark' && c.connections && c.connections[player.color] > 0) playerConnectedLandmarks.add(c.id);
       }));
     };
+
     if (card.type === 'landmark') newGrid[y][x].connections = { [player.color]: 1 };
     else {
       neighbors.forEach((n, dir) => {
@@ -971,33 +1035,48 @@ export default function App() {
     }
     refreshConnections();
 
+    // MOST CONNECTED BONUS LOGIC
+    let currentMostConnected = gameState.mostConnected; // { playerId, count }
+    let bonusEvent = null;
+    const myCount = playerConnectedLandmarks.size;
+    
+    // Check if I deserve it
+    if (myCount >= 10) {
+        if (!currentMostConnected || myCount > currentMostConnected.count) {
+            // Take the lead!
+            currentMostConnected = { playerId: player.id, count: myCount };
+            bonusEvent = { type: 'most-connected', playerColor: player.color, playerName: player.name, count: myCount, timestamp: Date.now() };
+            playSound('success'); // Reusing success sound for bonus
+        } else if (currentMostConnected.playerId === player.id) {
+            // Update my own count if I'm already leader
+            currentMostConnected.count = myCount;
+        }
+    }
+
     const claimedPassengerNames = [];
     const checkPassenger = (p) => {
       if (p.unlockTurn && gameState.totalTurns < p.unlockTurn) return false;
       if (completedPassengerIds.includes(p.id)) return false;
       let match = false;
       const myLandmarks = []; newGrid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && playerConnectedLandmarks.has(c.id)) myLandmarks.push(c); }));
-
       if (p.reqType === 'specific' && playerConnectedLandmarks.has(p.targetId)) match = true;
       else if (p.reqType === 'category' && myLandmarks.some(l => l.category === p.targetCategory)) match = true;
       else if (p.reqType === 'list') { if (p.targets.some(tid => playerConnectedLandmarks.has(tid))) match = true; } 
       else if (p.reqType === 'combo' && playerConnectedLandmarks.has(p.targets[0]) && playerConnectedLandmarks.has(p.targets[1])) match = true;
       else if (p.reqType === 'combo_cat') { if(playerConnectedLandmarks.has(p.targetId) && myLandmarks.some(l => l.category === p.cat2)) match = true; }
-
       if (match) { pointsGained += p.points; completedPassengerIds.push(p.id); claimedPassengerNames.push(p.name); return true; }
       return false;
     };
     gameState.activePassengers.forEach(checkPassenger);
     
-    let lastEvent = null;
+    let lastEvent = bonusEvent; // Prioritize Bonus event if it happens
     if (pointsGained > 0) {
         lastEvent = { type: 'claim-passenger', playerColor: player.color, playerName: player.name, passengerNames: claimedPassengerNames, timestamp: Date.now(), coords: { x, y } };
         playSound('claim-passenger');
-    } else {
+    } else if (!lastEvent) {
         lastEvent = { type: card.type === 'track' ? 'place-track' : 'place-landmark', playerColor: player.color, timestamp: Date.now() };
     }
 
-    // Update Hand
     const newHand = { ...player.hand };
     if (selectedCardType === 'tracks') newHand.tracks.splice(selectedCardIdx, 1);
     else newHand.landmarks.splice(selectedCardIdx, 1);
@@ -1019,72 +1098,47 @@ export default function App() {
     }
 
     const newPlayers = [...gameState.players];
-    newPlayers[playerIdx] = { ...player, hand: newHand, score: player.score + pointsGained };
+    // Calc base score + check bonus
+    let currentScore = player.score + pointsGained;
+    
+    // NOTE: For simplicity, we just store the RAW score in player.score
+    // And calculate final "Effective Score" including bonus on the fly for Win Check
+    // But to display it correctly, we should probably update the player object? 
+    // Let's keep player.score as raw points from passengers.
+    newPlayers[playerIdx] = { ...player, hand: newHand, score: currentScore };
 
+    // Win Check with Bonus
     let winner = null;
-    if (newPlayers[playerIdx].score >= WIN_SCORE) { 
+    const hasBonus = currentMostConnected?.playerId === player.id;
+    const effectiveScore = currentScore + (hasBonus ? 2 : 0);
+    
+    if (effectiveScore >= WIN_SCORE) { 
         winner = newPlayers[playerIdx]; 
         lastEvent = { type: 'win-game', playerColor: player.color, playerName: player.name, timestamp: Date.now() }; 
         playSound('win-game');
     }
 
-    endTurn({ grid: JSON.stringify(newGrid), players: newPlayers, decks: newDecks, activePassengers: newActivePassengers }, winner, lastEvent);
+    // MULTI-MOVE LOGIC (Express Service)
+    const movesLeft = (gameState.movesLeft || 1) - 1;
+    if (movesLeft > 0) {
+        // Do not end turn, just update state
+        updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
+          grid: JSON.stringify(newGrid), players: newPlayers, decks: newDecks, 
+          activePassengers: newActivePassengers, winner, lastEvent, mostConnected: currentMostConnected,
+          movesLeft: movesLeft
+        });
+        // Reset card selection but keep turn
+        setSelectedCardIdx(null); setSelectedCardType(null); setRotation(0);
+    } else {
+        endTurn({ 
+            grid: JSON.stringify(newGrid), players: newPlayers, decks: newDecks, 
+            activePassengers: newActivePassengers, mostConnected: currentMostConnected
+        }, winner, lastEvent);
+    }
   };
 
-  if (view === 'home') {
-    return (
-      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans p-4 relative overflow-hidden">
-        <h1 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-cal-sans">
-          MIND THE GAP
-        </h1>
-        <div className="flex flex-col gap-4 w-full max-w-md z-10 font-questrial">
-          <div className="flex flex-col gap-2 w-full bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
-            <h3 className="text-xl font-bold text-center mb-4 font-cal-sans">Join Room</h3>
-            <input 
-              type="text" placeholder="Room Code" 
-              className="px-4 py-2 rounded bg-gray-900 border border-gray-700 focus:border-blue-500 outline-none text-center uppercase tracking-widest w-full font-bold"
-              value={entryCode} onChange={e => setEntryCode(e.target.value.toUpperCase())}
-            />
-            
-            {entryCode.length === 5 && (
-                <div className="grid grid-cols-4 gap-2 my-2">
-                    {COLORS.map(c => (
-                        <button 
-                            key={c}
-                            onClick={() => setPlayerColor(c)}
-                            disabled={!availableColors.includes(c)}
-                            className={`h-10 rounded-lg transition-all ${playerColor === c ? 'ring-4 ring-white scale-105' : ''} ${!availableColors.includes(c) ? 'opacity-20 cursor-not-allowed' : 'hover:opacity-80'}`}
-                            style={{ backgroundColor: c === 'yellow' ? '#EAB308' : c === 'red' ? '#EF4444' : c === 'blue' ? '#3B82F6' : '#22C55E' }}
-                        >
-                            {playerColor === c && <Check size={20} className="mx-auto text-white drop-shadow-md" />}
-                        </button>
-                    ))}
-                </div>
-            )}
-            
-            <input 
-              type="text" placeholder="Your Name" 
-              className="px-4 py-2 rounded bg-gray-900 border border-gray-700 focus:border-blue-500 outline-none text-center w-full"
-              value={playerName} onChange={e => setPlayerName(e.target.value)}
-            />
-            <button onClick={joinGame} className="px-8 py-3 bg-green-600 hover:bg-green-500 rounded-lg font-bold shadow-lg w-full mt-2 transition-transform active:scale-95">Join Game</button>
-          </div>
-          
-          <div className="relative flex py-2 items-center">
-            <div className="flex-grow border-t border-gray-700"></div>
-            <span className="flex-shrink mx-4 text-gray-500 text-xs uppercase">OR</span>
-            <div className="flex-grow border-t border-gray-700"></div>
-          </div>
-          
-          <button onClick={createGame} className="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-xl shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 w-full">
-            <Crown size={24}/> Create New Room
-          </button>
-        </div>
-        {error && <p className="text-red-500 mt-4 font-bold bg-red-900/20 px-4 py-2 rounded z-10 font-questrial border border-red-500/50">{error}</p>}
-      </div>
-    );
-  }
-
+  // --- RENDERERS ---
+  
   if (gameState?.winner) return <WinnerModal winner={gameState.winner} onRestart={restartGame} onExit={leaveGame} />;
 
   if (view === 'lobby') {
@@ -1102,11 +1156,8 @@ export default function App() {
           ))}
           {[...Array(4 - (gameState?.players.length || 0))].map((_, i) => <div key={i} className="p-6 rounded-xl bg-gray-800/50 border-2 border-dashed border-gray-700 flex flex-col items-center justify-center text-gray-600 font-questrial">Waiting...</div>)}
         </div>
-        {gameState?.hostId === user.uid ? (
-          <button onClick={startGame} disabled={gameState?.players.length < 2} className="px-12 py-4 bg-yellow-500 hover:bg-yellow-400 text-black rounded-full font-black text-2xl shadow-lg font-cal-sans">START GAME</button> 
-        ) : (
-          <p className="animate-pulse text-xl font-medium text-center font-questrial">Host will start the game soon...</p>
-        )}
+        {gameState?.hostId === user.uid ? <button onClick={startGame} disabled={gameState?.players.length < 2} className="px-12 py-4 bg-yellow-500 hover:bg-yellow-400 text-black rounded-full font-black text-2xl shadow-lg font-cal-sans">START GAME</button> : <p className="animate-pulse text-xl font-medium text-center font-questrial">Host will start the game soon...</p>}
+        <button onClick={leaveGame} className="absolute top-4 right-4 p-2 bg-red-600/20 hover:bg-red-600 text-red-200 rounded-full z-50 transition-colors"><X size={20} /></button>
       </div>
     );
   }
@@ -1116,6 +1167,7 @@ export default function App() {
       <div className="h-screen bg-gray-950 text-white flex p-4 gap-4 overflow-hidden relative font-questrial">
         <AudioPlayer view="host" />
         <NotificationOverlay event={gameState.lastEvent} />
+        <button onClick={leaveGame} className="absolute top-4 right-4 p-2 bg-red-600/20 hover:bg-red-600 text-red-200 rounded-full z-50 transition-colors"><X size={20} /></button>
         <div className="w-1/4 max-w-sm flex flex-col gap-4 h-full z-10">
           <div className="bg-gray-800 p-3 rounded-lg text-center shadow-lg border border-gray-700">
              <div className="text-xs text-gray-400 uppercase tracking-widest">Room Code</div>
@@ -1130,8 +1182,10 @@ export default function App() {
                   <div className="flex items-center gap-3">
                     <div className={`w-4 h-4 rounded-full bg-${p.color}-500 shadow-md`}></div>
                     <span className="font-bold text-lg truncate max-w-[100px] font-cal-sans">{p.name}</span>
+                    {gameState.mostConnected?.playerId === p.id && <LinkIcon size={16} className="text-blue-400 animate-pulse" />}
                   </div>
-                  <span className="text-2xl font-black font-cal-sans">{p.score}</span>
+                  {/* Calculate Display Score (Raw + Bonus) */}
+                  <span className="text-2xl font-black font-cal-sans">{p.score + (gameState.mostConnected?.playerId === p.id ? 2 : 0)}</span>
                 </div>
               ))}
             </div>
@@ -1142,11 +1196,7 @@ export default function App() {
             <div className="space-y-3">
               {gameState.activePassengers.map(pass => (
                 <div key={pass.id} className={`bg-white text-gray-900 p-4 rounded-xl shadow-xl flex flex-col gap-1 border-4 border-gray-200 relative overflow-hidden transform transition-all duration-300 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 scale-95 grayscale' : 'hover:scale-105'}`}>
-                  {gameState.totalTurns < pass.unlockTurn && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
-                          <span className="bg-red-600 text-white px-3 py-1 font-bold rounded uppercase text-xs font-cal-sans">Arriving Soon</span>
-                      </div>
-                  )}
+                  {gameState.totalTurns < pass.unlockTurn && <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10"><span className="bg-red-600 text-white px-3 py-1 font-bold rounded uppercase text-xs font-cal-sans">Arriving Soon</span></div>}
                   <div className="absolute top-0 right-0 p-2 opacity-10 pointer-events-none">
                     {pass.reqType === 'category' && CATEGORIES[pass.targetCategory?.toUpperCase()]?.icon}
                   </div>
@@ -1184,11 +1234,30 @@ export default function App() {
     const isMyTurn = gameState.players[gameState.turnIndex]?.id === user.uid;
     const connectedLandmarks = [];
     if (gameState && gameState.grid) gameState.grid.forEach(row => row.forEach(cell => { if (cell && cell.type === 'landmark' && cell.connections && cell.connections[player.color] > 0) connectedLandmarks.push(cell); }));
+    
+    const displayScore = player.score + (gameState.mostConnected?.playerId === player.id ? 2 : 0);
 
     return (
       <div className="h-[100dvh] bg-gray-950 text-white flex flex-col overflow-hidden font-questrial">
         <AudioPlayer view="player" />
         <NotificationOverlay event={gameState.lastEvent} />
+        
+        {/* Interaction Mode Overlay (Signal Failure) */}
+        {interactionMode === 'signal_failure' && (
+             <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
+                 <h2 className="text-2xl font-bold mb-6 font-cal-sans">Choose Player to Skip</h2>
+                 <div className="grid grid-cols-2 gap-4 w-full max-w-sm">
+                     {gameState.players.filter(p => p.id !== user.uid).map(p => (
+                         <button key={p.id} onClick={() => handleSignalFailureSelect(p.id)} className={`p-6 bg-gray-800 border-2 border-${p.color}-500 rounded-xl flex flex-col items-center gap-2 hover:bg-gray-700`}>
+                             <div className={`w-12 h-12 rounded-full bg-${p.color}-500`}></div>
+                             <span className="font-bold">{p.name}</span>
+                         </button>
+                     ))}
+                 </div>
+                 <button onClick={() => setInteractionMode(null)} className="mt-8 text-gray-400 underline">Cancel</button>
+             </div>
+        )}
+
         <div className={`border-b border-gray-800 shrink-0 z-20 shadow-md transition-colors duration-500 ${isMyTurn ? 'bg-green-900/90 border-green-600' : 'bg-gray-900 border-gray-800'}`}>
           <div className="max-w-5xl mx-auto">
             <div className="h-14 flex items-center justify-between px-4">
@@ -1199,9 +1268,12 @@ export default function App() {
               <div className="flex items-center gap-4">
                  <div className="flex flex-col items-end leading-none">
                     <span className="text-[10px] text-gray-400 tracking-wider font-cal-sans">SCORE</span>
-                    <span className="text-2xl font-black text-white font-cal-sans">{player.score}</span>
+                    <span className="text-2xl font-black text-white font-cal-sans flex items-center gap-1">
+                        {displayScore} 
+                        {gameState.mostConnected?.playerId === player.id && <LinkIcon size={14} className="text-blue-400" />}
+                    </span>
                  </div>
-                 {isMyTurn && <div className="w-4 h-4 bg-green-400 rounded-full animate-pulse shadow-[0_0_15px_#4ade80]"></div>}
+                 {isMyTurn && <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse shadow-[0_0_15px_#4ade80]"></div>}
                  <button onClick={leaveGame} className="text-gray-400 hover:text-white"><LogOut size={18}/></button>
               </div>
             </div>
@@ -1218,6 +1290,7 @@ export default function App() {
             )}
           </div>
         </div>
+
         <div className="flex-1 overflow-auto bg-black/40 relative" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
            <div style={{ width: `${100 * zoom}%`, minWidth: '100%', minHeight: '100%', transformOrigin: '0 0' }}> 
                <div style={{ transform: `scale(${zoom})`, transformOrigin: '0 0' }}>
@@ -1225,9 +1298,10 @@ export default function App() {
                </div>
            </div>
         </div>
+
         <div className="bg-gray-900 border-t border-gray-800 shrink-0 flex flex-col safe-area-pb shadow-[0_-4px_20px_rgba(0,0,0,0.5)] z-20">
           <div className="max-w-5xl mx-auto w-full">
-            {interactionMode && (
+            {interactionMode && interactionMode !== 'signal_failure' && (
                 <div className="bg-yellow-600 text-black font-bold p-2 text-center animate-pulse font-cal-sans">
                     {interactionMode === 'track_maint' && "Select a square to block"}
                     {interactionMode === 'grand_opening_select_source' && "Select a Landmark to replace"}
