@@ -35,7 +35,7 @@ const GRID_SIZE = 19;
 const CENTER = Math.floor(GRID_SIZE / 2); 
 const COLORS = ['red', 'blue', 'green', 'yellow'];
 
-// Updated Categories
+// Categories
 const CATEGORIES = {
   GASTRONOMY: { id: 'gastronomy', label: 'Gastronomy', icon: <Coffee size={16} />, color: 'text-amber-600' },
   HERITAGE: { id: 'heritage', label: 'Heritage', icon: <Landmark size={16} />, color: 'text-stone-600' },
@@ -45,7 +45,7 @@ const CATEGORIES = {
   THRILLING: { id: 'thrilling', label: 'Thrilling', icon: <Zap size={16} />, color: 'text-red-600' },
 };
 
-// Updated Landmarks Data
+// Landmarks Data
 const LANDMARKS_DATA = [
   // Gastronomy
   { name: "Ice Cream Shop", cat: 'gastronomy' }, { name: "Candy Store", cat: 'gastronomy' }, { name: "Farmer's Market", cat: 'gastronomy' },
@@ -71,7 +71,7 @@ const LANDMARKS_DATA = [
   { name: "Tattoo Parlor", cat: 'thrilling' }, { name: "The Stadium", cat: 'thrilling' }
 ];
 
-// Personas for Flavor Text
+// Personas
 const PERSONAS_BY_CAT = {
   gastronomy: ["The Head Chef", "The Food Critic", "The Glutton", "The Barista", "The Baker", "The Sommelier"],
   heritage: ["The Historian", "The Widow", "The Archaeologist", "The Monk", "The Duke", "The Architect"],
@@ -131,7 +131,7 @@ const areConnected = (cellA, cellB, dirFromAtoB) => {
   return true;
 };
 
-// BFS for distance
+// BFS
 const getDistanceToStart = (grid, targetX, targetY, playerColor) => {
   const queue = [{ x: targetX, y: targetY, dist: 0 }];
   const visited = new Set([`${targetX},${targetY}`]);
@@ -195,7 +195,7 @@ const check3TrackRule = (grid, startX, startY, playerColor) => {
   return true;
 };
 
-// --- DATA GENERATION ---
+// --- GENERATORS ---
 
 const generateLandmarks = () => {
   const landmarks = [];
@@ -215,21 +215,18 @@ const generateLandmarks = () => {
 const generatePassengers = (allLandmarks) => {
   const passengers = [];
   let idCounter = 1;
-
-  // Helper to find landmark ID by name for specific requirements
   const findL = (name) => allLandmarks.find(l => l.name === name);
 
-  // TIER 1 (Category - 1pt)
+  // TIER 1
   const tier1 = [
     { name: "The Foodie", req: 'category', target: 'gastronomy', pts: 1, desc: "Any Gastronomy" },
     { name: "The Tourist", req: 'category', target: 'heritage', pts: 1, desc: "Any Heritage" },
     { name: "The Outdoorsman", req: 'category', target: 'nature', pts: 1, desc: "Any Nature" },
     { name: "The Local", req: 'category', target: 'services', pts: 1, desc: "Any Services" },
     { name: "The Adrenaline Junkie", req: 'category', target: 'thrilling', pts: 1, desc: "Any Thrilling" },
-    { name: "The Medium", req: 'category', target: 'spiritual', pts: 2, desc: "Any Spiritual" } // 2 pts
+    { name: "The Medium", req: 'category', target: 'spiritual', pts: 2, desc: "Any Spiritual" } 
   ];
-
-  // TIER 2 (Selection OR - 2pts)
+  // TIER 2
   const tier2 = [
       { name: "The Sweet Tooth", req: 'list', targets: ["Ice Cream Shop", "Candy Store", "Bakery"], pts: 2 },
       { name: "The Scholar", req: 'list', targets: ["University", "Library", "Museum"], pts: 2 },
@@ -240,8 +237,7 @@ const generatePassengers = (allLandmarks) => {
       { name: "The Artist", req: 'list', targets: ["Opera House", "Theatre", "Tattoo Parlor"], pts: 2 },
       { name: "The Errand Runner", req: 'list', targets: ["Bank", "Post Office", "Tailors"], pts: 2 }
   ];
-
-  // TIER 3 (Specific - 3pts)
+  // TIER 3
   const tier3 = [
       { name: "The Pilot", target: "Airport", pts: 3 },
       { name: "The Astronomer", target: "Observatory", pts: 3 },
@@ -252,8 +248,7 @@ const generatePassengers = (allLandmarks) => {
       { name: "The Widow", target: "Cemetery", pts: 3 },
       { name: "The Gambler", target: "Casino", pts: 3 }
   ];
-
-  // TIER 4 (Combo AND - 4-5pts)
+  // TIER 4
   const tier4 = [
       { name: "The Date Night", targets: ["Cafe", "Cinema"], pts: 5 },
       { name: "The Ghost Tour", type: 'ghost', target1: "Haunted House", cat2: "heritage", pts: 4, desc: "Haunted House AND Any Heritage" },
@@ -265,20 +260,15 @@ const generatePassengers = (allLandmarks) => {
       { name: "The Critic", targets: ["The Melting Pot", "Theatre"], pts: 5 }
   ];
 
-  // Generate Deck
-  // Add Tier 1
   tier1.forEach(p => passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'category', targetCategory: p.target, points: p.pts, desc: p.desc }));
-  // Add Tier 2
   tier2.forEach(p => {
       const ts = p.targets.map(n => findL(n)?.id).filter(Boolean);
       if(ts.length > 0) passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'list', targets: ts, points: p.pts, desc: p.targets.join(" OR ") });
   });
-  // Add Tier 3
   tier3.forEach(p => {
       const t = findL(p.target);
       if(t) passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'specific', targetId: t.id, targetName: t.name, points: p.pts, desc: `Must visit ${t.name}` });
   });
-  // Add Tier 4
   tier4.forEach(p => {
       if (p.targets) {
           const t1 = findL(p.targets[0]);
@@ -530,6 +520,38 @@ const AudioPlayer = ({ view }) => {
 };
 
 // --- MAIN COMPONENT ---
+// Board is defined here to ensure it's in scope
+const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, view }) => (
+    <div 
+      className={`grid ${isMobile ? 'gap-[1px]' : 'gap-0'} ${isMobile ? 'bg-black/10 border border-gray-600/30' : 'bg-transparent border-0'} rounded-lg shadow-2xl overflow-hidden select-none mx-auto relative backdrop-blur-sm`}
+      style={{ 
+        backgroundImage: 'url(/city-map.jpg)', 
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
+        width: '100%',
+        aspectRatio: '1/1',
+        maxWidth: isMobile ? 'none' : '1000px', 
+        minWidth: isMobile ? '1200px' : 'auto', 
+        maxHeight: isMobile ? 'none' : '90vh',
+      }}
+    >
+      {gameState?.grid.map((row, y) => (
+        row.map((cell, x) => (
+          <Cell 
+            key={`${x}-${y}`} 
+            x={x} y={y} 
+            cellData={cell} 
+            onClick={interactive ? handlePlaceCard : () => {}} 
+            view={view}
+            isBlocked={gameState.blockedCells?.includes(`${x},${y}`)}
+            animateTrain={lastEvent?.type === 'claim-passenger' && lastEvent.coords?.x === x && lastEvent.coords?.y === y && (Date.now() - lastEvent.timestamp < 3000)}
+          />
+        ))
+      ))}
+    </div>
+);
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [entryCode, setEntryCode] = useState(""); 
@@ -669,13 +691,42 @@ export default function App() {
     setInteractionMode(null); setSelectedLandmarkForMove(null);
   };
 
+  const restartGame = async () => {
+    const initialGrid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null));
+    const landmarks = generateLandmarks();
+    const passengers = generatePassengers(landmarks);
+    const activePassengers = passengers.splice(0, 3);
+    const metroDeck = generateMetroDeck();
+    
+    const resetPlayers = gameState.players.map(p => ({
+        ...p, score: 0, hand: { tracks: [], landmarks: [], metro: [] }, completedPassengers: []
+    }));
+    
+    const dealPlayers = resetPlayers.map(p => {
+        const tracks = generateTrackDeck().splice(0,3);
+        const lms = landmarks.splice(0,2);
+        return { ...p, hand: { tracks, landmarks: lms, metro: [] }};
+    });
+
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
+      grid: JSON.stringify(initialGrid),
+      players: dealPlayers,
+      decks: { tracks: generateTrackDeck(), landmarks, passengers, metro: metroDeck },
+      activePassengers,
+      totalTurns: 0,
+      turnIndex: 0,
+      winner: null,
+      blockedCells: []
+    });
+  };
+
   // ... (handleMetroCardAction updated to just steal without replenish logic, relying on endTurn refill)
   const handleMetroCardAction = (idx) => {
       const playerIdx = gameState.players.findIndex(p => p.id === user.uid);
       const card = gameState.players[playerIdx].hand.metro[idx];
       setSelectedCardIdx(idx); setSelectedCardType('metro');
 
-      if (card.id === 'rush_hour') { /* ... same ... */
+      if (card.id === 'rush_hour') { 
           const newDecks = { ...gameState.decks };
           let newActive = [];
           newDecks.passengers = [...newDecks.passengers, ...gameState.activePassengers];
@@ -685,7 +736,7 @@ export default function App() {
           endTurn({ decks: newDecks, activePassengers: newActive, players: newPlayers }, null, null);
       } else if (card.id === 'track_maint') { setInteractionMode('track_maint'); alert("Select an empty grid square to block.");
       } else if (card.id === 'grand_opening') { setInteractionMode('grand_opening_select_source'); alert("Select a Landmark to move.");
-      } else if (card.id === 'rezoning') { /* ... same ... */
+      } else if (card.id === 'rezoning') { 
           const newDecks = { ...gameState.decks }; const newHand = { ...gameState.players[playerIdx].hand };
           newDecks.landmarks.push(...newHand.landmarks); newHand.landmarks = [];
           if(newDecks.landmarks.length >= 2) { newHand.landmarks.push(newDecks.landmarks.pop()); newHand.landmarks.push(newDecks.landmarks.pop()); }
@@ -880,88 +931,9 @@ export default function App() {
   };
 
   // --- RENDERERS ---
-  if (gameState?.winner) return <WinnerModal winner={gameState.winner} onRestart={restartGame} />;
   
-  // HOST VIEW (Updated visual)
-  if (view === 'host') {
-    return (
-      <div className="h-screen bg-gray-900 text-white flex p-4 gap-4 overflow-hidden relative font-questrial">
-        <AudioPlayer view="host" />
-        <NotificationOverlay event={gameState.lastEvent} />
-        <div className="w-1/4 max-w-sm flex flex-col gap-4 h-full z-10">
-          <div className="bg-gray-800 p-3 rounded-lg text-center shadow-lg border border-gray-700">
-             <div className="text-xs text-gray-400 uppercase tracking-widest">Room Code</div>
-             <div className="text-4xl font-black tracking-widest text-white font-nabla">{activeRoomId}</div>
-          </div>
-          <div className="bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700 flex-shrink-0">
-            <h3 className="text-lg font-bold text-gray-400 mb-3 flex items-center gap-2 uppercase tracking-wide font-cal-sans"><Trophy size={18}/> Standings</h3>
-            <div className="space-y-3">
-              {gameState.players.map((p, i) => (
-                <div key={i} className={`flex items-center justify-between p-3 rounded-lg border ${gameState.turnIndex === i ? 'bg-gray-700 border-green-500 ring-2 ring-green-500/50' : 'bg-gray-800/50 border-gray-700'}`}>
-                  <div className="flex items-center gap-3">
-                    <div className={`w-4 h-4 rounded-full bg-${p.color}-500 shadow-md`}></div>
-                    <span className="font-bold text-lg truncate max-w-[100px] font-cal-sans">{p.name}</span>
-                  </div>
-                  <span className="text-2xl font-black font-nabla">{p.score}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="flex-1 flex flex-col gap-2 overflow-auto">
-            <h3 className="text-lg font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wide font-cal-sans"><Users size={18}/> Passengers</h3>
-            <div className="space-y-3">
-              {gameState.activePassengers.map(pass => (
-                <div key={pass.id} className={`bg-white text-gray-900 p-4 rounded-xl shadow-xl flex flex-col gap-1 border-4 border-gray-200 relative overflow-hidden transform transition-all duration-300 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 scale-95 grayscale' : 'hover:scale-105'}`}>
-                  {gameState.totalTurns < pass.unlockTurn && <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10"><span className="bg-red-600 text-white px-3 py-1 font-bold rounded uppercase text-xs font-cal-sans">Arriving Soon</span></div>}
-                  <div className="flex justify-between items-center border-b border-gray-200 pb-2 mb-1">
-                    <span className="font-black text-2xl text-red-600 font-nabla">{pass.points}</span>
-                    {/* Host Progress Indicator */}
-                    <div className="flex gap-1">
-                        {gameState.players.map(pl => {
-                             // Calc logic for this player
-                             const connectedLMs = new Set();
-                             gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) connectedLMs.add(c.id); }));
-                             const myLandmarks = []; gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && connectedLMs.has(c.id)) myLandmarks.push(c); }));
-                             
-                             let progress = 0; let total = 1;
-                             if (pass.reqType === 'combo' || pass.reqType === 'combo_cat' || pass.reqType === 'dual_category') total = 2; // Rough approx for display
-                             // Simple check for display dot color
-                             let met = false;
-                             if(pass.reqType === 'specific' && connectedLMs.has(pass.targetId)) met = true;
-                             // ... complex checks omitted for brevity, just showing player dot if ANY progress
-                             return <div key={pl.id} className={`w-2 h-2 rounded-full bg-${pl.color}-500 ${met ? 'opacity-100 ring-1 ring-black' : 'opacity-20'}`}></div>
-                        })}
-                    </div>
-                  </div>
-                  <div><p className="text-lg font-bold leading-tight font-cal-sans">{pass.name}</p></div>
-                  <p className="text-sm text-gray-600 italic mt-1 leading-snug font-questrial">{pass.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="flex-1 flex items-center justify-center rounded-xl overflow-hidden relative shadow-2xl backdrop-blur-sm">
-           <div className="absolute inset-4 flex items-center justify-center"><Board interactive={false} isMobile={false} lastEvent={gameState.lastEvent} /></div>
-        </div>
-      </div>
-    );
-  }
-
-  // --- PLAYER & LOBBY/HOME VIEWS REMAIN MOSTLY THE SAME, JUST WITH FONT CLASS UPDATES ---
-  if (view === 'home') {
-    return (
-      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans p-4 relative overflow-hidden">
-        <h1 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-nabla">MIND THE GAP</h1>
-        <div className="flex flex-col md:flex-row gap-4 w-full max-w-md z-10 font-questrial">
-          <button onClick={createGame} className="px-8 py-4 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-xl shadow-lg flex items-center justify-center gap-2 w-full md:w-auto"><Crown size={24}/> Host</button>
-          <div className="flex flex-col gap-2 w-full">
-            <input type="text" placeholder="Room Code" className="px-4 py-2 rounded bg-gray-800 border border-gray-700 text-center uppercase w-full" value={entryCode} onChange={e => setEntryCode(e.target.value.toUpperCase())}/>
-            <input type="text" placeholder="Your Name" className="px-4 py-2 rounded bg-gray-800 border border-gray-700 text-center w-full" value={playerName} onChange={e => setPlayerName(e.target.value)}/>
-            <button onClick={joinGame} className="px-8 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-bold shadow-lg w-full">Join Game</button>
-          </div>
-        </div>
-      </div>
-    );
+  if (gameState?.winner) {
+    return <WinnerModal winner={gameState.winner} onRestart={restartGame} />;
   }
 
   if (view === 'lobby') {
@@ -984,13 +956,104 @@ export default function App() {
     );
   }
 
+  if (view === 'host') {
+    return (
+      <div className="h-screen bg-gray-950 text-white flex p-4 gap-4 overflow-hidden relative font-questrial">
+        <AudioPlayer view="host" />
+        <NotificationOverlay event={gameState.lastEvent} />
+        <div className="w-1/4 max-w-sm flex flex-col gap-4 h-full z-10">
+          <div className="bg-gray-800 p-3 rounded-lg text-center shadow-lg border border-gray-700">
+             <div className="text-xs text-gray-400 uppercase tracking-widest">Room Code</div>
+             <div className="text-4xl font-black tracking-widest text-white font-nabla">{activeRoomId}</div>
+          </div>
+
+          <div className="bg-gray-900 p-4 rounded-xl shadow-lg border border-gray-800 flex-shrink-0">
+            <h3 className="text-lg font-bold text-gray-400 mb-3 flex items-center gap-2 uppercase tracking-wide font-cal-sans"><Trophy size={18}/> Standings</h3>
+            <div className="space-y-3">
+              {gameState.players.map((p, i) => (
+                <div key={i} className={`flex items-center justify-between p-3 rounded-lg border ${gameState.turnIndex === i ? 'bg-gray-800 border-white ring-2 ring-white/20' : 'bg-gray-800/50 border-gray-700'}`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-4 h-4 rounded-full bg-${p.color}-500 shadow-md`}></div>
+                    <span className="font-bold text-lg truncate max-w-[100px] font-cal-sans">{p.name}</span>
+                  </div>
+                  <span className="text-2xl font-black font-nabla">{p.score}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex-1 flex flex-col gap-2 overflow-auto">
+            <h3 className="text-lg font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wide font-cal-sans"><Users size={18}/> Passengers</h3>
+            <div className="space-y-3">
+              {gameState.activePassengers.map(pass => (
+                <div key={pass.id} className={`bg-white text-gray-900 p-4 rounded-xl shadow-xl flex flex-col gap-1 border-4 border-gray-200 relative overflow-hidden transform transition-all duration-300 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 scale-95 grayscale' : 'hover:scale-105'}`}>
+                  {gameState.totalTurns < pass.unlockTurn && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
+                          <span className="bg-red-600 text-white px-3 py-1 font-bold rounded uppercase text-xs font-cal-sans">Arriving Soon</span>
+                      </div>
+                  )}
+                  <div className="absolute top-0 right-0 p-2 opacity-10 pointer-events-none">
+                    {pass.reqType === 'category' && CATEGORIES[pass.targetCategory?.toUpperCase()]?.icon}
+                  </div>
+                  <div className="flex justify-between items-center border-b border-gray-200 pb-2 mb-1">
+                    <span className="font-black text-2xl text-red-600 font-nabla">{pass.points}</span>
+                    {pass.reqType === 'category' && <span className="scale-125 text-gray-600">{CATEGORIES[pass.targetCategory?.toUpperCase()]?.icon}</span>}
+                    {pass.reqType === 'combo' && <span className="text-xs font-bold bg-purple-100 text-purple-800 px-2 py-1 rounded-full">COMBO</span>}
+                    {pass.reqType === 'list' && <span className="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded-full">LIST</span>}
+                  </div>
+                  <div>
+                     <p className="text-lg font-bold leading-tight font-serif">{pass.name}</p>
+                     <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mt-1">{pass.reqType === 'specific' ? 'Must Visit' : 'Looking For'}</p>
+                  </div>
+                  <p className="text-sm text-gray-600 italic mt-1 leading-snug">{pass.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 flex items-center justify-center rounded-xl overflow-hidden relative shadow-2xl backdrop-blur-sm">
+           <div className="absolute inset-4 flex items-center justify-center">
+              <Board interactive={false} isMobile={false} lastEvent={gameState.lastEvent} gameState={gameState} handlePlaceCard={handlePlaceCard} view={view} />
+           </div>
+        </div>
+      </div>
+    );
+  }
+
   if (view === 'player') {
-    if (!gameState || !gameState.players) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center animate-pulse">Loading...</div>;
+    if (!gameState || !gameState.players) {
+      return (
+        <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+          <div className="animate-pulse">Loading game data...</div>
+        </div>
+      );
+    }
+    
     const player = gameState.players.find(p => p.id === user.uid);
-    if (!player) return <div className="min-h-screen bg-gray-900 text-white p-8">Error: Player not found.</div>;
+    
+    if (!player) {
+      return (
+        <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-8 text-center">
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Error Loading Game</h2>
+            <p className="text-gray-400">Could not find your player data. Please try refreshing or re-joining.</p>
+          </div>
+        </div>
+      );
+    }
+
     const isMyTurn = gameState.players[gameState.turnIndex]?.id === user.uid;
     const connectedLandmarks = [];
-    if (gameState && gameState.grid) gameState.grid.forEach(row => row.forEach(cell => { if (cell && cell.type === 'landmark' && cell.connections && cell.connections[player.color] > 0) connectedLandmarks.push(cell); }));
+    if (gameState && gameState.grid) {
+      gameState.grid.forEach(row => {
+        row.forEach(cell => {
+          if (cell && cell.type === 'landmark' && cell.connections && cell.connections[player.color] > 0) {
+            connectedLandmarks.push(cell);
+          }
+        });
+      });
+    }
 
     return (
       <div className="h-[100dvh] bg-gray-950 text-white flex flex-col overflow-hidden font-questrial">
@@ -1024,27 +1087,78 @@ export default function App() {
             )}
           </div>
         </div>
-        <div className="flex-1 overflow-auto bg-black/40 relative"><div className="inline-block min-w-full min-h-full p-4"><Board interactive={isMyTurn} isMobile={true} lastEvent={gameState.lastEvent} /></div></div>
+
+        <div className="flex-1 overflow-auto bg-black/40 relative">
+           <div className="inline-block min-w-full min-h-full p-4">
+             <Board interactive={isMyTurn} isMobile={true} lastEvent={gameState.lastEvent} gameState={gameState} handlePlaceCard={handlePlaceCard} view={view} />
+           </div>
+        </div>
+
         <div className="bg-gray-900 border-t border-gray-800 shrink-0 flex flex-col safe-area-pb shadow-[0_-4px_20px_rgba(0,0,0,0.5)] z-20">
           <div className="max-w-5xl mx-auto w-full">
-            {interactionMode && <div className="bg-yellow-600 text-black font-bold p-2 text-center animate-pulse font-cal-sans">{interactionMode === 'track_maint' ? "Select square to block" : "Select Landmark to move"}<button onClick={() => setInteractionMode(null)} className="ml-4 underline text-sm">Cancel</button></div>}
+            {interactionMode && (
+                <div className="bg-yellow-600 text-black font-bold p-2 text-center animate-pulse font-cal-sans">
+                    {interactionMode === 'track_maint' && "Select a square to block"}
+                    {interactionMode === 'grand_opening_select_source' && "Select a Landmark to move"}
+                    {interactionMode === 'grand_opening_select_dest' && "Select adjacent destination"}
+                    <button onClick={() => setInteractionMode(null)} className="ml-4 underline text-sm">Cancel</button>
+                </div>
+            )}
+            
             {isMyTurn && selectedCardType === 'tracks' && (
               <div className="flex justify-center items-center gap-6 py-3 border-b border-gray-800 bg-gray-800/80 backdrop-blur-sm">
                  <div className="w-12 h-12 border-2 border-gray-500 bg-gray-900 rounded-lg flex items-center justify-center shadow-inner"><TrackSvg shape={player.hand.tracks[selectedCardIdx]?.shape} rotation={rotation} color={player.color} /></div>
                 <button onClick={() => setRotation((r) => (r + 90) % 360)} className="flex items-center gap-2 px-8 py-3 bg-blue-600 rounded-full font-bold text-lg shadow-lg font-cal-sans"><RotateCw size={20} /> Rotate</button>
               </div>
             )}
+            
             <div className="flex gap-2 overflow-x-auto p-3 pb-6 no-scrollbar">
-              {player.hand.metro?.map((card, i) => <GameCard key={`m-${i}`} data={card} type="metro" selected={selectedCardType === 'metro' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; handleMetroCardAction(i); }} />)}
+              {player.hand.metro?.map((card, i) => (
+                  <GameCard key={`m-${i}`} data={card} type="metro" selected={selectedCardType === 'metro' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; handleMetroCardAction(i); }} />
+              ))}
               {player.hand.metro?.length > 0 && <div className="w-px bg-yellow-700 mx-1 shrink-0 self-stretch my-2"></div>}
-              {player.hand.tracks.map((card, i) => <GameCard key={`t-${i}`} data={card} type="track" selected={selectedCardType === 'tracks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; setSelectedCardIdx(i); setSelectedCardType('tracks'); setRotation(0); setInteractionMode(null); }} />)}
+              
+              {player.hand.tracks.map((card, i) => (
+                <GameCard key={`t-${i}`} data={card} type="track" selected={selectedCardType === 'tracks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; setSelectedCardIdx(i); setSelectedCardType('tracks'); setRotation(0); setInteractionMode(null); }} />
+              ))}
               <div className="w-px bg-gray-700 mx-1 shrink-0 self-stretch my-2"></div>
-              {player.hand.landmarks.map((card, i) => <GameCard key={`l-${i}`} data={card} type="landmark" selected={selectedCardType === 'landmarks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; setSelectedCardIdx(i); setSelectedCardType('landmarks'); setRotation(0); setInteractionMode(null); }} />)}
+              {player.hand.landmarks.map((card, i) => (
+                <GameCard key={`l-${i}`} data={card} type="landmark" selected={selectedCardType === 'landmarks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; setSelectedCardIdx(i); setSelectedCardType('landmarks'); setRotation(0); setInteractionMode(null); }} />
+              ))}
             </div>
           </div>
         </div>
       </div>
     );
   }
-  return null;
+
+  // Fallback for Home view if none matched
+  return (
+      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans p-4 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('/city-map.jpg')] bg-cover opacity-20 blur-sm pointer-events-none"></div>
+        <h1 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-nabla">
+          MIND THE GAP
+        </h1>
+        <div className="flex flex-col md:flex-row gap-4 w-full max-w-md z-10 font-questrial">
+          <button onClick={createGame} className="px-8 py-4 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-xl shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 w-full md:w-auto">
+            <Crown size={24}/> Host
+          </button>
+          
+          <div className="flex flex-col gap-2 w-full">
+            <input 
+              type="text" placeholder="Room Code" 
+              className="px-4 py-2 rounded bg-gray-800 border border-gray-700 focus:border-blue-500 outline-none text-center uppercase tracking-widest w-full"
+              value={entryCode} onChange={e => setEntryCode(e.target.value.toUpperCase())}
+            />
+            <input 
+              type="text" placeholder="Your Name" 
+              className="px-4 py-2 rounded bg-gray-800 border border-gray-700 focus:border-blue-500 outline-none text-center w-full"
+              value={playerName} onChange={e => setPlayerName(e.target.value)}
+            />
+            <button onClick={joinGame} className="px-8 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-bold shadow-lg transition-transform hover:scale-105 w-full">Join Game</button>
+          </div>
+        </div>
+        {error && <p className="text-red-500 mt-4 font-bold bg-red-900/20 px-4 py-2 rounded z-10 font-questrial">{error}</p>}
+      </div>
+  );
 }
