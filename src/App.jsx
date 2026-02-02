@@ -35,7 +35,7 @@ const GRID_SIZE = 19;
 const CENTER = Math.floor(GRID_SIZE / 2); 
 const COLORS = ['red', 'blue', 'green', 'yellow'];
 
-// Updated Categories from Screenshot
+// Updated Categories
 const CATEGORIES = {
   GASTRONOMY: { id: 'gastronomy', label: 'Gastronomy', icon: <Coffee size={16} />, color: 'text-amber-600' },
   HERITAGE: { id: 'heritage', label: 'Heritage', icon: <Landmark size={16} />, color: 'text-stone-600' },
@@ -45,7 +45,7 @@ const CATEGORIES = {
   THRILLING: { id: 'thrilling', label: 'Thrilling', icon: <Zap size={16} />, color: 'text-red-600' },
 };
 
-// Updated Landmarks from Screenshot
+// Updated Landmarks Data
 const LANDMARKS_DATA = [
   // Gastronomy
   { name: "Ice Cream Shop", cat: 'gastronomy' }, { name: "Candy Store", cat: 'gastronomy' }, { name: "Farmer's Market", cat: 'gastronomy' },
@@ -71,7 +71,23 @@ const LANDMARKS_DATA = [
   { name: "Tattoo Parlor", cat: 'thrilling' }, { name: "The Stadium", cat: 'thrilling' }
 ];
 
+// Personas for Flavor Text
+const PERSONAS_BY_CAT = {
+  gastronomy: ["The Head Chef", "The Food Critic", "The Glutton", "The Barista", "The Baker", "The Sommelier"],
+  heritage: ["The Historian", "The Widow", "The Archaeologist", "The Monk", "The Duke", "The Architect"],
+  nature: ["The Botanist", "The Hiker", "The Scout", "The Druid", "The Birdwatcher", "The Gardener"],
+  services: ["The Pilot", "The Doctor", "The Mailman", "The Librarian", "The Banker", "The Tailor"],
+  spiritual: ["The Medium", "The Ghost Hunter", "The Psychic", "The Goth", "The Vampire", "The Believer"],
+  thrilling: ["The Daredevil", "The Gambler", "The Adrenaline Junkie", "The Racer", "The Stuntman", "The Teenager"]
+};
+
 // --- HELPERS ---
+const getPersonaForCategory = (catId) => {
+  const list = PERSONAS_BY_CAT[catId];
+  if (!list) return "The Passenger";
+  return list[Math.floor(Math.random() * list.length)];
+};
+
 const getCell = (grid, x, y) => {
   if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return null;
   return grid[y][x];
@@ -196,14 +212,12 @@ const generateLandmarks = () => {
   return landmarks.sort(() => Math.random() - 0.5);
 };
 
-// --- NEW PASSENGER LOGIC (FROM SCREENSHOT) ---
 const generatePassengers = (allLandmarks) => {
   const passengers = [];
   let idCounter = 1;
 
   // Helper to find landmark ID by name for specific requirements
   const findL = (name) => allLandmarks.find(l => l.name === name);
-  const findLByCat = (cat) => allLandmarks.filter(l => l.category === cat);
 
   // TIER 1 (Category - 1pt)
   const tier1 = [
@@ -346,6 +360,8 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked, animateTrain }) => {
   const isHost = view === 'host';
   
   let content = null;
+  // Host view gets transparent background to show map, NO borders.
+  // Player view gets dark contrast with borders.
   let bgClass = isHost ? "bg-transparent" : "bg-black/40 backdrop-blur-[2px]";
   let borderClass = isHost ? "border-0" : "border border-gray-700";
   const colorDotMap = { red: 'bg-red-500', blue: 'bg-blue-500', green: 'bg-green-500', yellow: 'bg-yellow-400' };
