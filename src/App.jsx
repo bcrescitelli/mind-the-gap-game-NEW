@@ -47,24 +47,31 @@ const CATEGORIES = {
 
 // Landmarks Data
 const LANDMARKS_DATA = [
+  // Gastronomy
   { name: "Ice Cream Shop", cat: 'gastronomy' }, { name: "Candy Store", cat: 'gastronomy' }, { name: "Farmer's Market", cat: 'gastronomy' },
   { name: "Spice Village", cat: 'gastronomy' }, { name: "Food Truck", cat: 'gastronomy' }, { name: "The Melting Pot", cat: 'gastronomy' },
   { name: "Cafe", cat: 'gastronomy' }, { name: "Bakery", cat: 'gastronomy' }, { name: "Bodega", cat: 'gastronomy' }, { name: "Rooftop Bar", cat: 'gastronomy' },
+  // Heritage
   { name: "Old Cathedral", cat: 'heritage' }, { name: "Museum", cat: 'heritage' }, { name: "Theatre", cat: 'heritage' },
   { name: "Opera House", cat: 'heritage' }, { name: "Observatory", cat: 'heritage' }, { name: "Clocktower", cat: 'heritage' },
   { name: "University", cat: 'heritage' }, { name: "Cinema", cat: 'heritage' },
+  // Nature
   { name: "Botanic Gardens", cat: 'nature' }, { name: "Dog Park", cat: 'nature' }, { name: "Butterfly House", cat: 'nature' },
   { name: "Country Club", cat: 'nature' }, { name: "Flower Shop", cat: 'nature' }, { name: "Mountain Trail", cat: 'nature' },
+  // Services
   { name: "Airport", cat: 'services' }, { name: "Bank", cat: 'services' }, { name: "Mall", cat: 'services' },
   { name: "Gym", cat: 'services' }, { name: "Fire Department", cat: 'services' }, { name: "Post Office", cat: 'services' },
   { name: "Library", cat: 'services' }, { name: "Tailors", cat: 'services' },
+  // Spiritual
   { name: "Haunted House", cat: 'spiritual' }, { name: "Cemetery", cat: 'spiritual' }, 
   { name: "Fortune Teller", cat: 'spiritual' }, { name: "Antique Store", cat: 'spiritual' },
+  // Thrilling
   { name: "Theme Park", cat: 'thrilling' }, { name: "Casino", cat: 'thrilling' }, { name: "Rock Climbing Gym", cat: 'thrilling' },
   { name: "Comedy Club", cat: 'thrilling' }, { name: "Skate Park", cat: 'thrilling' }, { name: "Zoo", cat: 'thrilling' },
   { name: "Tattoo Parlor", cat: 'thrilling' }, { name: "The Stadium", cat: 'thrilling' }
 ];
 
+// Personas
 const PERSONAS_BY_CAT = {
   gastronomy: ["The Head Chef", "The Food Critic", "The Glutton", "The Barista", "The Baker", "The Sommelier"],
   heritage: ["The Historian", "The Widow", "The Archaeologist", "The Monk", "The Duke", "The Architect"],
@@ -305,16 +312,12 @@ const generateTrackDeck = () => {
 
 // --- REACT COMPONENTS ---
 
-const TrackSvg = ({ shape, rotation, color, animate }) => {
+const TrackSvg = ({ shape, rotation, color }) => {
   const colorMap = { red: '#ef4444', blue: '#3b82f6', green: '#22c55e', yellow: '#eab308', gray: '#9ca3af' };
   const strokeColor = colorMap[color] || '#9ca3af';
   
   const pathId = `track-${shape}-${Math.random().toString(36).substr(2, 5)}`;
-  let d = "";
-  if (shape === 'straight') d = "M 50 0 L 50 100";
-  if (shape === 'curved') d = "M 50 100 Q 50 50 100 50";
-  if (shape === 't-shape') d = "M 0 50 L 100 50 M 50 50 L 50 100"; 
-
+  
   return (
     <div className="w-full h-full" style={{ transform: `rotate(${rotation}deg)` }}>
       <svg viewBox="0 0 100 100" className="w-full h-full" shapeRendering="geometricPrecision">
@@ -324,25 +327,20 @@ const TrackSvg = ({ shape, rotation, color, animate }) => {
           <>
             <path d="M 0 50 L 100 50" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
             <path d="M 50 50 L 50 100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
-            {animate && <path id={pathId} d="M 0 50 L 100 50" fill="none" />} 
           </>
-        )}
-        
-        {(animate || color !== 'gray') && (
-          <circle r="6" fill="white" opacity="0.8">
-            <animateMotion dur="3s" repeatCount="indefinite" path={d} />
-          </circle>
         )}
       </svg>
     </div>
   );
 };
 
-const Cell = ({ x, y, cellData, onClick, view, isBlocked, animateTrain }) => {
+const Cell = ({ x, y, cellData, onClick, view, isBlocked }) => {
   const isCenter = x === CENTER && y === CENTER;
   const isHost = view === 'host';
   
   let content = null;
+  // Host view gets transparent background to show map, NO borders.
+  // Player view gets dark contrast with borders.
   let bgClass = isHost ? "bg-transparent" : "bg-black/40 backdrop-blur-[2px]";
   let borderClass = isHost ? "border-0" : "border border-gray-700";
   const colorDotMap = { red: 'bg-red-500', blue: 'bg-blue-500', green: 'bg-green-500', yellow: 'bg-yellow-400' };
@@ -354,7 +352,7 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked, animateTrain }) => {
     bgClass = "bg-white/90";
   } else if (cellData?.type === 'track') {
     if (!isHost) bgClass = "bg-gray-900/80"; 
-    content = <TrackSvg shape={cellData.shape} rotation={cellData.rotation} color={cellData.owner} animate={true} />;
+    content = <TrackSvg shape={cellData.shape} rotation={cellData.rotation} color={cellData.owner} />;
   } else if (cellData?.type === 'landmark') {
     content = (
       <div className="w-full h-full bg-white/90 flex flex-col items-center justify-center p-0.5 border-2 border-gray-400 shadow-md relative">
@@ -439,8 +437,8 @@ const WinnerModal = ({ winner, onRestart }) => {
       </div>
       <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl border-4 border-yellow-500 shadow-2xl text-center max-w-md w-full transform scale-110">
         <Crown size={64} className="text-yellow-400 mx-auto mb-4 animate-bounce" />
-        <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-widest font-cal-sans">Winner!</h2>
-        <div className={`text-5xl font-black mb-6 text-${winner.color}-500 drop-shadow-lg font-cal-sans`}>{winner.name}</div>
+        <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-widest font-nabla">Winner!</h2>
+        <div className={`text-5xl font-black mb-6 text-${winner.color}-500 drop-shadow-lg font-nabla`}>{winner.name}</div>
         <p className="text-gray-400 mb-8 text-xl font-cal-sans">Final Score: <span className="text-white font-bold">{winner.score}</span></p>
         <button onClick={onRestart} className="px-8 py-4 bg-green-600 hover:bg-green-500 text-white rounded-full font-bold text-xl shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 w-full font-cal-sans">
           <RefreshCw size={24}/> Play Again
@@ -555,6 +553,8 @@ export default function App() {
   const [rotation, setRotation] = useState(0);
   const [interactionMode, setInteractionMode] = useState(null); 
   const [selectedLandmarkForMove, setSelectedLandmarkForMove] = useState(null);
+  const [zoom, setZoom] = useState(1);
+  const lastPinchDist = useRef(null);
   const lastPlayedEventTime = useRef(Date.now());
 
   useEffect(() => {
@@ -579,6 +579,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // Session Restore
+    const savedRoom = localStorage.getItem('mind_the_gap_room');
+    if (savedRoom && !activeRoomId) setActiveRoomId(savedRoom);
+  }, []);
+
+  useEffect(() => {
     if (!user || !activeRoomId) return;
     const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), (docSnap) => {
       if (docSnap.exists()) {
@@ -586,8 +592,17 @@ export default function App() {
         if (typeof data.grid === 'string') data.grid = JSON.parse(data.grid);
         setGameState(data);
         const isHost = data.hostId === user.uid;
-        if (data.status === 'playing') setView(isHost ? 'host' : 'player'); else setView('lobby');
-      } else { setError("Room not found"); setGameState(null); }
+        if (isHost) setView('host');
+        else {
+            const isPlayer = data.players.find(p => p.id === user.uid);
+            if (isPlayer) {
+                if (data.status === 'playing') setView('player'); else setView('lobby');
+                localStorage.setItem('mind_the_gap_room', activeRoomId);
+            } else {
+               // User not in this game, maybe stale session
+            }
+        }
+      } else { setError("Room not found"); setGameState(null); localStorage.removeItem('mind_the_gap_room'); }
     }, (err) => console.error("Sync error", err));
     return () => unsub();
   }, [user, activeRoomId]);
@@ -601,6 +616,23 @@ export default function App() {
       }
     }
   }, [gameState?.lastEvent, view]);
+
+  // ZOOM HANDLERS
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      lastPinchDist.current = dist;
+    }
+  };
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 2 && lastPinchDist.current !== null) {
+      const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      const delta = dist - lastPinchDist.current;
+      setZoom(z => Math.min(Math.max(z + delta * 0.005, 0.5), 3.0));
+      lastPinchDist.current = dist;
+    }
+  };
+  const handleTouchEnd = () => { lastPinchDist.current = null; };
 
   const createGame = async () => {
     if (!user) return;
@@ -709,7 +741,6 @@ export default function App() {
     });
   };
 
-  // ... (handleMetroCardAction updated to just steal without replenish logic, relying on endTurn refill)
   const handleMetroCardAction = (idx) => {
       const playerIdx = gameState.players.findIndex(p => p.id === user.uid);
       const card = gameState.players[playerIdx].hand.metro[idx];
@@ -726,7 +757,6 @@ export default function App() {
       } else if (card.id === 'track_maint') { setInteractionMode('track_maint'); alert("Select an empty grid square to block.");
       } else if (card.id === 'grand_opening') { setInteractionMode('grand_opening_select_source'); alert("Select a Landmark to replace.");
       } else if (card.id === 'rezoning') { 
-          // FIX: Proper reshuffle
           const newDecks = { ...gameState.decks }; const newHand = { ...gameState.players[playerIdx].hand };
           newDecks.landmarks.push(...newHand.landmarks); 
           newDecks.landmarks.sort(() => Math.random() - 0.5); // Shuffle
@@ -760,12 +790,11 @@ export default function App() {
   };
 
   const handlePlaceCard = (x, y) => {
-    // ... (Validation logic same as before) ...
     if (view !== 'player') return;
     const playerIdx = gameState.players.findIndex(p => p.id === user.uid);
     if (playerIdx !== gameState.turnIndex) { alert("Not your turn!"); return; }
     
-    // Interaction Mode Handling (Track Maint / Renovation)
+    // Interaction Mode Handling
     if (interactionMode === 'track_maint') {
         const cell = getCell(gameState.grid, x, y);
         if (cell !== null || isStart(x, y) || gameState.blockedCells?.includes(`${x},${y}`)) { alert("Must select an empty square."); return; }
@@ -778,24 +807,18 @@ export default function App() {
         const cell = getCell(gameState.grid, x, y);
         if (!cell || cell.type !== 'landmark') { alert("Select a Landmark to replace."); return; }
         
-        // Replacement Logic
         const newGrid = [...gameState.grid];
-        // Take first landmark from hand
         const newLandmark = gameState.players[playerIdx].hand.landmarks[0];
         if (!newLandmark) { alert("You need a landmark in hand to replace!"); return; }
         
-        // Replace on grid, keeping connections
         newGrid[y][x] = { ...newLandmark, connections: cell.connections, type: 'landmark' };
         
         const newHand = { ...gameState.players[playerIdx].hand };
-        newHand.landmarks.splice(0, 1); // Remove used from hand
-        newHand.metro.splice(selectedCardIdx, 1); // Remove metro card
-        
+        newHand.landmarks.splice(0, 1); 
+        newHand.metro.splice(selectedCardIdx, 1); 
         const newPlayers = [...gameState.players];
         newPlayers[playerIdx] = { ...gameState.players[playerIdx], hand: newHand };
-        
-        endTurn({ grid: JSON.stringify(newGrid), players: newPlayers }, null, null); 
-        return;
+        endTurn({ grid: JSON.stringify(newGrid), players: newPlayers }, null, null); return;
     }
 
     if (selectedCardIdx === null || selectedCardType === 'metro') return;
@@ -809,7 +832,7 @@ export default function App() {
 
     const candidateCell = { ...card, owner: player.color, rotation: rotation, type: card.type, isStart: false };
     
-    // Connectivity & Logic (Same as before)
+    // Connectivity
     let validConnectionFound = false;
     const neighbors = [0,1,2,3].map(d => getNeighborCoords(x, y, d));
     for (let i = 0; i < neighbors.length; i++) {
@@ -841,8 +864,7 @@ export default function App() {
 
     const newGrid = [...grid];
     newGrid[y][x] = { ...card, owner: player.color, rotation, connectedColors: card.type === 'track' ? [player.color] : [] };
-    playSound(card.type === 'track' ? 'place-track' : 'place-landmark');
-
+    
     // SCORING
     let pointsGained = 0;
     const completedPassengerIds = [];
@@ -869,27 +891,18 @@ export default function App() {
     }
     refreshConnections();
 
-    // Check Passengers
     const claimedPassengerNames = [];
     const checkPassenger = (p) => {
       if (p.unlockTurn && gameState.totalTurns < p.unlockTurn) return false;
       if (completedPassengerIds.includes(p.id)) return false;
       let match = false;
-      // Get landmark objects for category check
       const myLandmarks = []; newGrid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && playerConnectedLandmarks.has(c.id)) myLandmarks.push(c); }));
 
       if (p.reqType === 'specific' && playerConnectedLandmarks.has(p.targetId)) match = true;
       else if (p.reqType === 'category' && myLandmarks.some(l => l.category === p.targetCategory)) match = true;
-      else if (p.reqType === 'list') {
-        if (p.targets.some(tid => playerConnectedLandmarks.has(tid))) match = true;
-      } else if (p.reqType === 'combo') {
-        const hasA = playerConnectedLandmarks.has(p.targets[0]);
-        const hasB = playerConnectedLandmarks.has(p.targets[1]);
-        if (hasA && hasB) match = true;
-      } else if (p.reqType === 'combo_cat') {
-          // Ghost Tour / Botanist
-          if(playerConnectedLandmarks.has(p.targetId) && myLandmarks.some(l => l.category === p.cat2)) match = true;
-      }
+      else if (p.reqType === 'list') { if (p.targets.some(tid => playerConnectedLandmarks.has(tid))) match = true; } 
+      else if (p.reqType === 'combo' && playerConnectedLandmarks.has(p.targets[0]) && playerConnectedLandmarks.has(p.targets[1])) match = true;
+      else if (p.reqType === 'combo_cat') { if(playerConnectedLandmarks.has(p.targetId) && myLandmarks.some(l => l.category === p.cat2)) match = true; }
 
       if (match) { pointsGained += p.points; completedPassengerIds.push(p.id); claimedPassengerNames.push(p.name); return true; }
       return false;
@@ -900,15 +913,12 @@ export default function App() {
     if (pointsGained > 0) lastEvent = { type: 'claim-passenger', playerColor: player.color, playerName: player.name, passengerNames: claimedPassengerNames, timestamp: Date.now(), coords: { x, y } };
     else lastEvent = { type: card.type === 'track' ? 'place-track' : 'place-landmark', playerColor: player.color, timestamp: Date.now() };
 
-    // Update Hand - Only remove the card played
+    // Update Hand
     const newHand = { ...player.hand };
     if (selectedCardType === 'tracks') newHand.tracks.splice(selectedCardIdx, 1);
     else newHand.landmarks.splice(selectedCardIdx, 1);
     
     const newDecks = { ...gameState.decks };
-    // REFILL LOGIC: Only refill if below standard limit
-    // If I have 4 tracks (stolen) and play 1 -> 3. length is NOT < 3. No refill.
-    // If I have 2 tracks (victim) and play 1 -> 1. length < 3. Refill 1 -> 2. Still short 1.
     if (selectedCardType === 'tracks' && newHand.tracks.length < 3 && newDecks.tracks.length > 0) newHand.tracks.push(newDecks.tracks.pop());
     if (selectedCardType === 'landmarks' && newHand.landmarks.length < 2 && newDecks.landmarks.length > 0) newHand.landmarks.push(newDecks.landmarks.pop());
     
@@ -933,11 +943,24 @@ export default function App() {
     endTurn({ grid: JSON.stringify(newGrid), players: newPlayers, decks: newDecks, activePassengers: newActivePassengers }, winner, lastEvent);
   };
 
-  // --- RENDERERS ---
-  
-  if (gameState?.winner) {
-    return <WinnerModal winner={gameState.winner} onRestart={restartGame} />;
+  if (view === 'home') {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans p-4 relative overflow-hidden">
+        <h1 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-cal-sans">MIND THE GAP</h1>
+        <div className="flex flex-col md:flex-row gap-4 w-full max-w-md z-10 font-questrial">
+          <button onClick={createGame} className="px-8 py-4 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-xl shadow-lg flex items-center justify-center gap-2 w-full md:w-auto"><Crown size={24}/> Host</button>
+          <div className="flex flex-col gap-2 w-full">
+            <input type="text" placeholder="Room Code" className="px-4 py-2 rounded bg-gray-800 border border-gray-700 text-center uppercase w-full" value={entryCode} onChange={e => setEntryCode(e.target.value.toUpperCase())}/>
+            <input type="text" placeholder="Your Name" className="px-4 py-2 rounded bg-gray-800 border border-gray-700 text-center w-full" value={playerName} onChange={e => setPlayerName(e.target.value)}/>
+            <button onClick={joinGame} className="px-8 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-bold shadow-lg w-full">Join Game</button>
+          </div>
+        </div>
+        {error && <p className="text-red-500 mt-4 font-bold bg-red-900/20 px-4 py-2 rounded z-10 font-questrial">{error}</p>}
+      </div>
+    );
   }
+
+  if (gameState?.winner) return <WinnerModal winner={gameState.winner} onRestart={restartGame} />;
 
   if (view === 'lobby') {
     return (
@@ -969,7 +992,6 @@ export default function App() {
              <div className="text-xs text-gray-400 uppercase tracking-widest">Room Code</div>
              <div className="text-4xl font-black tracking-widest text-white font-nabla">{activeRoomId}</div>
           </div>
-
           <div className="bg-gray-900 p-4 rounded-xl shadow-lg border border-gray-800 flex-shrink-0">
             <h3 className="text-lg font-bold text-gray-400 mb-3 flex items-center gap-2 uppercase tracking-wide font-cal-sans"><Trophy size={18}/> Standings</h3>
             <div className="space-y-3">
@@ -984,90 +1006,50 @@ export default function App() {
               ))}
             </div>
           </div>
-
           <div className="flex-1 flex flex-col gap-2 overflow-auto">
             <h3 className="text-lg font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wide font-cal-sans"><Users size={18}/> Passengers</h3>
             <div className="space-y-3">
               {gameState.activePassengers.map(pass => (
                 <div key={pass.id} className={`bg-white text-gray-900 p-4 rounded-xl shadow-xl flex flex-col gap-1 border-4 border-gray-200 relative overflow-hidden transform transition-all duration-300 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 scale-95 grayscale' : 'hover:scale-105'}`}>
-                  {gameState.totalTurns < pass.unlockTurn && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
-                          <span className="bg-red-600 text-white px-3 py-1 font-bold rounded uppercase text-xs font-cal-sans">Arriving Soon</span>
-                      </div>
-                  )}
+                  {gameState.totalTurns < pass.unlockTurn && <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10"><span className="bg-red-600 text-white px-3 py-1 font-bold rounded uppercase text-xs font-cal-sans">Arriving Soon</span></div>}
                   <div className="absolute top-0 right-0 p-2 opacity-10 pointer-events-none">
                     {pass.reqType === 'category' && CATEGORIES[pass.targetCategory?.toUpperCase()]?.icon}
                   </div>
                   <div className="flex justify-between items-center border-b border-gray-200 pb-2 mb-1">
                     <span className="font-black text-2xl text-red-600 font-cal-sans">{pass.points}</span>
-                    {/* Host Progress Indicator */}
                     <div className="flex gap-1">
                         {gameState.players.map(pl => {
-                             // Calc logic for this player
                              const connectedLMs = new Set();
                              gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) connectedLMs.add(c.id); }));
-                             
-                             // Simple check for display dot color
                              let met = false;
                              if(pass.reqType === 'specific' && connectedLMs.has(pass.targetId)) met = true;
-                             // ... complex checks omitted for brevity, just showing player dot if ANY progress
+                             // Simplify dot logic for visual clarity: show if ANY relevant connection made? 
+                             // Let's stick to simple "met" logic for specific targets as it's clearest
                              return <div key={pl.id} className={`w-2 h-2 rounded-full bg-${pl.color}-500 ${met ? 'opacity-100 ring-1 ring-black' : 'opacity-20'}`}></div>
                         })}
                     </div>
                   </div>
-                  <div>
-                     <p className="text-lg font-bold leading-tight font-cal-sans">{pass.name}</p>
-                     <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mt-1">{pass.reqType === 'specific' ? 'Must Visit' : 'Looking For'}</p>
-                  </div>
+                  <div><p className="text-lg font-bold leading-tight font-cal-sans">{pass.name}</p></div>
                   <p className="text-sm text-gray-600 italic mt-1 leading-snug font-questrial">{pass.desc}</p>
                 </div>
               ))}
             </div>
           </div>
         </div>
-
         <div className="flex-1 flex items-center justify-center rounded-xl overflow-hidden relative shadow-2xl backdrop-blur-sm">
-           <div className="absolute inset-4 flex items-center justify-center">
-              <Board interactive={false} isMobile={false} lastEvent={gameState.lastEvent} gameState={gameState} handlePlaceCard={handlePlaceCard} view={view} />
-           </div>
+           <div className="absolute inset-4 flex items-center justify-center"><Board interactive={false} isMobile={false} lastEvent={gameState.lastEvent} gameState={gameState} handlePlaceCard={handlePlaceCard} view={view} /></div>
         </div>
       </div>
     );
   }
 
   if (view === 'player') {
-    if (!gameState || !gameState.players) {
-      return (
-        <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-          <div className="animate-pulse">Loading game data...</div>
-        </div>
-      );
-    }
-    
+    if (!gameState || !gameState.players) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center animate-pulse">Loading...</div>;
     const player = gameState.players.find(p => p.id === user.uid);
-    
-    if (!player) {
-      return (
-        <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-8 text-center">
-          <div>
-            <h2 className="text-2xl font-bold mb-4">Error Loading Game</h2>
-            <p className="text-gray-400">Could not find your player data. Please try refreshing or re-joining.</p>
-          </div>
-        </div>
-      );
-    }
-
+    if (!player) return <div className="min-h-screen bg-gray-900 text-white p-8">Error: Player not found.</div>;
     const isMyTurn = gameState.players[gameState.turnIndex]?.id === user.uid;
     const connectedLandmarks = [];
-    if (gameState && gameState.grid) {
-      gameState.grid.forEach(row => {
-        row.forEach(cell => {
-          if (cell && cell.type === 'landmark' && cell.connections && cell.connections[player.color] > 0) {
-            connectedLandmarks.push(cell);
-          }
-        });
-      });
-    }
+    if (gameState && gameState.grid) gameState.grid.forEach(row => row.forEach(cell => { if (cell && cell.type === 'landmark' && cell.connections && cell.connections[player.color] > 0) connectedLandmarks.push(cell); }));
 
     return (
       <div className="h-[100dvh] bg-gray-950 text-white flex flex-col overflow-hidden font-questrial">
@@ -1101,76 +1083,33 @@ export default function App() {
             )}
           </div>
         </div>
-
-        <div className="flex-1 overflow-auto bg-black/40 relative">
-           <div className="inline-block min-w-full min-h-full p-4">
-             <Board interactive={isMyTurn} isMobile={true} lastEvent={gameState.lastEvent} gameState={gameState} handlePlaceCard={handlePlaceCard} view={view} />
+        <div className="flex-1 overflow-auto bg-black/40 relative" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+           <div style={{ width: `${100 * zoom}%`, minWidth: '100%', minHeight: '100%', transformOrigin: '0 0' }}> 
+               <div style={{ transform: `scale(${zoom})`, transformOrigin: '0 0' }}>
+                 <div className="inline-block min-w-full min-h-full p-4"><Board interactive={isMyTurn} isMobile={true} lastEvent={gameState.lastEvent} gameState={gameState} handlePlaceCard={handlePlaceCard} view={view} /></div>
+               </div>
            </div>
         </div>
-
         <div className="bg-gray-900 border-t border-gray-800 shrink-0 flex flex-col safe-area-pb shadow-[0_-4px_20px_rgba(0,0,0,0.5)] z-20">
           <div className="max-w-5xl mx-auto w-full">
-            {interactionMode && (
-                <div className="bg-yellow-600 text-black font-bold p-2 text-center animate-pulse font-cal-sans">
-                    {interactionMode === 'track_maint' && "Select a square to block"}
-                    {interactionMode === 'grand_opening_select_source' && "Select a Landmark to replace"}
-                    <button onClick={() => setInteractionMode(null)} className="ml-4 underline text-sm">Cancel</button>
-                </div>
-            )}
-            
+            {interactionMode && <div className="bg-yellow-600 text-black font-bold p-2 text-center animate-pulse font-cal-sans">{interactionMode === 'track_maint' ? "Select square to block" : "Select Landmark to move"}<button onClick={() => setInteractionMode(null)} className="ml-4 underline text-sm">Cancel</button></div>}
             {isMyTurn && selectedCardType === 'tracks' && (
               <div className="flex justify-center items-center gap-6 py-3 border-b border-gray-800 bg-gray-800/80 backdrop-blur-sm">
                  <div className="w-12 h-12 border-2 border-gray-500 bg-gray-900 rounded-lg flex items-center justify-center shadow-inner"><TrackSvg shape={player.hand.tracks[selectedCardIdx]?.shape} rotation={rotation} color={player.color} /></div>
                 <button onClick={() => setRotation((r) => (r + 90) % 360)} className="flex items-center gap-2 px-8 py-3 bg-blue-600 rounded-full font-bold text-lg shadow-lg font-cal-sans"><RotateCw size={20} /> Rotate</button>
               </div>
             )}
-            
             <div className="flex gap-2 overflow-x-auto p-3 pb-6 no-scrollbar">
-              {player.hand.metro?.map((card, i) => (
-                  <GameCard key={`m-${i}`} data={card} type="metro" selected={selectedCardType === 'metro' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; handleMetroCardAction(i); }} />
-              ))}
+              {player.hand.metro?.map((card, i) => <GameCard key={`m-${i}`} data={card} type="metro" selected={selectedCardType === 'metro' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; handleMetroCardAction(i); }} />)}
               {player.hand.metro?.length > 0 && <div className="w-px bg-yellow-700 mx-1 shrink-0 self-stretch my-2"></div>}
-              
-              {player.hand.tracks.map((card, i) => (
-                <GameCard key={`t-${i}`} data={card} type="track" selected={selectedCardType === 'tracks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; setSelectedCardIdx(i); setSelectedCardType('tracks'); setRotation(0); setInteractionMode(null); }} />
-              ))}
+              {player.hand.tracks.map((card, i) => <GameCard key={`t-${i}`} data={card} type="track" selected={selectedCardType === 'tracks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; setSelectedCardIdx(i); setSelectedCardType('tracks'); setRotation(0); setInteractionMode(null); }} />)}
               <div className="w-px bg-gray-700 mx-1 shrink-0 self-stretch my-2"></div>
-              {player.hand.landmarks.map((card, i) => (
-                <GameCard key={`l-${i}`} data={card} type="landmark" selected={selectedCardType === 'landmarks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; setSelectedCardIdx(i); setSelectedCardType('landmarks'); setRotation(0); setInteractionMode(null); }} />
-              ))}
+              {player.hand.landmarks.map((card, i) => <GameCard key={`l-${i}`} data={card} type="landmark" selected={selectedCardType === 'landmarks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; setSelectedCardIdx(i); setSelectedCardType('landmarks'); setRotation(0); setInteractionMode(null); }} />)}
             </div>
           </div>
         </div>
       </div>
     );
   }
-
-  // Fallback for Home view if none matched
-  return (
-      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans p-4 relative overflow-hidden">
-        <h1 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-cal-sans">
-          MIND THE GAP
-        </h1>
-        <div className="flex flex-col md:flex-row gap-4 w-full max-w-md z-10 font-questrial">
-          <button onClick={createGame} className="px-8 py-4 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-xl shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 w-full md:w-auto">
-            <Crown size={24}/> Host
-          </button>
-          
-          <div className="flex flex-col gap-2 w-full">
-            <input 
-              type="text" placeholder="Room Code" 
-              className="px-4 py-2 rounded bg-gray-800 border border-gray-700 focus:border-blue-500 outline-none text-center uppercase tracking-widest w-full"
-              value={entryCode} onChange={e => setEntryCode(e.target.value.toUpperCase())}
-            />
-            <input 
-              type="text" placeholder="Your Name" 
-              className="px-4 py-2 rounded bg-gray-800 border border-gray-700 focus:border-blue-500 outline-none text-center w-full"
-              value={playerName} onChange={e => setPlayerName(e.target.value)}
-            />
-            <button onClick={joinGame} className="px-8 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-bold shadow-lg transition-transform hover:scale-105 w-full">Join Game</button>
-          </div>
-        </div>
-        {error && <p className="text-red-500 mt-4 font-bold bg-red-900/20 px-4 py-2 rounded z-10 font-questrial">{error}</p>}
-      </div>
-  );
+  return null;
 }
