@@ -12,7 +12,7 @@ import {
   AlertCircle, Trophy, Coffee, Landmark, Trees, 
   ShoppingBag, Zap, Crown, Play, User, Music, Volume2, VolumeX, 
   Link as LinkIcon, RefreshCw, Star, Ticket, Cone, Construction, Shuffle, Move, Repeat,
-  Plane, Banknote, Ghost, Heart, Smile
+  Plane, Banknote, Ghost, Heart, Smile, LogOut, X
 } from 'lucide-react';
 
 // --- FIREBASE CONFIGURATION ---
@@ -434,7 +434,7 @@ const GameCard = ({ data, selected, onClick, type }) => {
   );
 };
 
-const WinnerModal = ({ winner, onRestart }) => {
+const WinnerModal = ({ winner, onRestart, onExit }) => {
   if (!winner) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
@@ -455,6 +455,7 @@ const WinnerModal = ({ winner, onRestart }) => {
         <button onClick={onRestart} className="px-8 py-4 bg-green-600 hover:bg-green-500 text-white rounded-full font-bold text-xl shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 w-full font-cal-sans">
           <RefreshCw size={24}/> Play Again
         </button>
+        <button onClick={onExit} className="mt-4 text-gray-500 hover:text-white underline text-sm font-questrial">Exit to Menu</button>
       </div>
     </div>
   );
@@ -490,7 +491,13 @@ const NotificationOverlay = ({ event }) => {
 };
 
 const playSound = (type) => {
-  const soundFileMap = { 'place-track': 'place-track.m4a', 'place-landmark': 'place-landmark.m4a', 'claim-passenger': 'claim-passenger.m4a', 'win-game': 'win-game.mp3' };
+  const soundFileMap = {
+    'place-track': 'place-track.m4a',
+    'place-landmark': 'place-landmark.m4a',
+    'claim-passenger': 'claim-passenger.m4a',
+    'win-game': 'win-game.mp3'
+  };
+  
   const file = soundFileMap[type];
   if (file) {
     const audio = new Audio(`/${file}`);
@@ -502,17 +509,24 @@ const playSound = (type) => {
 const AudioPlayer = ({ view }) => {
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef(null);
+
   useEffect(() => {
     if (view === 'host' && audioRef.current) {
       audioRef.current.volume = 0.1; // Reduced background music volume
       audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
     }
   }, [view]);
+
   if (view !== 'host') return null;
+
   return (
     <div className="fixed bottom-4 right-4 z-50">
       <audio ref={audioRef} loop src="/mind-the-gap-theme.mp3" />
-      <button onClick={() => { if(playing) audioRef.current.pause(); else audioRef.current.play(); setPlaying(!playing); }} className="p-2 bg-gray-800 text-white rounded-full shadow-lg border border-gray-600 hover:bg-gray-700 transition-colors">
+      <button onClick={() => {
+        if(playing) audioRef.current.pause();
+        else audioRef.current.play();
+        setPlaying(!playing);
+      }} className="p-2 bg-gray-800 text-white rounded-full shadow-lg border border-gray-600 hover:bg-gray-700 transition-colors">
         {playing ? <Volume2 size={24} /> : <VolumeX size={24} />}
       </button>
     </div>
@@ -592,7 +606,7 @@ export default function App() {
 
   useEffect(() => {
     // Session Restore
-    const savedRoom = localStorage.getItem('mind_the_gap_room');
+    const savedRoom = sessionStorage.getItem('mind_the_gap_room');
     if (savedRoom && !activeRoomId) setActiveRoomId(savedRoom);
   }, []);
 
@@ -607,7 +621,7 @@ export default function App() {
         const isHost = data.hostId === user.uid;
         const isPlayer = data.players.find(p => p.id === user.uid);
         
-        if (isHost || isPlayer) localStorage.setItem('mind_the_gap_room', activeRoomId);
+        if (isHost || isPlayer) sessionStorage.setItem('mind_the_gap_room', activeRoomId);
 
         if (data.status === 'lobby') {
             setView('lobby');
@@ -616,7 +630,7 @@ export default function App() {
             else if (isPlayer) setView('player');
             else { setError("Game in progress."); setView('home'); }
         }
-      } else { setError("Room not found"); setGameState(null); localStorage.removeItem('mind_the_gap_room'); }
+      } else { setError("Room not found"); setGameState(null); sessionStorage.removeItem('mind_the_gap_room'); }
     }, (err) => console.error("Sync error", err));
     return () => unsub();
   }, [user, activeRoomId]);
@@ -754,6 +768,14 @@ export default function App() {
       blockedCells: []
     });
   };
+  
+  const leaveGame = () => {
+    sessionStorage.removeItem('mind_the_gap_room');
+    setActiveRoomId("");
+    setGameState(null);
+    setView('home');
+    setEntryCode("");
+  };
 
   const handleMetroCardAction = (idx) => {
       const playerIdx = gameState.players.findIndex(p => p.id === user.uid);
@@ -771,7 +793,6 @@ export default function App() {
       } else if (card.id === 'track_maint') { setInteractionMode('track_maint'); alert("Select an empty grid square to block.");
       } else if (card.id === 'grand_opening') { setInteractionMode('grand_opening_select_source'); alert("Select a Landmark to replace.");
       } else if (card.id === 'rezoning') { 
-          // FIX: Proper reshuffle
           const newDecks = { ...gameState.decks }; const newHand = { ...gameState.players[playerIdx].hand };
           newDecks.landmarks.push(...newHand.landmarks); 
           newDecks.landmarks.sort(() => Math.random() - 0.5); // Shuffle
@@ -879,8 +900,7 @@ export default function App() {
 
     const newGrid = [...grid];
     newGrid[y][x] = { ...card, owner: player.color, rotation, connectedColors: card.type === 'track' ? [player.color] : [] };
-    playSound(card.type === 'track' ? 'place-track' : 'place-landmark');
-
+    
     // SCORING
     let pointsGained = 0;
     const completedPassengerIds = [];
@@ -977,7 +997,7 @@ export default function App() {
     );
   }
 
-  if (gameState?.winner) return <WinnerModal winner={gameState.winner} onRestart={restartGame} />;
+  if (gameState?.winner) return <WinnerModal winner={gameState.winner} onRestart={restartGame} onExit={leaveGame} />;
 
   if (view === 'lobby') {
     return (
@@ -994,7 +1014,12 @@ export default function App() {
           ))}
           {[...Array(4 - (gameState?.players.length || 0))].map((_, i) => <div key={i} className="p-6 rounded-xl bg-gray-800/50 border-2 border-dashed border-gray-700 flex flex-col items-center justify-center text-gray-600 font-questrial">Waiting...</div>)}
         </div>
-        {gameState?.hostId === user.uid ? <button onClick={startGame} disabled={gameState?.players.length < 2} className="px-12 py-4 bg-yellow-500 hover:bg-yellow-400 text-black rounded-full font-black text-2xl shadow-lg font-cal-sans">START GAME</button> : <p className="animate-pulse text-xl font-medium text-center font-questrial">Host will start the game soon...</p>}
+        {gameState?.hostId === user.uid ? (
+          <button onClick={startGame} disabled={gameState?.players.length < 2} className="px-12 py-4 bg-yellow-500 hover:bg-yellow-400 text-black rounded-full font-black text-2xl shadow-lg font-cal-sans">START GAME</button> 
+        ) : (
+          <p className="animate-pulse text-xl font-medium text-center font-questrial">Host will start the game soon...</p>
+        )}
+        <button onClick={leaveGame} className="absolute top-4 right-4 p-2 bg-red-600/20 hover:bg-red-600 text-red-200 rounded-full z-50 transition-colors"><X size={20} /></button>
       </div>
     );
   }
@@ -1004,11 +1029,13 @@ export default function App() {
       <div className="h-screen bg-gray-950 text-white flex p-4 gap-4 overflow-hidden relative font-questrial">
         <AudioPlayer view="host" />
         <NotificationOverlay event={gameState.lastEvent} />
+        <button onClick={leaveGame} className="absolute top-4 right-4 p-2 bg-red-600/20 hover:bg-red-600 text-red-200 rounded-full z-50 transition-colors"><X size={20} /></button>
         <div className="w-1/4 max-w-sm flex flex-col gap-4 h-full z-10">
           <div className="bg-gray-800 p-3 rounded-lg text-center shadow-lg border border-gray-700">
              <div className="text-xs text-gray-400 uppercase tracking-widest">Room Code</div>
              <div className="text-4xl font-black tracking-widest text-white font-nabla">{activeRoomId}</div>
           </div>
+
           <div className="bg-gray-900 p-4 rounded-xl shadow-lg border border-gray-800 flex-shrink-0">
             <h3 className="text-lg font-bold text-gray-400 mb-3 flex items-center gap-2 uppercase tracking-wide font-cal-sans"><Trophy size={18}/> Standings</h3>
             <div className="space-y-3">
@@ -1023,6 +1050,7 @@ export default function App() {
               ))}
             </div>
           </div>
+
           <div className="flex-1 flex flex-col gap-2 overflow-auto">
             <h3 className="text-lg font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wide font-cal-sans"><Users size={18}/> Passengers</h3>
             <div className="space-y-3">
@@ -1083,6 +1111,7 @@ export default function App() {
                     <span className="text-2xl font-black text-white font-cal-sans">{player.score}</span>
                  </div>
                  {isMyTurn && <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]"></div>}
+                 <button onClick={leaveGame} className="text-gray-400 hover:text-white"><LogOut size={18}/></button>
               </div>
             </div>
             {connectedLandmarks.length > 0 && (
