@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -13,7 +12,7 @@ import {
   AlertCircle, Trophy, Coffee, Landmark, Trees, 
   ShoppingBag, Zap, Crown, Play, User, Music, Volume2, VolumeX, 
   Link as LinkIcon, RefreshCw, Star, Ticket, Cone, Construction, Shuffle, Move, Repeat,
-  Plane, Banknote, Ghost, Heart, Smile, LogOut, X, Check, FastForward, Ban
+  Plane, Banknote, Ghost, Heart, Smile, LogOut, X, Check, FastForward, Ban, Cloud
 } from 'lucide-react';
 
 // --- FIREBASE CONFIGURATION ---
@@ -36,6 +35,12 @@ const GRID_SIZE = 19;
 const CENTER = Math.floor(GRID_SIZE / 2); 
 const COLORS = ['red', 'blue', 'green', 'yellow'];
 const WIN_SCORE = 10; 
+
+// Decoration Assets
+const DECOR_IMAGES = [
+  'decor-1.png', 'decor-2.png', 'decor-3.png', 
+  'decor-4.png', 'decor-5.png', 'decor-6.png'
+];
 
 // Categories
 const CATEGORIES = {
@@ -73,7 +78,6 @@ const LANDMARKS_DATA = [
   { name: "Tattoo Parlor", cat: 'thrilling' }, { name: "The Stadium", cat: 'thrilling' }
 ];
 
-// Personas
 const PERSONAS_BY_CAT = {
   gastronomy: ["The Head Chef", "The Food Critic", "The Glutton", "The Barista", "The Baker", "The Sommelier"],
   heritage: ["The Historian", "The Widow", "The Archaeologist", "The Monk", "The Duke", "The Architect"],
@@ -369,7 +373,7 @@ const TrackSvg = ({ shape, rotation, color, animate }) => {
 };
 
 // REVERTED MEMOIZATION FOR FUNCTIONALITY
-const Cell = ({ x, y, cellData, onClick, view, isBlocked, isSurge }) => {
+const Cell = ({ x, y, cellData, onClick, view, isBlocked, isSurge, decorImage }) => {
   const isCenter = x === CENTER && y === CENTER;
   const isHost = view === 'host';
   
@@ -398,6 +402,10 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked, isSurge }) => {
       </div>
     );
     if (isHost) bgClass = "bg-transparent"; 
+  } else if (isHost && decorImage) {
+    // Show decor only on empty cells on host
+    content = <img src={`/${decorImage}`} className="w-3/4 h-3/4 opacity-80 object-contain drop-shadow-md" alt="decor" />;
+    bgClass = "bg-transparent flex items-center justify-center";
   }
 
   return (
@@ -580,6 +588,47 @@ const AudioPlayer = ({ view }) => {
   );
 };
 
+// --- ATMOSPHERIC COMPONENT ---
+const AtmosphereLayer = () => {
+    const [showWind, setShowWind] = useState(false);
+    useEffect(() => {
+        const trigger = () => {
+            setShowWind(true);
+            const audio = new Audio('/wind-effect.mp3');
+            audio.volume = 0.5;
+            audio.play().catch(e => {});
+            setTimeout(() => setShowWind(false), 12000); // 12s duration
+            setTimeout(trigger, Math.random() * 45000 + 45000); // Next in 45-90s
+        };
+        const timer = setTimeout(trigger, 10000);
+        return () => clearTimeout(timer);
+    }, []);
+
+    if (!showWind) return null;
+
+    return (
+        <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
+             {/* Simple CSS animation for balloon */}
+             <style>
+                 {`
+                  @keyframes drift {
+                      0% { transform: translateX(-100px) translateY(0); opacity: 0; }
+                      10% { opacity: 1; }
+                      40% { transform: translateX(30vw) translateY(-20px); }
+                      60% { transform: translateX(25vw) translateY(10px); }
+                      100% { transform: translateX(110vw) translateY(-50px); opacity: 0; }
+                  }
+                 `}
+             </style>
+             <img 
+               src="/cloud-balloon.png" 
+               className="absolute top-1/4 left-0 w-32 h-auto opacity-90 drop-shadow-2xl"
+               style={{ animation: 'drift 12s linear forwards' }}
+             />
+        </div>
+    );
+};
+
 // --- MAIN COMPONENT ---
 const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, view }) => {
   // Memoized surge path calculation
@@ -662,6 +711,7 @@ const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, v
             view={view}
             isBlocked={gameState.blockedCells?.includes(`${x},${y}`)}
             isSurge={surgePath.has(`${x},${y}`)}
+            decorImage={gameState.decorations?.[`${x},${y}`]}
           />
         ))
       ))}
@@ -678,7 +728,6 @@ export default function App() {
   const [gameState, setGameState] = useState(null);
   const [view, setView] = useState('home');
   const [error, setError] = useState("");
-  const [authError, setAuthError] = useState(null);
   
   const [selectedCardIdx, setSelectedCardIdx] = useState(null);
   const [selectedCardType, setSelectedCardType] = useState(null);
@@ -710,14 +759,13 @@ export default function App() {
             await signInAnonymously(auth); 
         } catch (err) { 
             console.error("Auth error:", err);
-            // Removed authError state setting to suppress UI blocking
+            // Fail silently in UI, user might still be able to play if session exists
         } 
     };
     initAuth();
     const sub = onAuthStateChanged(auth, (u) => {
         if (u) {
             setUser(u);
-            setAuthError(null); 
         } else {
             setUser(null);
         }
@@ -807,7 +855,7 @@ export default function App() {
       grid: JSON.stringify(initialGrid), turnIndex: 0, totalTurns: 0, 
       decks: { tracks: generateTrackDeck(), landmarks, passengers, metro: metroDeck },
       activePassengers, blockedCells: [], winner: null, lastEvent: null,
-      mostConnected: null, movesLeft: 1, skippedPlayers: []
+      mostConnected: null, movesLeft: 1, skippedPlayers: [], decorations: {}
     };
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', newRoomId), initialData);
     setEntryCode(newRoomId); setActiveRoomId(newRoomId);
@@ -910,7 +958,7 @@ export default function App() {
       totalTurns: 0,
       turnIndex: 0,
       winner: null,
-      blockedCells: [], mostConnected: null, skippedPlayers: [], movesLeft: 1
+      blockedCells: [], mostConnected: null, skippedPlayers: [], movesLeft: 1, decorations: {}
     });
   };
   
@@ -1072,6 +1120,30 @@ export default function App() {
     newGrid[y][x] = { ...card, owner: player.color, rotation, connectedColors: card.type === 'track' ? [player.color] : [] };
     playSound(card.type === 'track' ? 'place-track' : 'place-landmark');
 
+    // DECORATIONS LOGIC
+    let newDecorations = gameState.decorations || {};
+    // Remove if overwriting
+    if (newDecorations[`${x},${y}`]) {
+        const d = { ...newDecorations };
+        delete d[`${x},${y}`];
+        newDecorations = d;
+    }
+    // Chance to spawn new decor
+    if (Math.random() < 0.3) {
+        // Pick random empty spot
+        let attempts = 0;
+        while(attempts < 10) {
+            const rx = Math.floor(Math.random() * GRID_SIZE);
+            const ry = Math.floor(Math.random() * GRID_SIZE);
+            if (!getCell(newGrid, rx, ry) && !isStart(rx, ry) && !newDecorations[`${rx},${ry}`]) {
+                const randomImg = DECOR_IMAGES[Math.floor(Math.random() * DECOR_IMAGES.length)];
+                newDecorations = { ...newDecorations, [`${rx},${ry}`]: randomImg };
+                break;
+            }
+            attempts++;
+        }
+    }
+
     let pointsGained = 0;
     const completedPassengerIds = [];
     const playerConnectedLandmarks = new Set();
@@ -1111,7 +1183,6 @@ export default function App() {
     }
 
     const claimedPassengerNames = [];
-    // --- UPDATED CLAIM TRACKING FOR SURGE ---
     const claimedLandmarkIds = [];
 
     const checkPassenger = (p) => {
@@ -1119,53 +1190,19 @@ export default function App() {
       if (completedPassengerIds.includes(p.id)) return false;
       let match = false;
       const myLandmarks = []; newGrid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && playerConnectedLandmarks.has(c.id)) myLandmarks.push(c); }));
+      const currentClaimed = [];
 
-      const currentClaimed = []; // Temp store for this passenger
-
-      if (p.reqType === 'specific') {
-         if (playerConnectedLandmarks.has(p.targetId)) {
-             match = true;
-             currentClaimed.push(p.targetId);
-         }
-      } 
-      else if (p.reqType === 'category') {
-         const matches = myLandmarks.filter(l => l.category === p.targetCategory);
-         if (matches.length > 0) {
-             match = true;
-             matches.forEach(m => currentClaimed.push(m.id));
-         }
-      } 
-      else if (p.reqType === 'list') { 
-         const matches = p.targets.filter(tid => playerConnectedLandmarks.has(tid));
-         if (matches.length > 0) {
-             match = true;
-             currentClaimed.push(...matches);
-         }
-      } 
-      else if (p.reqType === 'combo') { 
-         if(playerConnectedLandmarks.has(p.targets[0]) && playerConnectedLandmarks.has(p.targets[1])) {
-             match = true;
-             currentClaimed.push(p.targets[0], p.targets[1]);
-         }
-      } 
+      if (p.reqType === 'specific' && playerConnectedLandmarks.has(p.targetId)) { match = true; currentClaimed.push(p.targetId); }
+      else if (p.reqType === 'category') { const matches = myLandmarks.filter(l => l.category === p.targetCategory); if (matches.length > 0) { match = true; matches.forEach(m => currentClaimed.push(m.id)); } }
+      else if (p.reqType === 'list') { const matches = p.targets.filter(tid => playerConnectedLandmarks.has(tid)); if (matches.length > 0) { match = true; currentClaimed.push(...matches); } } 
+      else if (p.reqType === 'combo') { if(playerConnectedLandmarks.has(p.targets[0]) && playerConnectedLandmarks.has(p.targets[1])) { match = true; currentClaimed.push(p.targets[0], p.targets[1]); } }
       else if (p.reqType === 'combo_cat') { 
-         // Ghost Tour / Botanist
-         const hasT1 = playerConnectedLandmarks.has(p.targetId);
-         const cat2Matches = myLandmarks.filter(l => l.category === p.cat2);
-         if(hasT1 && cat2Matches.length > 0) {
-             match = true;
-             currentClaimed.push(p.targetId);
-             cat2Matches.forEach(m => currentClaimed.push(m.id));
-         }
+          const hasT1 = playerConnectedLandmarks.has(p.targetId);
+          const cat2Matches = myLandmarks.filter(l => l.category === p.cat2);
+          if(hasT1 && cat2Matches.length > 0) { match = true; currentClaimed.push(p.targetId); cat2Matches.forEach(m => currentClaimed.push(m.id)); }
       }
 
-      if (match) { 
-          pointsGained += p.points; 
-          completedPassengerIds.push(p.id); 
-          claimedPassengerNames.push(p.name); 
-          claimedLandmarkIds.push(...currentClaimed);
-          return true; 
-      }
+      if (match) { pointsGained += p.points; completedPassengerIds.push(p.id); claimedPassengerNames.push(p.name); claimedLandmarkIds.push(...currentClaimed); return true; }
       return false;
     };
     gameState.activePassengers.forEach(checkPassenger);
@@ -1173,13 +1210,9 @@ export default function App() {
     let lastEvent = bonusEvent; 
     if (pointsGained > 0) {
         lastEvent = { 
-            type: 'claim-passenger', 
-            playerColor: player.color, 
-            playerName: player.name, 
-            passengerNames: claimedPassengerNames, 
-            timestamp: Date.now(), 
-            coords: { x, y },
-            claimedLandmarkIds: claimedLandmarkIds // Pass to board for surge pathfinding
+            type: 'claim-passenger', playerColor: player.color, playerName: player.name, 
+            passengerNames: claimedPassengerNames, timestamp: Date.now(), coords: { x, y },
+            claimedLandmarkIds: claimedLandmarkIds 
         };
         playSound('claim-passenger');
     } else if (!lastEvent) {
@@ -1224,13 +1257,14 @@ export default function App() {
         updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
           grid: JSON.stringify(newGrid), players: newPlayers, decks: newDecks, 
           activePassengers: newActivePassengers, winner, lastEvent, mostConnected: currentMostConnected,
-          movesLeft: movesLeft
+          movesLeft: movesLeft, decorations: newDecorations
         });
         setSelectedCardIdx(null); setSelectedCardType(null); setRotation(0);
     } else {
         endTurn({ 
             grid: JSON.stringify(newGrid), players: newPlayers, decks: newDecks, 
-            activePassengers: newActivePassengers, mostConnected: currentMostConnected
+            activePassengers: newActivePassengers, mostConnected: currentMostConnected,
+            decorations: newDecorations
         }, winner, lastEvent);
     }
   };
@@ -1305,6 +1339,7 @@ export default function App() {
     return (
       <div className="h-screen bg-gray-950 text-white flex p-4 gap-4 overflow-hidden relative font-questrial">
         <AudioPlayer view="host" />
+        <AtmosphereLayer />
         <NotificationOverlay event={gameState.lastEvent} />
         <button onClick={leaveGame} className="absolute top-4 right-4 p-2 bg-red-600/20 hover:bg-red-600 text-red-200 rounded-full z-50 transition-colors"><X size={20} /></button>
         <div className="w-1/4 max-w-sm flex flex-col gap-4 h-full z-10">
