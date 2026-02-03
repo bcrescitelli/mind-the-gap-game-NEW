@@ -218,7 +218,6 @@ const generatePassengers = (allLandmarks) => {
   let idCounter = 1;
   const findL = (name) => allLandmarks.find(l => l.name === name);
 
-  // TIER 1
   const tier1 = [
     { name: "The Foodie", req: 'category', target: 'gastronomy', pts: 1, desc: "Any Gastronomy" },
     { name: "The Tourist", req: 'category', target: 'heritage', pts: 1, desc: "Any Heritage" },
@@ -227,7 +226,6 @@ const generatePassengers = (allLandmarks) => {
     { name: "The Adrenaline Junkie", req: 'category', target: 'thrilling', pts: 1, desc: "Any Thrilling" },
     { name: "The Medium", req: 'category', target: 'spiritual', pts: 2, desc: "Any Spiritual" } 
   ];
-  // TIER 2
   const tier2 = [
       { name: "The Sweet Tooth", req: 'list', targets: ["Ice Cream Shop", "Candy Store", "Bakery"], pts: 2 },
       { name: "The Scholar", req: 'list', targets: ["University", "Library", "Museum"], pts: 2 },
@@ -238,7 +236,6 @@ const generatePassengers = (allLandmarks) => {
       { name: "The Artist", req: 'list', targets: ["Opera House", "Theatre", "Tattoo Parlor"], pts: 2 },
       { name: "The Errand Runner", req: 'list', targets: ["Bank", "Post Office", "Tailors"], pts: 2 }
   ];
-  // TIER 3
   const tier3 = [
       { name: "The Pilot", target: "Airport", pts: 3 },
       { name: "The Astronomer", target: "Observatory", pts: 3 },
@@ -249,7 +246,6 @@ const generatePassengers = (allLandmarks) => {
       { name: "The Widow", target: "Cemetery", pts: 3 },
       { name: "The Gambler", target: "Casino", pts: 3 }
   ];
-  // TIER 4
   const tier4 = [
       { name: "The Date Night", targets: ["Cafe", "Cinema"], pts: 5 },
       { name: "The Ghost Tour", type: 'ghost', target1: "Haunted House", cat2: "heritage", pts: 4, desc: "Haunted House AND Any Heritage" },
@@ -475,8 +471,8 @@ const WinnerModal = ({ winner, onRestart, onExit }) => {
       </div>
       <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl border-4 border-yellow-500 shadow-2xl text-center max-w-md w-full transform scale-110">
         <Crown size={64} className="text-yellow-400 mx-auto mb-4 animate-bounce" />
-        <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-widest font-cal-sans">Winner!</h2>
-        <div className={`text-5xl font-black mb-6 text-${winner.color}-500 drop-shadow-lg font-cal-sans`}>{winner.name}</div>
+        <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-widest font-nabla">Winner!</h2>
+        <div className={`text-5xl font-black mb-6 text-${winner.color}-500 drop-shadow-lg font-nabla`}>{winner.name}</div>
         <p className="text-gray-400 mb-8 text-xl font-cal-sans">Final Score: <span className="text-white font-bold">{winner.score}</span></p>
         <button onClick={onRestart} className="px-8 py-4 bg-green-600 hover:bg-green-500 text-white rounded-full font-bold text-xl shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 w-full font-cal-sans">
           <RefreshCw size={24}/> Play Again
@@ -594,12 +590,9 @@ const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, v
     const { playerColor, claimedLandmarkIds } = gameState.lastEvent;
     
     // PATHFINDING FOR SURGE
-    // Dijkstra from Center to the Claimed Landmarks to highlight only relevant path
     const nodes = new Set();
-    // We need to run BFS to ALL claimed landmarks
     if(!claimedLandmarkIds || claimedLandmarkIds.length === 0) return new Set();
 
-    // Run BFS from Start, keeping parent map
     const queue = [{ x: CENTER, y: CENTER }];
     const visited = new Set([`${CENTER},${CENTER}`]);
     const cameFrom = {}; // key -> parentKey
@@ -629,7 +622,6 @@ const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, v
              const currObj = isStart(curr.x, curr.y) ? {isStart:true, type:'start'} : cell;
              const nextObj = isStart(nc.x, nc.y) ? {isStart:true, type:'start'} : nextCell;
 
-             // Valid node if Start, Own Track, or Connected Landmark
              if(nextObj && (nextObj.isStart || (nextObj.type === 'track' && nextObj.owner === playerColor) || (nextObj.type === 'landmark' && nextObj.connections?.[playerColor] > 0))) {
                  if(areConnected(currObj, nextObj, dir)) {
                      visited.add(key);
@@ -684,6 +676,7 @@ export default function App() {
   const [gameState, setGameState] = useState(null);
   const [view, setView] = useState('home');
   const [error, setError] = useState("");
+  const [authError, setAuthError] = useState(null);
   
   const [selectedCardIdx, setSelectedCardIdx] = useState(null);
   const [selectedCardType, setSelectedCardType] = useState(null);
@@ -711,9 +704,23 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const initAuth = async () => { try { await signInAnonymously(auth); } catch (err) { console.error("Auth error:", err); } };
+    const initAuth = async () => { 
+        try { 
+            await signInAnonymously(auth); 
+        } catch (err) { 
+            console.error("Auth error:", err);
+            // Removed authError state setting to suppress UI blocking
+        } 
+    };
     initAuth();
-    const sub = onAuthStateChanged(auth, setUser);
+    const sub = onAuthStateChanged(auth, (u) => {
+        if (u) {
+            setUser(u);
+            setAuthError(null); 
+        } else {
+            setUser(null);
+        }
+    });
     return () => sub();
   }, []);
 
@@ -745,7 +752,6 @@ export default function App() {
         
         const isHost = data.hostId === user.uid;
         if (isHost) {
-            // FIX: If game is playing, go to host view. If lobby, go to lobby view.
             if (data.status === 'playing') setView('host'); 
             else setView('lobby');
         }
@@ -1231,6 +1237,7 @@ export default function App() {
   if (view === 'home') {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans p-4 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('/city-map.jpg')] bg-cover opacity-20 blur-sm pointer-events-none"></div>
         <h1 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-cal-sans">
           MIND THE GAP
         </h1>
