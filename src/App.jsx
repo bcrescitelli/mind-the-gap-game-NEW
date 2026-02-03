@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -12,7 +13,7 @@ import {
   AlertCircle, Trophy, Coffee, Landmark, Trees, 
   ShoppingBag, Zap, Crown, Play, User, Music, Volume2, VolumeX, 
   Link as LinkIcon, RefreshCw, Star, Ticket, Cone, Construction, Shuffle, Move, Repeat,
-  Plane, Banknote, Ghost, Heart, Smile, LogOut, X, Check, FastForward, Ban, Sparkles, Timer, TrendingUp, Award, Bell 
+  Plane, Banknote, Ghost, Heart, Smile, LogOut, X, Check, FastForward, Ban
 } from 'lucide-react';
 
 // --- FIREBASE CONFIGURATION ---
@@ -38,12 +39,12 @@ const WIN_SCORE = 10;
 
 // Categories
 const CATEGORIES = {
-  GASTRONOMY: { id: 'gastronomy', label: 'Gastronomy', icon: <Coffee size={16} />, color: 'text-amber-600', gradient: 'from-amber-600 to-orange-500' },
-  HERITAGE: { id: 'heritage', label: 'Heritage', icon: <Landmark size={16} />, color: 'text-stone-600', gradient: 'from-stone-600 to-stone-500' },
-  NATURE: { id: 'nature', label: 'Nature', icon: <Trees size={16} />, color: 'text-green-600', gradient: 'from-green-600 to-emerald-500' },
-  SERVICES: { id: 'services', label: 'Services', icon: <Banknote size={16} />, color: 'text-blue-600', gradient: 'from-blue-600 to-cyan-500' },
-  SPIRITUAL: { id: 'spiritual', label: 'Spiritual', icon: <Ghost size={16} />, color: 'text-purple-600', gradient: 'from-purple-600 to-violet-500' },
-  THRILLING: { id: 'thrilling', label: 'Thrilling', icon: <Zap size={16} />, color: 'text-red-600', gradient: 'from-red-600 to-pink-500' },
+  GASTRONOMY: { id: 'gastronomy', label: 'Gastronomy', icon: <Coffee size={16} />, color: 'text-amber-600' },
+  HERITAGE: { id: 'heritage', label: 'Heritage', icon: <Landmark size={16} />, color: 'text-stone-600' },
+  NATURE: { id: 'nature', label: 'Nature', icon: <Trees size={16} />, color: 'text-green-600' },
+  SERVICES: { id: 'services', label: 'Services', icon: <Banknote size={16} />, color: 'text-blue-600' },
+  SPIRITUAL: { id: 'spiritual', label: 'Spiritual', icon: <Ghost size={16} />, color: 'text-purple-600' },
+  THRILLING: { id: 'thrilling', label: 'Thrilling', icon: <Zap size={16} />, color: 'text-red-600' },
 };
 
 // Landmarks Data
@@ -257,28 +258,28 @@ const generatePassengers = (allLandmarks) => {
       { name: "The Critic", targets: ["The Melting Pot", "Theatre"], pts: 5 }
   ];
 
-  tier1.forEach(p => passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'category', targetCategory: p.target, points: p.pts, desc: p.desc, tier: 1 }));
+  tier1.forEach(p => passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'category', targetCategory: p.target, points: p.pts, desc: p.desc }));
   tier2.forEach(p => {
-    const ts = p.targets.map(n => findL(n)?.id).filter(Boolean);
-    if(ts.length > 0) passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'list', targets: ts, points: p.pts, desc: p.targets.join(" OR "), tier: 2 });
-});
+      const ts = p.targets.map(n => findL(n)?.id).filter(Boolean);
+      if(ts.length > 0) passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'list', targets: ts, points: p.pts, desc: p.targets.join(" OR ") });
+  });
   tier3.forEach(p => {
-    const t = findL(p.target);
-    if(t) passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'specific', targetId: t.id, targetName: t.name, points: p.pts, desc: `Must visit ${t.name}`, tier: 3 });
-});
+      const t = findL(p.target);
+      if(t) passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'specific', targetId: t.id, targetName: t.name, points: p.pts, desc: `Must visit ${t.name}` });
+  });
   tier4.forEach(p => {
-    if (p.targets) {
-        const t1 = findL(p.targets[0]);
-        const t2 = findL(p.targets[1]);
-        if(t1 && t2) passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'combo', targets: [t1.id, t2.id], points: p.pts, desc: `${t1.name} AND ${t2.name}`, tier: 4 });
-    } else if (p.type === 'ghost') {
-        const t1 = findL(p.target1);
-        if(t1) passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'combo_cat', targetId: t1.id, cat2: p.cat2, points: p.pts, desc: p.desc, tier: 4 });
-    } else if (p.type === 'botanist') {
-        const t1 = findL(p.target1);
-        if(t1) passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'combo_cat', targetId: t1.id, cat2: p.cat2, points: p.pts, desc: p.desc, tier: 4 });
-    }
-});
+      if (p.targets) {
+          const t1 = findL(p.targets[0]);
+          const t2 = findL(p.targets[1]);
+          if(t1 && t2) passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'combo', targets: [t1.id, t2.id], points: p.pts, desc: `${t1.name} AND ${t2.name}` });
+      } else if (p.type === 'ghost') {
+          const t1 = findL(p.target1);
+          if(t1) passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'combo_cat', targetId: t1.id, cat2: p.cat2, points: p.pts, desc: p.desc });
+      } else if (p.type === 'botanist') {
+          const t1 = findL(p.target1);
+          if(t1) passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'combo_cat', targetId: t1.id, cat2: p.cat2, points: p.pts, desc: p.desc });
+      }
+  });
 
   return passengers.sort(() => Math.random() - 0.5);
 };
@@ -380,11 +381,7 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked, isSurge }) => {
   if (isBlocked) {
     content = <div className="w-full h-full flex items-center justify-center bg-yellow-900/50"><Cone size={24} className="text-yellow-500 animate-pulse" /></div>;
   } else if (isCenter) {
-    content = <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-yellow-400 to-orange-500 text-black font-bold text-[6px] md:text-[10px] z-10 text-center leading-none border-2 border-yellow-600 font-questrial shadow-lg">
-  <Landmark size={12} className="mb-0.5" />
-  CITY HALL
-</div>;
-bgClass = "bg-gradient-to-br from-yellow-400 to-orange-500";
+    content = <div className="flex flex-col items-center justify-center h-full w-full bg-white text-black font-bold text-[6px] md:text-[10px] z-10 text-center leading-none border-2 border-black font-cal-sans">CITY HALL</div>;
     bgClass = "bg-white/90";
   } else if (cellData?.type === 'track') {
     if (!isHost) bgClass = "bg-gray-900/80"; 
@@ -421,94 +418,42 @@ const GameCard = ({ data, selected, onClick, type }) => {
     return (
       <div 
         onClick={onClick}
-        className={`relative w-20 h-28 md:w-24 md:h-32 rounded-xl border-2 flex flex-col items-center justify-center p-2 cursor-pointer transition-all shadow-xl shrink-0 bg-gradient-to-br from-yellow-600 to-orange-600 overflow-hidden \${selected ? 'border-yellow-300 -translate-y-3 shadow-yellow-500/50 scale-105' : 'border-yellow-800 hover:border-yellow-600 hover:-translate-y-1'}`}
+        className={`relative w-16 h-24 md:w-24 md:h-32 rounded-lg border-2 flex flex-col items-center justify-center p-1 cursor-pointer transition-all shadow-md shrink-0 bg-yellow-900 ${selected ? 'border-yellow-400 -translate-y-2' : 'border-yellow-700 hover:border-yellow-500'}`}
       >
-        {/* Vintage ticket perforations */}
-        <div className="absolute top-0 left-0 right-0 h-2 flex justify-around">
-          {[...Array(8)].map((_, i) => <div key={i} className="w-1 h-1 bg-black/20 rounded-full"></div>)}
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 h-2 flex justify-around">
-          {[...Array(8)].map((_, i) => <div key={i} className="w-1 h-1 bg-black/20 rounded-full"></div>)}
-        </div>
-        
-        <div className="text-yellow-100 mb-2 drop-shadow-md">{info.icon}</div>
-        <div className="text-[9px] md:text-[10px] text-center font-black text-white leading-tight font-cal-sans drop-shadow-md uppercase tracking-wide">{info.name}</div>
-        <div className="text-[7px] text-center text-yellow-100 mt-1 leading-tight font-questrial px-1">{info.desc}</div>
-        
-        {selected && (
-          <div className="absolute inset-0 border-4 border-yellow-300 rounded-xl pointer-events-none animate-pulse"></div>
-        )}
+        <div className="text-yellow-500 mb-1">{info.icon}</div>
+        <div className="text-[9px] md:text-xs text-center font-bold text-white leading-tight font-cal-sans">{info.name}</div>
+        <div className="text-[7px] text-center text-yellow-200 mt-1 leading-tight font-questrial">{info.desc}</div>
       </div>
     );
-  }
-
-  if (type === 'landmark') {
-    const gradient = CATEGORIES[cellData.category?.toUpperCase()]?.gradient || 'from-gray-600 to-gray-500';
-content = (
-  <div className={`w-full h-full bg-gradient-to-br \${gradient} flex flex-col items-center justify-center p-0.5 border-2 border-white/20 shadow-xl relative overflow-hidden`}>
-     <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
-     <div className={`relative z-10 text-white scale-75 md:scale-100 drop-shadow-md`}>{CATEGORIES[cellData.category?.toUpperCase()]?.icon}</div>
-     <div className="relative z-10 text-[5px] md:text-[8px] text-white font-bold text-center leading-none mt-0.5 break-words w-full overflow-hidden font-questrial drop-shadow-md px-0.5">{cellData.name}</div>
-     {cellData.connections && Object.keys(cellData.connections).length > 0 && (
-       <div className="absolute bottom-0 right-0 flex gap-0.5 p-0.5">
-         {Object.keys(cellData.connections).map((c) => (
-           <div key={c} className={`w-1.5 h-1.5 rounded-full \${colorDotMap[c]} border border-white/50 shadow-sm`}></div>
-         ))}
-       </div>
-     )}
-  </div>
-);
   }
 
   return (
     <div 
       onClick={onClick}
-      className={`relative w-20 h-28 md:w-24 md:h-32 rounded-xl border-2 flex flex-col items-center justify-center p-2 cursor-pointer transition-all shadow-xl shrink-0 bg-gradient-to-br from-slate-700 to-slate-900
-        \${selected ? 'border-blue-400 -translate-y-3 shadow-blue-500/50 scale-105' : 'border-slate-600 hover:border-slate-400 hover:-translate-y-1'}
+      className={`relative w-16 h-24 md:w-24 md:h-32 rounded-lg border-2 flex flex-col items-center justify-center p-1 cursor-pointer transition-all shadow-md shrink-0
+        ${selected ? 'border-yellow-400 -translate-y-2 shadow-yellow-500/50' : 'border-gray-600 bg-gray-800 hover:border-gray-400'}
+        ${type === 'track' ? 'bg-slate-800' : 'bg-indigo-900'}
       `}
     >
       {type === 'track' && (
         <>
-          <div className="text-[9px] md:text-[10px] text-slate-300 mb-2 uppercase font-black text-center truncate w-full font-cal-sans">{data.shape}</div>
-          <div className="w-10 h-10 md:w-12 md:h-12 border-2 border-slate-500 rounded-lg flex items-center justify-center bg-slate-800/50 shadow-inner">
+          <div className="text-[10px] md:text-xs text-gray-400 mb-1 md:mb-2 uppercase font-bold text-center truncate w-full font-cal-sans">{data.shape}</div>
+          <div className="w-8 h-8 md:w-12 md:h-12 border border-gray-600 rounded flex items-center justify-center bg-gray-900">
              <TrackSvg shape={data.shape} rotation={0} color="gray" />
           </div>
-          
-          <div className="absolute top-1 left-1 w-2 h-2 border-l-2 border-t-2 border-slate-400/40"></div>
-          <div className="absolute top-1 right-1 w-2 h-2 border-r-2 border-t-2 border-slate-400/40"></div>
         </>
       )}
-      
-      {selected && (
-        <div className="absolute inset-0 border-4 border-blue-400 rounded-xl pointer-events-none animate-pulse"></div>
+
+      {type === 'landmark' && (
+        <>
+          <div className="absolute top-1 right-1 text-gray-500 scale-75 md:scale-100">
+             {CATEGORIES[data.category?.toUpperCase()]?.icon}
+          </div>
+          <div className="text-[8px] md:text-[10px] text-center font-bold text-white leading-tight mt-2 line-clamp-2 font-cal-sans">{data.name}</div>
+          <div className="text-[8px] md:text-[9px] text-gray-400 mt-1 font-questrial">{CATEGORIES[data.category?.toUpperCase()]?.label}</div>
+        </>
       )}
     </div>
-  );
-};
-
-const AnimatedScore = ({ score, color }) => {
-  const [displayScore, setDisplayScore] = useState(score);
-  
-  useEffect(() => {
-    if (score !== displayScore) {
-      const increment = score > displayScore ? 1 : -1;
-      const timer = setInterval(() => {
-        setDisplayScore(prev => {
-          if (prev === score) {
-            clearInterval(timer);
-            return prev;
-          }
-          return prev + increment;
-        });
-      }, 50);
-      return () => clearInterval(timer);
-    }
-  }, [score, displayScore]);
-  
-  return (
-    <span className={`text-2xl md:text-3xl font-black text-\${color}-400 font-cal-sans transition-all duration-300 \${score > displayScore ? 'scale-125' : 'scale-100'}`}>
-      {displayScore}
-    </span>
   );
 };
 
