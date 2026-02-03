@@ -384,7 +384,7 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked, isSurge }) => {
   if (isBlocked) {
     content = <div className="w-full h-full flex items-center justify-center bg-yellow-900/50"><Cone size={24} className="text-yellow-500 animate-pulse" /></div>;
   } else if (isCenter) {
-    content = <div className="flex flex-col items-center justify-center h-full w-full bg-white text-black font-bold text-[6px] md:text-[10px] z-10 text-center leading-none border-2 border-black font-questrial">CITY HALL</div>;
+    content = <div className="flex flex-col items-center justify-center h-full w-full bg-white text-black font-bold text-[6px] md:text-[10px] z-10 text-center leading-none border-2 border-black font-cal-sans">CITY HALL</div>;
     bgClass = "bg-white/90";
   } else if (cellData?.type === 'track') {
     if (!isHost) bgClass = "bg-gray-900/80"; 
@@ -394,7 +394,7 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked, isSurge }) => {
     content = (
       <div className="w-full h-full bg-white/90 flex flex-col items-center justify-center p-0.5 border-2 border-gray-400 shadow-md relative">
          <div className={`text-black scale-75 md:scale-100 ${CATEGORIES[cellData.category?.toUpperCase()]?.color}`}>{CATEGORIES[cellData.category?.toUpperCase()]?.icon}</div>
-         <div className="text-[5px] md:text-[8px] text-black font-bold text-center leading-none mt-0.5 break-words w-full overflow-hidden font-questrial">{cellData.name}</div>
+         <div className="text-[5px] md:text-[8px] text-black font-bold text-center leading-none mt-0.5 break-words w-full overflow-hidden font-cal-sans">{cellData.name}</div>
          {cellData.connections && Object.keys(cellData.connections).map((c, i) => (
            <div key={c} className={`absolute w-2 h-2 rounded-full border border-white ${colorDotMap[c]} bottom-0.5 right-${i * 2 + 1}`}></div>
          ))}
@@ -475,8 +475,8 @@ const WinnerModal = ({ winner, onRestart, onExit }) => {
       </div>
       <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl border-4 border-yellow-500 shadow-2xl text-center max-w-md w-full transform scale-110">
         <Crown size={64} className="text-yellow-400 mx-auto mb-4 animate-bounce" />
-        <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-widest font-nabla">Winner!</h2>
-        <div className={`text-5xl font-black mb-6 text-${winner.color}-500 drop-shadow-lg font-nabla`}>{winner.name}</div>
+        <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-widest font-cal-sans">Winner!</h2>
+        <div className={`text-5xl font-black mb-6 text-${winner.color}-500 drop-shadow-lg font-cal-sans`}>{winner.name}</div>
         <p className="text-gray-400 mb-8 text-xl font-cal-sans">Final Score: <span className="text-white font-bold">{winner.score}</span></p>
         <button onClick={onRestart} className="px-8 py-4 bg-green-600 hover:bg-green-500 text-white rounded-full font-bold text-xl shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 w-full font-cal-sans">
           <RefreshCw size={24}/> Play Again
@@ -745,6 +745,7 @@ export default function App() {
         
         const isHost = data.hostId === user.uid;
         if (isHost) {
+            // FIX: If game is playing, go to host view. If lobby, go to lobby view.
             if (data.status === 'playing') setView('host'); 
             else setView('lobby');
         }
