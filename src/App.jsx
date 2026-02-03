@@ -471,8 +471,8 @@ const WinnerModal = ({ winner, onRestart, onExit }) => {
       </div>
       <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl border-4 border-yellow-500 shadow-2xl text-center max-w-md w-full transform scale-110">
         <Crown size={64} className="text-yellow-400 mx-auto mb-4 animate-bounce" />
-        <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-widest font-nabla">Winner!</h2>
-        <div className={`text-5xl font-black mb-6 text-${winner.color}-500 drop-shadow-lg font-nabla`}>{winner.name}</div>
+        <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-widest font-cal-sans">Winner!</h2>
+        <div className={`text-5xl font-black mb-6 text-${winner.color}-500 drop-shadow-lg font-cal-sans`}>{winner.name}</div>
         <p className="text-gray-400 mb-8 text-xl font-cal-sans">Final Score: <span className="text-white font-bold">{winner.score}</span></p>
         <button onClick={onRestart} className="px-8 py-4 bg-green-600 hover:bg-green-500 text-white rounded-full font-bold text-xl shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 w-full font-cal-sans">
           <RefreshCw size={24}/> Play Again
@@ -622,6 +622,7 @@ const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, v
              const currObj = isStart(curr.x, curr.y) ? {isStart:true, type:'start'} : cell;
              const nextObj = isStart(nc.x, nc.y) ? {isStart:true, type:'start'} : nextCell;
 
+             // Valid node if Start, Own Track, or Connected Landmark
              if(nextObj && (nextObj.isStart || (nextObj.type === 'track' && nextObj.owner === playerColor) || (nextObj.type === 'landmark' && nextObj.connections?.[playerColor] > 0))) {
                  if(areConnected(currObj, nextObj, dir)) {
                      visited.add(key);
@@ -691,12 +692,11 @@ export default function App() {
 
   useEffect(() => {
     const link = document.createElement('link');
-    link.href = "https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Nabla&family=Questrial&display=swap";
+    link.href = "https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Questrial&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
     const style = document.createElement('style');
     style.innerHTML = `
-      .font-nabla { font-family: 'Nabla', system-ui; }
       .font-questrial { font-family: 'Questrial', sans-serif; }
       .font-cal-sans { font-family: 'Outfit', sans-serif; } /* Aliased to Outfit for reliability */
     `;
@@ -1237,7 +1237,6 @@ export default function App() {
   if (view === 'home') {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans p-4 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('/city-map.jpg')] bg-cover opacity-20 blur-sm pointer-events-none"></div>
         <h1 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-cal-sans">
           MIND THE GAP
         </h1>
@@ -1280,7 +1279,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4">
         <AudioPlayer view={view} />
-        <h2 className="text-4xl font-bold mb-2 font-nabla">Lobby: {activeRoomId}</h2>
+        <h2 className="text-4xl font-bold mb-2 font-cal-sans">Lobby: {activeRoomId}</h2>
         <p className="text-gray-400 mb-8 font-questrial">Waiting for players...</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {gameState?.players.map((p, i) => (
@@ -1310,7 +1309,7 @@ export default function App() {
         <div className="w-1/4 max-w-sm flex flex-col gap-4 h-full z-10">
           <div className="bg-gray-800 p-3 rounded-lg text-center shadow-lg border border-gray-700">
              <div className="text-xs text-gray-400 uppercase tracking-widest">Room Code</div>
-             <div className="text-4xl font-black tracking-widest text-white font-nabla">{activeRoomId}</div>
+             <div className="text-4xl font-black tracking-widest text-white font-cal-sans">{activeRoomId}</div>
           </div>
           <div className="bg-gray-900 p-4 rounded-xl shadow-lg border border-gray-800 flex-shrink-0">
             <h3 className="text-lg font-bold text-gray-400 mb-3 flex items-center gap-2 uppercase tracking-wide font-cal-sans"><Trophy size={18}/> Standings</h3>
