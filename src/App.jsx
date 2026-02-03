@@ -12,7 +12,7 @@ import {
   AlertCircle, Trophy, Coffee, Landmark, Trees, 
   ShoppingBag, Zap, Crown, Play, User, Music, Volume2, VolumeX, 
   Link as LinkIcon, RefreshCw, Star, Ticket, Cone, Construction, Shuffle, Move, Repeat,
-  Plane, Banknote, Ghost, Heart, Smile, LogOut, X, Check, FastForward, Ban, Cloud
+  Plane, Banknote, Ghost, Heart, Smile, LogOut, X, Check, FastForward, Ban
 } from 'lucide-react';
 
 // --- FIREBASE CONFIGURATION ---
@@ -78,6 +78,7 @@ const LANDMARKS_DATA = [
   { name: "Tattoo Parlor", cat: 'thrilling' }, { name: "The Stadium", cat: 'thrilling' }
 ];
 
+// Personas
 const PERSONAS_BY_CAT = {
   gastronomy: ["The Head Chef", "The Food Critic", "The Glutton", "The Barista", "The Baker", "The Sommelier"],
   heritage: ["The Historian", "The Widow", "The Archaeologist", "The Monk", "The Duke", "The Architect"],
@@ -223,6 +224,7 @@ const generatePassengers = (allLandmarks) => {
   let idCounter = 1;
   const findL = (name) => allLandmarks.find(l => l.name === name);
 
+  // TIER 1
   const tier1 = [
     { name: "The Foodie", req: 'category', target: 'gastronomy', pts: 1, desc: "Any Gastronomy" },
     { name: "The Tourist", req: 'category', target: 'heritage', pts: 1, desc: "Any Heritage" },
@@ -231,6 +233,7 @@ const generatePassengers = (allLandmarks) => {
     { name: "The Adrenaline Junkie", req: 'category', target: 'thrilling', pts: 1, desc: "Any Thrilling" },
     { name: "The Medium", req: 'category', target: 'spiritual', pts: 2, desc: "Any Spiritual" } 
   ];
+  // TIER 2
   const tier2 = [
       { name: "The Sweet Tooth", req: 'list', targets: ["Ice Cream Shop", "Candy Store", "Bakery"], pts: 2 },
       { name: "The Scholar", req: 'list', targets: ["University", "Library", "Museum"], pts: 2 },
@@ -241,6 +244,7 @@ const generatePassengers = (allLandmarks) => {
       { name: "The Artist", req: 'list', targets: ["Opera House", "Theatre", "Tattoo Parlor"], pts: 2 },
       { name: "The Errand Runner", req: 'list', targets: ["Bank", "Post Office", "Tailors"], pts: 2 }
   ];
+  // TIER 3
   const tier3 = [
       { name: "The Pilot", target: "Airport", pts: 3 },
       { name: "The Astronomer", target: "Observatory", pts: 3 },
@@ -251,6 +255,7 @@ const generatePassengers = (allLandmarks) => {
       { name: "The Widow", target: "Cemetery", pts: 3 },
       { name: "The Gambler", target: "Casino", pts: 3 }
   ];
+  // TIER 4
   const tier4 = [
       { name: "The Date Night", targets: ["Cafe", "Cinema"], pts: 5 },
       { name: "The Ghost Tour", type: 'ghost', target1: "Haunted House", cat2: "heritage", pts: 4, desc: "Haunted House AND Any Heritage" },
@@ -329,43 +334,19 @@ const TrackSvg = ({ shape, rotation, color, animate }) => {
   return (
     <div className="w-full h-full" style={{ transform: `rotate(${rotation}deg)` }}>
       <svg viewBox="0 0 100 100" className="w-full h-full" shapeRendering="geometricPrecision">
-        {/* SURGE EFFECT STYLES */}
-        <defs>
-            <style>
-                {`
-                 .surge-anim { animation: surge 2s ease-out infinite; }
-                 @keyframes surge {
-                     0% { stroke-opacity: 0.2; stroke-width: 30; filter: brightness(1); }
-                     50% { stroke-opacity: 1; stroke-width: 35; filter: brightness(2) drop-shadow(0 0 4px white); }
-                     100% { stroke-opacity: 0.2; stroke-width: 30; filter: brightness(1); }
-                 }
-                `}
-            </style>
-        </defs>
-
-        {shape === 'straight' && (
-            <>
-                <path id={pathId} d="M 50 0 L 50 100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" fill="none" />
-                {animate && <path d="M 50 0 L 50 100" stroke="white" strokeWidth="30" className="surge-anim" fill="none" />}
-            </>
-        )}
-        {shape === 'curved' && (
-            <>
-                <path id={pathId} d="M 50 100 Q 50 50 100 50" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" fill="none" />
-                {animate && <path d="M 50 100 Q 50 50 100 50" stroke="white" strokeWidth="30" className="surge-anim" fill="none" />}
-            </>
-        )}
+        {shape === 'straight' && <path id={pathId} d="M 50 0 L 50 100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" fill="none" />}
+        {shape === 'curved' && <path id={pathId} d="M 50 100 Q 50 50 100 50" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" fill="none" />}
         {shape === 't-shape' && (
           <>
             <path d="M 0 50 L 100 50" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
             <path d="M 50 50 L 50 100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
-            {animate && (
-                <>
-                    <path d="M 0 50 L 100 50" stroke="white" strokeWidth="30" className="surge-anim" />
-                    <path d="M 50 50 L 50 100" stroke="white" strokeWidth="30" className="surge-anim" />
-                </>
-            )}
           </>
+        )}
+        
+        {(animate || color !== 'gray') && (
+          <circle r="6" fill="white" opacity="0.8">
+            <animateMotion dur="3s" repeatCount="indefinite" path={d} />
+          </circle>
         )}
       </svg>
     </div>
@@ -404,7 +385,7 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked, isSurge, decorImage })
     if (isHost) bgClass = "bg-transparent"; 
   } else if (isHost && decorImage) {
     // Show decor only on empty cells on host
-    content = <img src={`/${decorImage}`} className="w-3/4 h-3/4 opacity-80 object-contain drop-shadow-md" alt="decor" />;
+    content = <img src={`/${decorImage}`} className="w-2/5 h-2/5 opacity-80 object-contain drop-shadow-md" alt="decor" />;
     bgClass = "bg-transparent flex items-center justify-center";
   }
 
@@ -539,6 +520,46 @@ const playSound = (type) => {
   }
 };
 
+// --- ATMOSPHERIC COMPONENT ---
+const AtmosphereLayer = () => {
+    const [showWind, setShowWind] = useState(false);
+    useEffect(() => {
+        const trigger = () => {
+            setShowWind(true);
+            const audio = new Audio('/wind-effect.mp3');
+            audio.volume = 1.0; // Loudest
+            audio.play().catch(e => {});
+            setTimeout(() => setShowWind(false), 12000); // 12s duration
+            setTimeout(trigger, Math.random() * 45000 + 45000); // Next in 45-90s
+        };
+        const timer = setTimeout(trigger, 10000);
+        return () => clearTimeout(timer);
+    }, []);
+
+    if (!showWind) return null;
+
+    return (
+        <div className="absolute inset-0 pointer-events-none z-30 overflow-hidden flex items-center">
+             <style>
+                 {`
+                  @keyframes windPath {
+                      0% { transform: translateX(-150%) translateY(10%) scale(0.8); opacity: 0; }
+                      10% { opacity: 0.8; }
+                      40% { transform: translateX(20%) translateY(-5%) scale(1); }
+                      60% { transform: translateX(10%) translateY(5%) scale(1.1); }
+                      100% { transform: translateX(-150%) translateY(0) scale(0.8); opacity: 0; }
+                  }
+                 `}
+             </style>
+             <img 
+               src="/cloud-balloon.png" 
+               className="w-2/3 h-auto opacity-90 drop-shadow-2xl object-contain"
+               style={{ animation: 'windPath 12s ease-in-out forwards' }}
+             />
+        </div>
+    );
+};
+
 const AudioPlayer = ({ view }) => {
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef(null);
@@ -586,47 +607,6 @@ const AudioPlayer = ({ view }) => {
       </button>
     </div>
   );
-};
-
-// --- ATMOSPHERIC COMPONENT ---
-const AtmosphereLayer = () => {
-    const [showWind, setShowWind] = useState(false);
-    useEffect(() => {
-        const trigger = () => {
-            setShowWind(true);
-            const audio = new Audio('/wind-effect.mp3');
-            audio.volume = 0.5;
-            audio.play().catch(e => {});
-            setTimeout(() => setShowWind(false), 12000); // 12s duration
-            setTimeout(trigger, Math.random() * 45000 + 45000); // Next in 45-90s
-        };
-        const timer = setTimeout(trigger, 10000);
-        return () => clearTimeout(timer);
-    }, []);
-
-    if (!showWind) return null;
-
-    return (
-        <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
-             {/* Simple CSS animation for balloon */}
-             <style>
-                 {`
-                  @keyframes drift {
-                      0% { transform: translateX(-100px) translateY(0); opacity: 0; }
-                      10% { opacity: 1; }
-                      40% { transform: translateX(30vw) translateY(-20px); }
-                      60% { transform: translateX(25vw) translateY(10px); }
-                      100% { transform: translateX(110vw) translateY(-50px); opacity: 0; }
-                  }
-                 `}
-             </style>
-             <img 
-               src="/cloud-balloon.png" 
-               className="absolute top-1/4 left-0 w-32 h-auto opacity-90 drop-shadow-2xl"
-               style={{ animation: 'drift 12s linear forwards' }}
-             />
-        </div>
-    );
 };
 
 // --- MAIN COMPONENT ---
@@ -701,6 +681,7 @@ const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, v
         maxHeight: isMobile ? 'none' : '90vh',
       }}
     >
+      {view === 'host' && <AtmosphereLayer />} 
       {gameState?.grid.map((row, y) => (
         row.map((cell, x) => (
           <Cell 
@@ -1119,30 +1100,6 @@ export default function App() {
     const newGrid = [...grid];
     newGrid[y][x] = { ...card, owner: player.color, rotation, connectedColors: card.type === 'track' ? [player.color] : [] };
     playSound(card.type === 'track' ? 'place-track' : 'place-landmark');
-
-    // DECORATIONS LOGIC
-    let newDecorations = gameState.decorations || {};
-    // Remove if overwriting
-    if (newDecorations[`${x},${y}`]) {
-        const d = { ...newDecorations };
-        delete d[`${x},${y}`];
-        newDecorations = d;
-    }
-    // Chance to spawn new decor
-    if (Math.random() < 0.3) {
-        // Pick random empty spot
-        let attempts = 0;
-        while(attempts < 10) {
-            const rx = Math.floor(Math.random() * GRID_SIZE);
-            const ry = Math.floor(Math.random() * GRID_SIZE);
-            if (!getCell(newGrid, rx, ry) && !isStart(rx, ry) && !newDecorations[`${rx},${ry}`]) {
-                const randomImg = DECOR_IMAGES[Math.floor(Math.random() * DECOR_IMAGES.length)];
-                newDecorations = { ...newDecorations, [`${rx},${ry}`]: randomImg };
-                break;
-            }
-            attempts++;
-        }
-    }
 
     let pointsGained = 0;
     const completedPassengerIds = [];
