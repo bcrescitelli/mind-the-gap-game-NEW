@@ -234,6 +234,7 @@ const generatePassengers = (allLandmarks) => {
   let idCounter = 1;
   const findL = (name) => allLandmarks.find(l => l.name === name);
 
+  // TIER 1
   const tier1 = [
     { name: "The Foodie", req: 'category', target: 'gastronomy', pts: 1, desc: "I'd like to visit any Gastronomy spot." },
     { name: "The Tourist", req: 'category', target: 'heritage', pts: 1, desc: "I'd like to visit any Heritage spot." },
@@ -242,6 +243,7 @@ const generatePassengers = (allLandmarks) => {
     { name: "The Adrenaline Junkie", req: 'category', target: 'thrilling', pts: 1, desc: "I'd like to visit any Thrilling spot." },
     { name: "The Medium", req: 'category', target: 'spiritual', pts: 2, desc: "I'd like to visit any Spiritual spot." } 
   ];
+  // TIER 2
   const tier2 = [
       { name: "The Sweet Tooth", req: 'list', targets: ["Ice Cream Shop", "Candy Store", "Bakery"], pts: 2 },
       { name: "The Scholar", req: 'list', targets: ["University", "Library", "Museum"], pts: 2 },
@@ -252,6 +254,7 @@ const generatePassengers = (allLandmarks) => {
       { name: "The Artist", req: 'list', targets: ["Opera House", "Theatre", "Tattoo Parlor"], pts: 2 },
       { name: "The Errand Runner", req: 'list', targets: ["Bank", "Post Office", "Tailors"], pts: 2 }
   ];
+  // TIER 3
   const tier3 = [
       { name: "The Pilot", target: "Airport", pts: 3 },
       { name: "The Astronomer", target: "Observatory", pts: 3 },
@@ -262,6 +265,7 @@ const generatePassengers = (allLandmarks) => {
       { name: "The Widow", target: "Cemetery", pts: 3 },
       { name: "The Gambler", target: "Casino", pts: 3 }
   ];
+  // TIER 4
   const tier4 = [
       { name: "The Date Night", targets: ["Cafe", "Cinema"], pts: 5 },
       { name: "The Ghost Tour", type: 'ghost', target1: "Haunted House", cat2: "heritage", pts: 4, desc: "I need to visit Haunted House and any Heritage spot." },
@@ -1152,10 +1156,11 @@ export default function App() {
     }
 
     const claimedPassengerNames = [];
-    // --- UPDATED CLAIM TRACKING FOR SURGE ---
     const claimedLandmarkIds = [];
 
     const checkPassenger = (p) => {
+      // FORCE REFRESH connection for current user before checking
+      // (This is redundant but ensures safety)
       if (p.unlockTurn && gameState.totalTurns < p.unlockTurn) return false;
       if (completedPassengerIds.includes(p.id)) return false;
       let match = false;
@@ -1165,11 +1170,23 @@ export default function App() {
       if (p.reqType === 'specific' && playerConnectedLandmarks.has(p.targetId)) { match = true; currentClaimed.push(p.targetId); }
       else if (p.reqType === 'category') { const matches = myLandmarks.filter(l => l.category === p.targetCategory); if (matches.length > 0) { match = true; matches.forEach(m => currentClaimed.push(m.id)); } }
       else if (p.reqType === 'list') { const matches = p.targets.filter(tid => playerConnectedLandmarks.has(tid)); if (matches.length > 0) { match = true; currentClaimed.push(...matches); } } 
-      else if (p.reqType === 'combo') { if(playerConnectedLandmarks.has(p.targets[0]) && playerConnectedLandmarks.has(p.targets[1])) { match = true; currentClaimed.push(p.targets[0], p.targets[1]); } }
+      // LOGIC FIX: Combo AND check
+      else if (p.reqType === 'combo') { 
+         // Must match index 0 AND index 1
+         if(playerConnectedLandmarks.has(p.targets[0]) && playerConnectedLandmarks.has(p.targets[1])) { 
+             match = true; 
+             currentClaimed.push(p.targets[0], p.targets[1]); 
+         } 
+      }
       else if (p.reqType === 'combo_cat') { 
           const hasT1 = playerConnectedLandmarks.has(p.targetId);
           const cat2Matches = myLandmarks.filter(l => l.category === p.cat2);
-          if(hasT1 && cat2Matches.length > 0) { match = true; currentClaimed.push(p.targetId); cat2Matches.forEach(m => currentClaimed.push(m.id)); }
+          // Must match specific target AND at least one category match
+          if(hasT1 && cat2Matches.length > 0) { 
+              match = true; 
+              currentClaimed.push(p.targetId); 
+              cat2Matches.forEach(m => currentClaimed.push(m.id)); 
+          }
       }
 
       if (match) { pointsGained += p.points; completedPassengerIds.push(p.id); claimedPassengerNames.push(p.name); claimedLandmarkIds.push(...currentClaimed); return true; }
@@ -1316,7 +1333,6 @@ export default function App() {
              <div className="text-xs text-gray-400 uppercase tracking-widest">Room Code</div>
              <div className="text-4xl font-black tracking-widest text-white font-cal-sans">{activeRoomId}</div>
           </div>
-
           <div className="bg-gray-900 p-4 rounded-xl shadow-lg border border-gray-800 flex-shrink-0">
             <h3 className="text-lg font-bold text-gray-400 mb-3 flex items-center gap-2 uppercase tracking-wide font-cal-sans"><Trophy size={18}/> Standings</h3>
             <div className="space-y-3">
@@ -1331,7 +1347,6 @@ export default function App() {
               ))}
             </div>
           </div>
-
           <div className="flex-1 flex flex-col gap-2 overflow-auto">
             <h3 className="text-lg font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wide font-cal-sans"><Users size={18}/> Passengers</h3>
             <div className="space-y-3">
@@ -1352,9 +1367,38 @@ export default function App() {
                             {gameState.players.map(pl => {
                                  const connectedLMs = new Set();
                                  gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) connectedLMs.add(c.id); }));
-                                 let met = false;
-                                 if(pass.reqType === 'specific' && connectedLMs.has(pass.targetId)) met = true;
-                                 return <div key={pl.id} className={`w-2 h-2 rounded-full bg-${pl.color}-500 ${met ? 'opacity-100 ring-1 ring-black' : 'opacity-20'}`}></div>
+                                 
+                                 // PROGRESS DOT LOGIC
+                                 let opacity = 'opacity-20';
+                                 let ring = '';
+                                 
+                                 // Check Partial Progress
+                                 if (pass.reqType === 'combo' || pass.reqType === 'combo_cat') {
+                                     // AND LOGIC: 0 (dim), 1 (50%), 2 (100%)
+                                     let count = 0;
+                                     if(pass.reqType === 'combo') {
+                                         if(connectedLMs.has(pass.targets[0])) count++;
+                                         if(connectedLMs.has(pass.targets[1])) count++;
+                                     } else {
+                                         if(connectedLMs.has(pass.targetId)) count++;
+                                         const myLandmarks = []; gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && connectedLMs.has(c.id)) myLandmarks.push(c); }));
+                                         if(myLandmarks.some(l => l.category === pass.cat2)) count++;
+                                     }
+                                     if (count === 1) opacity = 'opacity-50';
+                                     if (count === 2) { opacity = 'opacity-100'; ring = 'ring-1 ring-black'; }
+                                 } else {
+                                     // OR/Specific LOGIC: 0 (dim), 1 (100%)
+                                     let met = false;
+                                     const myLandmarks = []; gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && connectedLMs.has(c.id)) myLandmarks.push(c); }));
+                                     
+                                     if(pass.reqType === 'specific' && connectedLMs.has(pass.targetId)) met = true;
+                                     if(pass.reqType === 'category' && myLandmarks.some(l => l.category === pass.targetCategory)) met = true;
+                                     if(pass.reqType === 'list' && pass.targets.some(t => connectedLMs.has(t))) met = true;
+                                     
+                                     if (met) { opacity = 'opacity-100'; ring = 'ring-1 ring-black'; }
+                                 }
+
+                                 return <div key={pl.id} className={`w-2 h-2 rounded-full bg-${pl.color}-500 ${opacity} ${ring}`}></div>
                             })}
                         </div>
                      </div>
@@ -1365,7 +1409,6 @@ export default function App() {
             </div>
           </div>
         </div>
-
         <div className="flex-1 flex items-center justify-center rounded-xl overflow-hidden relative shadow-2xl backdrop-blur-sm">
            <div className="absolute inset-4 flex items-center justify-center"><Board interactive={false} isMobile={false} lastEvent={gameState.lastEvent} gameState={gameState} handlePlaceCard={handlePlaceCard} view={view} /></div>
         </div>
