@@ -334,19 +334,43 @@ const TrackSvg = ({ shape, rotation, color, animate }) => {
   return (
     <div className="w-full h-full" style={{ transform: `rotate(${rotation}deg)` }}>
       <svg viewBox="0 0 100 100" className="w-full h-full" shapeRendering="geometricPrecision">
-        {shape === 'straight' && <path id={pathId} d="M 50 0 L 50 100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" fill="none" />}
-        {shape === 'curved' && <path id={pathId} d="M 50 100 Q 50 50 100 50" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" fill="none" />}
+        {/* SURGE EFFECT STYLES */}
+        <defs>
+            <style>
+                {`
+                 .surge-anim { animation: surge 2s ease-out infinite; }
+                 @keyframes surge {
+                     0% { stroke-opacity: 0.2; stroke-width: 30; filter: brightness(1); }
+                     50% { stroke-opacity: 1; stroke-width: 35; filter: brightness(2) drop-shadow(0 0 4px white); }
+                     100% { stroke-opacity: 0.2; stroke-width: 30; filter: brightness(1); }
+                 }
+                `}
+            </style>
+        </defs>
+
+        {shape === 'straight' && (
+            <>
+                <path id={pathId} d="M 50 0 L 50 100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" fill="none" />
+                {animate && <path d="M 50 0 L 50 100" stroke="white" strokeWidth="30" className="surge-anim" fill="none" />}
+            </>
+        )}
+        {shape === 'curved' && (
+            <>
+                <path id={pathId} d="M 50 100 Q 50 50 100 50" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" fill="none" />
+                {animate && <path d="M 50 100 Q 50 50 100 50" stroke="white" strokeWidth="30" className="surge-anim" fill="none" />}
+            </>
+        )}
         {shape === 't-shape' && (
           <>
             <path d="M 0 50 L 100 50" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
             <path d="M 50 50 L 50 100" stroke={strokeColor} strokeWidth="30" strokeLinecap="butt" />
+            {animate && (
+                <>
+                    <path d="M 0 50 L 100 50" stroke="white" strokeWidth="30" className="surge-anim" />
+                    <path d="M 50 50 L 50 100" stroke="white" strokeWidth="30" className="surge-anim" />
+                </>
+            )}
           </>
-        )}
-        
-        {(animate || color !== 'gray') && (
-          <circle r="6" fill="white" opacity="0.8">
-            <animateMotion dur="3s" repeatCount="indefinite" path={d} />
-          </circle>
         )}
       </svg>
     </div>
@@ -523,14 +547,17 @@ const playSound = (type) => {
 // --- ATMOSPHERIC COMPONENT ---
 const AtmosphereLayer = () => {
     const [showWind, setShowWind] = useState(false);
+    const [windY, setWindY] = useState(20);
+
     useEffect(() => {
         const trigger = () => {
+            setWindY(Math.random() * 60 + 10); // Random Y 10-70%
             setShowWind(true);
             const audio = new Audio('/wind-effect.mp3');
-            audio.volume = 1.0; // Loudest
+            audio.volume = 1.0; 
             audio.play().catch(e => {});
-            setTimeout(() => setShowWind(false), 12000); // 12s duration
-            setTimeout(trigger, Math.random() * 45000 + 45000); // Next in 45-90s
+            setTimeout(() => setShowWind(false), 12000); 
+            setTimeout(trigger, Math.random() * 45000 + 45000); 
         };
         const timer = setTimeout(trigger, 10000);
         return () => clearTimeout(timer);
@@ -543,18 +570,18 @@ const AtmosphereLayer = () => {
              <style>
                  {`
                   @keyframes windPath {
-                      0% { transform: translateX(-150%) translateY(10%) scale(0.8); opacity: 0; }
-                      10% { opacity: 0.8; }
-                      40% { transform: translateX(20%) translateY(-5%) scale(1); }
-                      60% { transform: translateX(10%) translateY(5%) scale(1.1); }
+                      0% { transform: translateX(-150%) translateY(0) scale(0.8); opacity: 0; }
+                      10% { opacity: 1; }
+                      40% { transform: translateX(20%) translateY(-20px) scale(1); }
+                      60% { transform: translateX(10%) translateY(20px) scale(1.1); }
                       100% { transform: translateX(-150%) translateY(0) scale(0.8); opacity: 0; }
                   }
                  `}
              </style>
              <img 
                src="/cloud-balloon.png" 
-               className="w-2/3 h-auto opacity-90 drop-shadow-2xl object-contain"
-               style={{ animation: 'windPath 12s ease-in-out forwards' }}
+               className="w-2/3 h-auto opacity-100 drop-shadow-2xl object-contain"
+               style={{ position: 'absolute', top: `${windY}%`, left: 0, animation: 'windPath 12s ease-in-out forwards' }}
              />
         </div>
     );
@@ -729,7 +756,7 @@ export default function App() {
     const style = document.createElement('style');
     style.innerHTML = `
       .font-questrial { font-family: 'Questrial', sans-serif; }
-      .font-cal-sans { font-family: 'Outfit', sans-serif; } /* Aliased to Outfit for reliability */
+      .font-cal-sans { font-family: 'Outfit', sans-serif; }
     `;
     document.head.appendChild(style);
   }, []);
@@ -740,7 +767,7 @@ export default function App() {
             await signInAnonymously(auth); 
         } catch (err) { 
             console.error("Auth error:", err);
-            // Fail silently in UI, user might still be able to play if session exists
+            // Fail silently in UI
         } 
     };
     initAuth();
@@ -1043,7 +1070,7 @@ export default function App() {
         const cell = getCell(gameState.grid, x, y);
         if (!cell || cell.type !== 'landmark') { alert("Select a Landmark to replace."); return; }
         
-        const newGrid = [...gameState.grid];
+        const newGrid = JSON.parse(JSON.stringify(gameState.grid)); // Deep copy
         const newLandmark = gameState.players[playerIdx].hand.landmarks[0];
         if (!newLandmark) { alert("You need a landmark in hand to replace!"); return; }
         
@@ -1097,9 +1124,30 @@ export default function App() {
       card.connections = {}; 
     }
 
-    const newGrid = [...grid];
+    const newGrid = JSON.parse(JSON.stringify(grid)); // Deep copy grid to ensure re-render
     newGrid[y][x] = { ...card, owner: player.color, rotation, connectedColors: card.type === 'track' ? [player.color] : [] };
     playSound(card.type === 'track' ? 'place-track' : 'place-landmark');
+
+    // DECORATIONS LOGIC
+    let newDecorations = gameState.decorations || {};
+    if (newDecorations[`${x},${y}`]) {
+        const d = { ...newDecorations };
+        delete d[`${x},${y}`];
+        newDecorations = d;
+    }
+    if (Math.random() < 0.3) {
+        let attempts = 0;
+        while(attempts < 10) {
+            const rx = Math.floor(Math.random() * GRID_SIZE);
+            const ry = Math.floor(Math.random() * GRID_SIZE);
+            if (!getCell(newGrid, rx, ry) && !isStart(rx, ry) && !newDecorations[`${rx},${ry}`]) {
+                const randomImg = DECOR_IMAGES[Math.floor(Math.random() * DECOR_IMAGES.length)];
+                newDecorations = { ...newDecorations, [`${rx},${ry}`]: randomImg };
+                break;
+            }
+            attempts++;
+        }
+    }
 
     let pointsGained = 0;
     const completedPassengerIds = [];
