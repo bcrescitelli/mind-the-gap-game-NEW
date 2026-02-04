@@ -234,7 +234,6 @@ const generatePassengers = (allLandmarks) => {
   let idCounter = 1;
   const findL = (name) => allLandmarks.find(l => l.name === name);
 
-  // TIER 1
   const tier1 = [
     { name: "The Foodie", req: 'category', target: 'gastronomy', pts: 1, desc: "I'd like to visit any Gastronomy spot." },
     { name: "The Tourist", req: 'category', target: 'heritage', pts: 1, desc: "I'd like to visit any Heritage spot." },
@@ -243,7 +242,6 @@ const generatePassengers = (allLandmarks) => {
     { name: "The Adrenaline Junkie", req: 'category', target: 'thrilling', pts: 1, desc: "I'd like to visit any Thrilling spot." },
     { name: "The Medium", req: 'category', target: 'spiritual', pts: 2, desc: "I'd like to visit any Spiritual spot." } 
   ];
-  // TIER 2
   const tier2 = [
       { name: "The Sweet Tooth", req: 'list', targets: ["Ice Cream Shop", "Candy Store", "Bakery"], pts: 2 },
       { name: "The Scholar", req: 'list', targets: ["University", "Library", "Museum"], pts: 2 },
@@ -254,7 +252,6 @@ const generatePassengers = (allLandmarks) => {
       { name: "The Artist", req: 'list', targets: ["Opera House", "Theatre", "Tattoo Parlor"], pts: 2 },
       { name: "The Errand Runner", req: 'list', targets: ["Bank", "Post Office", "Tailors"], pts: 2 }
   ];
-  // TIER 3
   const tier3 = [
       { name: "The Pilot", target: "Airport", pts: 3 },
       { name: "The Astronomer", target: "Observatory", pts: 3 },
@@ -265,7 +262,6 @@ const generatePassengers = (allLandmarks) => {
       { name: "The Widow", target: "Cemetery", pts: 3 },
       { name: "The Gambler", target: "Casino", pts: 3 }
   ];
-  // TIER 4
   const tier4 = [
       { name: "The Date Night", targets: ["Cafe", "Cinema"], pts: 5 },
       { name: "The Ghost Tour", type: 'ghost', target1: "Haunted House", cat2: "heritage", pts: 4, desc: "I need to visit Haunted House and any Heritage spot." },
@@ -575,7 +571,6 @@ const playSound = (type) => {
 const AudioPlayer = ({ view }) => {
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef(null);
-  const ambientRef = useRef(null);
 
   useEffect(() => {
     if (view === 'host' && audioRef.current) {
@@ -717,7 +712,7 @@ export default function App() {
 
   useEffect(() => {
     const link = document.createElement('link');
-    link.href = "https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Questrial&display=swap";
+    link.href = "https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Nabla&family=Questrial&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
     const style = document.createElement('style');
@@ -734,7 +729,7 @@ export default function App() {
             await signInAnonymously(auth); 
         } catch (err) { 
             console.error("Auth error:", err);
-            // Removed authError state setting to suppress UI blocking
+            // Fail silently in UI
         } 
     };
     initAuth();
@@ -1104,7 +1099,7 @@ export default function App() {
         delete d[`${x},${y}`];
         newDecorations = d;
     }
-    if (Math.random() < 0.6) {
+    if (Math.random() < 0.45) {
         let attempts = 0;
         while(attempts < 20) {
             const rx = Math.floor(Math.random() * GRID_SIZE);
@@ -1157,6 +1152,7 @@ export default function App() {
     }
 
     const claimedPassengerNames = [];
+    // --- UPDATED CLAIM TRACKING FOR SURGE ---
     const claimedLandmarkIds = [];
 
     const checkPassenger = (p) => {
@@ -1320,6 +1316,7 @@ export default function App() {
              <div className="text-xs text-gray-400 uppercase tracking-widest">Room Code</div>
              <div className="text-4xl font-black tracking-widest text-white font-cal-sans">{activeRoomId}</div>
           </div>
+
           <div className="bg-gray-900 p-4 rounded-xl shadow-lg border border-gray-800 flex-shrink-0">
             <h3 className="text-lg font-bold text-gray-400 mb-3 flex items-center gap-2 uppercase tracking-wide font-cal-sans"><Trophy size={18}/> Standings</h3>
             <div className="space-y-3">
@@ -1334,37 +1331,41 @@ export default function App() {
               ))}
             </div>
           </div>
+
           <div className="flex-1 flex flex-col gap-2 overflow-auto">
             <h3 className="text-lg font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wide font-cal-sans"><Users size={18}/> Passengers</h3>
             <div className="space-y-3">
               {gameState.activePassengers.map(pass => (
                 <div key={pass.id} className={`bg-white text-gray-900 p-4 rounded-xl shadow-xl flex flex-col gap-1 border-4 border-gray-200 relative overflow-hidden transform transition-all duration-300 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 scale-95 grayscale' : 'hover:scale-105'}`}>
                   {gameState.totalTurns < pass.unlockTurn && <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10"><span className="bg-red-600 text-white px-3 py-1 font-bold rounded uppercase text-xs font-cal-sans">Arriving Soon</span></div>}
-                  <div className="absolute top-0 right-0 p-2 opacity-10 pointer-events-none">
-                    <img src={`/${pass.img}`} className="w-16 h-16 object-contain drop-shadow-md" alt="char" />
-                  </div>
-                  <div className="flex justify-between items-center border-b border-gray-200 pb-2 mb-1">
-                    <span className="font-black text-2xl text-red-600 font-cal-sans">{pass.points}</span>
-                    <div className="flex gap-1">
-                        {gameState.players.map(pl => {
-                             const connectedLMs = new Set();
-                             gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) connectedLMs.add(c.id); }));
-                             let met = false;
-                             if(pass.reqType === 'specific' && connectedLMs.has(pass.targetId)) met = true;
-                             return <div key={pl.id} className={`w-2 h-2 rounded-full bg-${pl.color}-500 ${met ? 'opacity-100 ring-1 ring-black' : 'opacity-20'}`}></div>
-                        })}
+                  <div className="bg-sky-300 h-32 relative p-2 flex items-end rounded-t-lg">
+                    <img src={`/${pass.img}`} className="w-16 h-16 object-contain z-10" alt="char" />
+                    <div className="absolute top-2 left-16 right-2 bg-white border-2 border-black p-2 rounded-lg shadow-[4px_4px_0_0_rgba(0,0,0,1)] z-20">
+                      <p className="text-[10px] font-bold font-questrial leading-tight">"{pass.desc}"</p>
+                      <div className="absolute -left-2 bottom-2 w-0 h-0 border-t-[8px] border-t-transparent border-r-[10px] border-r-black border-b-[4px] border-b-transparent"></div>
                     </div>
                   </div>
-                  <div><p className="text-lg font-bold leading-tight font-cal-sans">{pass.name}</p></div>
-                  <div className="relative mt-2 p-2 bg-gray-100 rounded-lg border-2 border-gray-300">
-                      <div className="absolute -top-2 left-4 w-3 h-3 bg-gray-100 border-l-2 border-t-2 border-gray-300 transform rotate-45"></div>
-                      <p className="text-sm text-gray-800 italic leading-snug font-questrial">"{pass.desc}"</p>
+                  <div className="p-3 flex justify-between items-center bg-white rounded-b-lg">
+                     <div className="flex flex-col">
+                        <span className="font-black text-lg font-cal-sans">{pass.name}</span>
+                        <div className="flex gap-1 mt-1">
+                            {gameState.players.map(pl => {
+                                 const connectedLMs = new Set();
+                                 gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) connectedLMs.add(c.id); }));
+                                 let met = false;
+                                 if(pass.reqType === 'specific' && connectedLMs.has(pass.targetId)) met = true;
+                                 return <div key={pl.id} className={`w-2 h-2 rounded-full bg-${pl.color}-500 ${met ? 'opacity-100 ring-1 ring-black' : 'opacity-20'}`}></div>
+                            })}
+                        </div>
+                     </div>
+                     <span className="font-black text-xl font-cal-sans text-red-600">{pass.points} Pts</span>
                   </div>
                 </div>
               ))}
             </div>
           </div>
         </div>
+
         <div className="flex-1 flex items-center justify-center rounded-xl overflow-hidden relative shadow-2xl backdrop-blur-sm">
            <div className="absolute inset-4 flex items-center justify-center"><Board interactive={false} isMobile={false} lastEvent={gameState.lastEvent} gameState={gameState} handlePlaceCard={handlePlaceCard} view={view} /></div>
         </div>
