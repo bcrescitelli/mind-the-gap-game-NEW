@@ -525,6 +525,24 @@ const WinnerModal = ({ winner, onRestart, onExit }) => {
   );
 };
 
+const RulesModal = ({ onClose }) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
+    <div className="bg-white text-gray-900 p-6 rounded-2xl shadow-2xl max-w-sm w-full border-4 border-blue-600">
+      <h2 className="text-3xl font-black font-cal-sans text-center mb-4 text-blue-600 uppercase tracking-wide">How to Play</h2>
+      <ul className="space-y-3 font-questrial text-lg font-bold">
+        <li className="flex items-start gap-2"><span className="text-blue-500">1.</span> <span>Connect tracks from City Hall to Landmarks.</span></li>
+        <li className="flex items-start gap-2"><span className="text-blue-500">2.</span> <span>Pick up Passengers by connecting to their destinations.</span></li>
+        <li className="flex items-start gap-2"><span className="text-blue-500">3.</span> <span>Landmarks need breathing room (3 tracks apart).</span></li>
+        <li className="flex items-start gap-2"><span className="text-blue-500">4.</span> <span>Max 2 connections per Landmark (In & Out).</span></li>
+        <li className="flex items-start gap-2"><span className="text-blue-500">5.</span> <span>Bonus +2 Points for the Longest Network (10+ connections).</span></li>
+      </ul>
+      <button onClick={onClose} className="mt-8 w-full py-4 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xl rounded-xl shadow-lg transform transition-transform active:scale-95 border-2 border-black uppercase font-cal-sans">
+        Let's Ride!
+      </button>
+    </div>
+  </div>
+);
+
 const NotificationOverlay = ({ event }) => {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
@@ -534,24 +552,47 @@ const NotificationOverlay = ({ event }) => {
       return () => clearTimeout(timer);
     }
   }, [event]);
-  if (!visible || !event || event.type !== 'claim-passenger') return null;
+  if (!visible || !event) return null;
+  
+  if (event.type === 'claim-passenger') {
+      return (
+        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-10 fade-in duration-500 w-full max-w-2xl px-4 pointer-events-none">
+          <div className="bg-white text-gray-900 px-8 py-6 rounded-2xl shadow-[0_0_50px_rgba(255,255,0,0.5)] border-4 border-yellow-400 flex flex-col items-center gap-2 w-full">
+            <div className="flex items-center gap-2 text-yellow-600 font-black uppercase tracking-widest text-sm animate-pulse font-cal-sans">
+              <Star size={24} className="fill-current" /> Passenger Claimed! <Star size={24} className="fill-current" />
+            </div>
+            <div className="text-center w-full font-cal-sans">
+              <span className={`text-${event.playerColor}-600 font-black text-4xl drop-shadow-sm`}>{event.playerName}</span>
+              <span className="text-gray-500 font-bold text-xl mx-2 block md:inline">picked up</span>
+            </div>
+            <div className="text-3xl font-black font-cal-sans text-center leading-tight mt-2 text-gray-800">
+              {event.passengerNames.join(" & ")}
+            </div>
+          </div>
+        </div>
+      );
+  }
 
-  return (
-    <div className="fixed top-10 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-10 fade-in duration-500 w-full max-w-2xl px-4 pointer-events-none">
-      <div className="bg-white text-gray-900 px-8 py-6 rounded-2xl shadow-[0_0_50px_rgba(255,255,0,0.5)] border-4 border-yellow-400 flex flex-col items-center gap-2 w-full">
-        <div className="flex items-center gap-2 text-yellow-600 font-black uppercase tracking-widest text-sm animate-pulse font-cal-sans">
-          <Star size={24} className="fill-current" /> Passenger Claimed! <Star size={24} className="fill-current" />
+  if (event.type === 'most-connected') {
+      return (
+        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-10 fade-in duration-500 w-full max-w-2xl px-4 pointer-events-none">
+          <div className="bg-white text-gray-900 px-8 py-6 rounded-2xl shadow-[0_0_50px_rgba(0,0,255,0.5)] border-4 border-blue-500 flex flex-col items-center gap-2 w-full">
+             <div className="flex items-center gap-2 text-blue-600 font-black uppercase tracking-widest text-sm animate-pulse font-cal-sans">
+               <LinkIcon size={24} /> Most Connected!
+             </div>
+             <div className="text-center w-full font-cal-sans">
+               <span className={`text-${event.playerColor}-600 font-black text-4xl drop-shadow-sm`}>{event.playerName}</span>
+               <span className="text-gray-500 font-bold text-xl mx-2 block md:inline">takes the lead!</span>
+             </div>
+             <div className="text-3xl font-black font-cal-sans text-center leading-tight mt-2 text-gray-800">
+               {event.count} Connections (+2 PTS)
+             </div>
+          </div>
         </div>
-        <div className="text-center w-full font-cal-sans">
-          <span className={`text-${event.playerColor}-600 font-black text-4xl drop-shadow-sm`}>{event.playerName}</span>
-          <span className="text-gray-500 font-bold text-xl mx-2 block md:inline">picked up</span>
-        </div>
-        <div className="text-3xl font-black font-cal-sans text-center leading-tight mt-2 text-gray-800">
-          {event.passengerNames.join(" & ")}
-        </div>
-      </div>
-    </div>
-  );
+      );
+  }
+
+  return null;
 };
 
 const playSound = (type) => {
@@ -561,7 +602,8 @@ const playSound = (type) => {
     'claim-passenger': 'claim-passenger.m4a',
     'win-game': 'win-game.mp3',
     'select-track': 'select-track.m4a',
-    'rotate-track': 'rotate-track.m4a'
+    'rotate-track': 'rotate-track.m4a',
+    'success': 'claim-passenger.m4a' // Bonus sound reuse
   };
   
   const file = soundFileMap[type];
@@ -575,11 +617,27 @@ const playSound = (type) => {
 const AudioPlayer = ({ view }) => {
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef(null);
+  const ambientRef = useRef(null);
 
   useEffect(() => {
     if (view === 'host' && audioRef.current) {
       audioRef.current.volume = 0.1; // Reduced background music volume
       audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+      
+      // Ambient Sound Loop (Continuous)
+      if (ambientRef.current) {
+          ambientRef.current.volume = 0.3; // Start low
+          ambientRef.current.play().catch(e => console.log("Ambient fail", e));
+          
+          // Random volume fluctuation
+          const fluctuate = () => {
+             if(ambientRef.current) {
+                 ambientRef.current.volume = Math.random() * 0.4 + 0.1; 
+                 setTimeout(fluctuate, Math.random() * 10000 + 5000);
+             }
+          };
+          fluctuate();
+      }
     }
   }, [view]);
 
@@ -588,11 +646,14 @@ const AudioPlayer = ({ view }) => {
   return (
     <div className="fixed bottom-4 right-4 z-50">
       <audio ref={audioRef} loop src="/mind-the-gap-theme.mp3" />
+      <audio ref={ambientRef} loop src="/city-ambience.mp3" />
       <button onClick={() => {
         if(playing) {
             audioRef.current.pause();
+            ambientRef.current.pause();
         } else {
             audioRef.current.play();
+            ambientRef.current.play();
         }
         setPlaying(!playing);
       }} className="p-2 bg-gray-800 text-white rounded-full shadow-lg border border-gray-600 hover:bg-gray-700 transition-colors">
@@ -713,6 +774,7 @@ export default function App() {
   const lastPinchDist = useRef(null);
   const lastPlayedEventTime = useRef(Date.now());
   const [availableColors, setAvailableColors] = useState(COLORS);
+  const [showRules, setShowRules] = useState(false);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -733,14 +795,12 @@ export default function App() {
             await signInAnonymously(auth); 
         } catch (err) { 
             console.error("Auth error:", err);
-            // Fail silently in UI
         } 
     };
     initAuth();
     const sub = onAuthStateChanged(auth, (u) => {
         if (u) {
             setUser(u);
-            setAuthError(null); 
         } else {
             setUser(null);
         }
@@ -752,6 +812,18 @@ export default function App() {
     const savedRoom = sessionStorage.getItem('mind_the_gap_room');
     if (savedRoom && !activeRoomId) setActiveRoomId(savedRoom);
   }, []);
+
+  // Show Rules for first time players
+  useEffect(() => {
+      if (view === 'player' && !sessionStorage.getItem('rules_viewed')) {
+          setShowRules(true);
+      }
+  }, [view]);
+
+  const closeRules = () => {
+      setShowRules(false);
+      sessionStorage.setItem('rules_viewed', 'true');
+  };
   
   useEffect(() => {
     if (entryCode.length === 5) {
@@ -776,7 +848,6 @@ export default function App() {
         
         const isHost = data.hostId === user.uid;
         if (isHost) {
-            // FIX: If game is playing, go to host view. If lobby, go to lobby view.
             if (data.status === 'playing') setView('host'); 
             else setView('lobby');
         }
@@ -1103,7 +1174,7 @@ export default function App() {
         delete d[`${x},${y}`];
         newDecorations = d;
     }
-    if (Math.random() < 0.45) {
+    if (Math.random() < 0.4) {
         let attempts = 0;
         while(attempts < 20) {
             const rx = Math.floor(Math.random() * GRID_SIZE);
@@ -1140,7 +1211,7 @@ export default function App() {
         }
       });
     }
-    refreshConnections();
+    refreshConnections(); // Ensure fresh state before checking
 
     let currentMostConnected = gameState.mostConnected; 
     let bonusEvent = null;
@@ -1156,6 +1227,7 @@ export default function App() {
     }
 
     const claimedPassengerNames = [];
+    // --- UPDATED CLAIM TRACKING FOR SURGE ---
     const claimedLandmarkIds = [];
 
     const checkPassenger = (p) => {
@@ -1353,11 +1425,10 @@ export default function App() {
               {gameState.activePassengers.map(pass => (
                 <div key={pass.id} className={`bg-white text-gray-900 p-4 rounded-xl shadow-xl flex flex-col gap-1 border-4 border-gray-200 relative overflow-hidden transform transition-all duration-300 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 scale-95 grayscale' : 'hover:scale-105'}`}>
                   {gameState.totalTurns < pass.unlockTurn && <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10"><span className="bg-red-600 text-white px-3 py-1 font-bold rounded uppercase text-xs font-cal-sans">Arriving Soon</span></div>}
-                  <div className="bg-sky-300 h-32 relative p-2 flex items-end rounded-t-lg">
-                    <img src={`/${pass.img}`} className="w-16 h-16 object-contain z-10" alt="char" />
-                    <div className="absolute top-2 left-16 right-2 bg-white border-2 border-black p-2 rounded-lg shadow-[4px_4px_0_0_rgba(0,0,0,1)] z-20">
-                      <p className="text-[10px] font-bold font-questrial leading-tight">"{pass.desc}"</p>
-                      <div className="absolute -left-2 bottom-2 w-0 h-0 border-t-[8px] border-t-transparent border-r-[10px] border-r-black border-b-[4px] border-b-transparent"></div>
+                  <div className="bg-sky-300 h-32 relative p-2 flex items-end rounded-t-lg overflow-visible">
+                    <img src={`/${pass.img}`} className="w-20 h-20 object-contain z-10 -ml-2" alt="char" />
+                    <div className="absolute top-2 left-16 right-2 bottom-auto bg-white border-4 border-black p-3 rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)] z-20 flex items-center justify-center min-h-[60px]">
+                      <p className="text-sm font-bold font-questrial leading-tight text-center">"{pass.desc}"</p>
                     </div>
                   </div>
                   <div className="p-3 flex justify-between items-center bg-white rounded-b-lg">
@@ -1430,6 +1501,7 @@ export default function App() {
       <div className="h-[100dvh] bg-gray-950 text-white flex flex-col overflow-hidden font-questrial">
         <AudioPlayer view="player" />
         <NotificationOverlay event={gameState.lastEvent} />
+        {showRules && <RulesModal onClose={closeRules} />}
         {/* Signal Failure Modal */}
         {interactionMode === 'signal_failure' && (
              <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
