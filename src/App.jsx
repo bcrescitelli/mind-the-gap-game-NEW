@@ -42,6 +42,12 @@ const DECOR_IMAGES = [
   'decor-4.png', 'decor-5.png', 'decor-6.png'
 ];
 
+// Passenger Character Assets
+const PASSENGER_IMAGES = [
+  'passenger1.png', 'passenger2.png', 'passenger3.png',
+  'passenger4.png', 'passenger5.png', 'passenger6.png'
+];
+
 // Categories
 const CATEGORIES = {
   GASTRONOMY: { id: 'gastronomy', label: 'Gastronomy', icon: <Coffee size={16} />, color: 'text-amber-600' },
@@ -93,6 +99,10 @@ const getPersonaForCategory = (catId) => {
   const list = PERSONAS_BY_CAT[catId];
   if (!list) return "The Passenger";
   return list[Math.floor(Math.random() * list.length)];
+};
+
+const getRandomPassengerImage = () => {
+  return PASSENGER_IMAGES[Math.floor(Math.random() * PASSENGER_IMAGES.length)];
 };
 
 const getCell = (grid, x, y) => {
@@ -226,12 +236,12 @@ const generatePassengers = (allLandmarks) => {
 
   // TIER 1
   const tier1 = [
-    { name: "The Foodie", req: 'category', target: 'gastronomy', pts: 1, desc: "Any Gastronomy" },
-    { name: "The Tourist", req: 'category', target: 'heritage', pts: 1, desc: "Any Heritage" },
-    { name: "The Outdoorsman", req: 'category', target: 'nature', pts: 1, desc: "Any Nature" },
-    { name: "The Local", req: 'category', target: 'services', pts: 1, desc: "Any Services" },
-    { name: "The Adrenaline Junkie", req: 'category', target: 'thrilling', pts: 1, desc: "Any Thrilling" },
-    { name: "The Medium", req: 'category', target: 'spiritual', pts: 2, desc: "Any Spiritual" } 
+    { name: "The Foodie", req: 'category', target: 'gastronomy', pts: 1, desc: "I'd like to visit any Gastronomy spot." },
+    { name: "The Tourist", req: 'category', target: 'heritage', pts: 1, desc: "I'd like to visit any Heritage spot." },
+    { name: "The Outdoorsman", req: 'category', target: 'nature', pts: 1, desc: "I'd like to visit any Nature spot." },
+    { name: "The Local", req: 'category', target: 'services', pts: 1, desc: "I'd like to visit any Services spot." },
+    { name: "The Adrenaline Junkie", req: 'category', target: 'thrilling', pts: 1, desc: "I'd like to visit any Thrilling spot." },
+    { name: "The Medium", req: 'category', target: 'spiritual', pts: 2, desc: "I'd like to visit any Spiritual spot." } 
   ];
   // TIER 2
   const tier2 = [
@@ -258,35 +268,53 @@ const generatePassengers = (allLandmarks) => {
   // TIER 4
   const tier4 = [
       { name: "The Date Night", targets: ["Cafe", "Cinema"], pts: 5 },
-      { name: "The Ghost Tour", type: 'ghost', target1: "Haunted House", cat2: "heritage", pts: 4, desc: "Haunted House AND Any Heritage" },
+      { name: "The Ghost Tour", type: 'ghost', target1: "Haunted House", cat2: "heritage", pts: 4, desc: "I need to visit Haunted House and any Heritage spot." },
       { name: "The Vacationer", targets: ["Airport", "Theme Park"], pts: 5 },
       { name: "The Graduate", targets: ["University", "Rooftop Bar"], pts: 5 },
       { name: "The Health Nut", targets: ["Gym", "Farmer's Market"], pts: 5 },
-      { name: "The Botanist", type: 'botanist', target1: "Botanic Gardens", cat2: "nature", pts: 4, desc: "Botanic Gardens AND Any Nature" },
+      { name: "The Botanist", type: 'botanist', target1: "Botanic Gardens", cat2: "nature", pts: 4, desc: "I need to visit Botanic Gardens and any Nature spot." },
       { name: "The Investigator", targets: ["Fortune Teller", "Antique Store"], pts: 5 },
       { name: "The Critic", targets: ["The Melting Pot", "Theatre"], pts: 5 }
   ];
 
-  tier1.forEach(p => passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'category', targetCategory: p.target, points: p.pts, desc: p.desc }));
+  tier1.forEach(p => passengers.push({ 
+      id: `P-${idCounter++}`, name: p.name, reqType: 'category', targetCategory: p.target, points: p.pts, 
+      desc: p.desc, img: getRandomPassengerImage() 
+  }));
   tier2.forEach(p => {
       const ts = p.targets.map(n => findL(n)?.id).filter(Boolean);
-      if(ts.length > 0) passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'list', targets: ts, points: p.pts, desc: p.targets.join(" OR ") });
+      if(ts.length > 0) passengers.push({ 
+          id: `P-${idCounter++}`, name: p.name, reqType: 'list', targets: ts, points: p.pts, 
+          desc: `I want to go to ${p.targets.join(", or ")}.`, img: getRandomPassengerImage() 
+      });
   });
   tier3.forEach(p => {
       const t = findL(p.target);
-      if(t) passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'specific', targetId: t.id, targetName: t.name, points: p.pts, desc: `Must visit ${t.name}` });
+      if(t) passengers.push({ 
+          id: `P-${idCounter++}`, name: p.name, reqType: 'specific', targetId: t.id, targetName: t.name, points: p.pts, 
+          desc: `Take me to ${t.name} please!`, img: getRandomPassengerImage() 
+      });
   });
   tier4.forEach(p => {
       if (p.targets) {
           const t1 = findL(p.targets[0]);
           const t2 = findL(p.targets[1]);
-          if(t1 && t2) passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'combo', targets: [t1.id, t2.id], points: p.pts, desc: `${t1.name} AND ${t2.name}` });
+          if(t1 && t2) passengers.push({ 
+              id: `P-${idCounter++}`, name: p.name, reqType: 'combo', targets: [t1.id, t2.id], points: p.pts, 
+              desc: `I need to visit ${t1.name} and ${t2.name}.`, img: getRandomPassengerImage() 
+          });
       } else if (p.type === 'ghost') {
           const t1 = findL(p.target1);
-          if(t1) passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'combo_cat', targetId: t1.id, cat2: p.cat2, points: p.pts, desc: p.desc });
+          if(t1) passengers.push({ 
+              id: `P-${idCounter++}`, name: p.name, reqType: 'combo_cat', targetId: t1.id, cat2: p.cat2, points: p.pts, 
+              desc: p.desc, img: getRandomPassengerImage() 
+          });
       } else if (p.type === 'botanist') {
           const t1 = findL(p.target1);
-          if(t1) passengers.push({ id: `P-${idCounter++}`, name: p.name, reqType: 'combo_cat', targetId: t1.id, cat2: p.cat2, points: p.pts, desc: p.desc });
+          if(t1) passengers.push({ 
+              id: `P-${idCounter++}`, name: p.name, reqType: 'combo_cat', targetId: t1.id, cat2: p.cat2, points: p.pts, 
+              desc: p.desc, img: getRandomPassengerImage() 
+          });
       }
   });
 
@@ -544,49 +572,6 @@ const playSound = (type) => {
   }
 };
 
-// --- ATMOSPHERIC COMPONENT ---
-const AtmosphereLayer = () => {
-    const [showWind, setShowWind] = useState(false);
-    const [windY, setWindY] = useState(20);
-
-    useEffect(() => {
-        const trigger = () => {
-            setWindY(Math.random() * 60 + 10); // Random Y 10-70%
-            setShowWind(true);
-            const audio = new Audio('/wind-effect.mp3');
-            audio.volume = 1.0; 
-            audio.play().catch(e => {});
-            setTimeout(() => setShowWind(false), 12000); 
-            setTimeout(trigger, Math.random() * 45000 + 45000); 
-        };
-        const timer = setTimeout(trigger, 10000);
-        return () => clearTimeout(timer);
-    }, []);
-
-    if (!showWind) return null;
-
-    return (
-        <div className="absolute inset-0 pointer-events-none z-30 overflow-hidden flex items-center">
-             <style>
-                 {`
-                  @keyframes windPath {
-                      0% { transform: translateX(-150%) translateY(0) scale(0.8); opacity: 0; }
-                      10% { opacity: 1; }
-                      40% { transform: translateX(20%) translateY(-20px) scale(1); }
-                      60% { transform: translateX(10%) translateY(20px) scale(1.1); }
-                      100% { transform: translateX(-150%) translateY(0) scale(0.8); opacity: 0; }
-                  }
-                 `}
-             </style>
-             <img 
-               src="/cloud-balloon.png" 
-               className="w-2/3 h-auto opacity-100 drop-shadow-2xl object-contain"
-               style={{ position: 'absolute', top: `${windY}%`, left: 0, animation: 'windPath 12s ease-in-out forwards' }}
-             />
-        </div>
-    );
-};
-
 const AudioPlayer = ({ view }) => {
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef(null);
@@ -596,21 +581,6 @@ const AudioPlayer = ({ view }) => {
     if (view === 'host' && audioRef.current) {
       audioRef.current.volume = 0.1; // Reduced background music volume
       audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
-      
-      // Ambient Sound Loop (Continuous)
-      if (ambientRef.current) {
-          ambientRef.current.volume = 0.3; // Start low
-          ambientRef.current.play().catch(e => console.log("Ambient fail", e));
-          
-          // Random volume fluctuation
-          const fluctuate = () => {
-             if(ambientRef.current) {
-                 ambientRef.current.volume = Math.random() * 0.4 + 0.1; 
-                 setTimeout(fluctuate, Math.random() * 10000 + 5000);
-             }
-          };
-          fluctuate();
-      }
     }
   }, [view]);
 
@@ -619,14 +589,11 @@ const AudioPlayer = ({ view }) => {
   return (
     <div className="fixed bottom-4 right-4 z-50">
       <audio ref={audioRef} loop src="/mind-the-gap-theme.mp3" />
-      <audio ref={ambientRef} loop src="/city-ambience.mp3" />
       <button onClick={() => {
         if(playing) {
             audioRef.current.pause();
-            ambientRef.current.pause();
         } else {
             audioRef.current.play();
-            ambientRef.current.play();
         }
         setPlaying(!playing);
       }} className="p-2 bg-gray-800 text-white rounded-full shadow-lg border border-gray-600 hover:bg-gray-700 transition-colors">
@@ -708,7 +675,6 @@ const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, v
         maxHeight: isMobile ? 'none' : '90vh',
       }}
     >
-      {view === 'host' && <AtmosphereLayer />} 
       {gameState?.grid.map((row, y) => (
         row.map((cell, x) => (
           <Cell 
@@ -736,6 +702,7 @@ export default function App() {
   const [gameState, setGameState] = useState(null);
   const [view, setView] = useState('home');
   const [error, setError] = useState("");
+  const [authError, setAuthError] = useState(null);
   
   const [selectedCardIdx, setSelectedCardIdx] = useState(null);
   const [selectedCardType, setSelectedCardType] = useState(null);
@@ -767,13 +734,14 @@ export default function App() {
             await signInAnonymously(auth); 
         } catch (err) { 
             console.error("Auth error:", err);
-            // Fail silently in UI
+            // Removed authError state setting to suppress UI blocking
         } 
     };
     initAuth();
     const sub = onAuthStateChanged(auth, (u) => {
         if (u) {
             setUser(u);
+            setAuthError(null); 
         } else {
             setUser(null);
         }
@@ -809,6 +777,7 @@ export default function App() {
         
         const isHost = data.hostId === user.uid;
         if (isHost) {
+            // FIX: If game is playing, go to host view. If lobby, go to lobby view.
             if (data.status === 'playing') setView('host'); 
             else setView('lobby');
         }
@@ -1135,9 +1104,9 @@ export default function App() {
         delete d[`${x},${y}`];
         newDecorations = d;
     }
-    if (Math.random() < 0.3) {
+    if (Math.random() < 0.6) {
         let attempts = 0;
-        while(attempts < 10) {
+        while(attempts < 20) {
             const rx = Math.floor(Math.random() * GRID_SIZE);
             const ry = Math.floor(Math.random() * GRID_SIZE);
             if (!getCell(newGrid, rx, ry) && !isStart(rx, ry) && !newDecorations[`${rx},${ry}`]) {
@@ -1344,7 +1313,6 @@ export default function App() {
     return (
       <div className="h-screen bg-gray-950 text-white flex p-4 gap-4 overflow-hidden relative font-questrial">
         <AudioPlayer view="host" />
-        <AtmosphereLayer />
         <NotificationOverlay event={gameState.lastEvent} />
         <button onClick={leaveGame} className="absolute top-4 right-4 p-2 bg-red-600/20 hover:bg-red-600 text-red-200 rounded-full z-50 transition-colors"><X size={20} /></button>
         <div className="w-1/4 max-w-sm flex flex-col gap-4 h-full z-10">
@@ -1373,7 +1341,7 @@ export default function App() {
                 <div key={pass.id} className={`bg-white text-gray-900 p-4 rounded-xl shadow-xl flex flex-col gap-1 border-4 border-gray-200 relative overflow-hidden transform transition-all duration-300 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 scale-95 grayscale' : 'hover:scale-105'}`}>
                   {gameState.totalTurns < pass.unlockTurn && <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10"><span className="bg-red-600 text-white px-3 py-1 font-bold rounded uppercase text-xs font-cal-sans">Arriving Soon</span></div>}
                   <div className="absolute top-0 right-0 p-2 opacity-10 pointer-events-none">
-                    {pass.reqType === 'category' && CATEGORIES[pass.targetCategory?.toUpperCase()]?.icon}
+                    <img src={`/${pass.img}`} className="w-16 h-16 object-contain drop-shadow-md" alt="char" />
                   </div>
                   <div className="flex justify-between items-center border-b border-gray-200 pb-2 mb-1">
                     <span className="font-black text-2xl text-red-600 font-cal-sans">{pass.points}</span>
@@ -1388,7 +1356,10 @@ export default function App() {
                     </div>
                   </div>
                   <div><p className="text-lg font-bold leading-tight font-cal-sans">{pass.name}</p></div>
-                  <p className="text-sm text-gray-600 italic mt-1 leading-snug font-questrial">{pass.desc}</p>
+                  <div className="relative mt-2 p-2 bg-gray-100 rounded-lg border-2 border-gray-300">
+                      <div className="absolute -top-2 left-4 w-3 h-3 bg-gray-100 border-l-2 border-t-2 border-gray-300 transform rotate-45"></div>
+                      <p className="text-sm text-gray-800 italic leading-snug font-questrial">"{pass.desc}"</p>
+                  </div>
                 </div>
               ))}
             </div>
