@@ -630,14 +630,17 @@ const AudioPlayer = ({ view }) => {
 
   if (view !== 'host') return null;
 
-  return (
+   return (
     <div className="fixed bottom-4 right-4 z-50">
       <audio ref={audioRef} loop src="/mind-the-gap-theme.mp3" />
+      <audio ref={ambientRef} loop src="/city-ambience.mp3" />
       <button onClick={() => {
         if(playing) {
             audioRef.current.pause();
+            ambientRef.current.pause();
         } else {
             audioRef.current.play();
+            ambientRef.current.play();
         }
         setPlaying(!playing);
       }} className="p-2 bg-[#1e1e2e] text-[#efe6d5] rounded-none shadow-[4px_4px_0px_0px_#efe6d5] border-2 border-[#efe6d5] hover:bg-[#2a2a3e] transition-colors">
