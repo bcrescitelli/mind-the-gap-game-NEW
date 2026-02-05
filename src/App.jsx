@@ -411,8 +411,8 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked, isSurge, decorImage })
   const isHost = view === 'host';
   
   let content = null;
-  // Host bg is transparent to show map. Player bg is semi-transparent dark to show map.
-  let bgClass = isHost ? "bg-transparent" : "bg-transparent"; // Fixed transparency for map visibility
+  // Host bg is transparent to show map. Player bg is transparent to allow underlying image to show.
+  let bgClass = isHost ? "bg-transparent" : "bg-transparent"; 
   // Borders: None for Host, Thin Cream for Players
   let borderClass = isHost ? "border-0" : "border border-[#efe6d5]/20";
   
@@ -782,13 +782,13 @@ export default function App() {
 
   useEffect(() => {
     const link = document.createElement('link');
-    link.href = "https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Nabla&family=Questrial&display=swap";
+    link.href = "https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
     const style = document.createElement('style');
     style.innerHTML = `
-      .font-questrial { font-family: 'Questrial', sans-serif; }
-      .font-cal-sans { font-family: 'Outfit', sans-serif; } /* Aliased to Outfit for reliability */
+      .font-retro { font-family: 'Press Start 2P', cursive; }
+      .font-pixel { font-family: 'VT323', monospace; }
     `;
     document.head.appendChild(style);
   }, []);
@@ -799,17 +799,11 @@ export default function App() {
             await signInAnonymously(auth); 
         } catch (err) { 
             console.error("Auth error:", err);
-            // Fail silently in UI, user might still be able to play if session exists
         } 
     };
     initAuth();
     const sub = onAuthStateChanged(auth, (u) => {
-        if (u) {
-            setUser(u);
-            setAuthError(null); 
-        } else {
-            setUser(null);
-        }
+        if (u) setUser(u); else setUser(null);
     });
     return () => sub();
   }, []);
@@ -818,6 +812,17 @@ export default function App() {
     const savedRoom = sessionStorage.getItem('mind_the_gap_room');
     if (savedRoom && !activeRoomId) setActiveRoomId(savedRoom);
   }, []);
+
+  useEffect(() => {
+      if (view === 'player' && !sessionStorage.getItem('rules_viewed')) {
+          setShowRules(true);
+      }
+  }, [view]);
+
+  const closeRules = () => {
+      setShowRules(false);
+      sessionStorage.setItem('rules_viewed', 'true');
+  };
   
   useEffect(() => {
     if (entryCode.length === 5) {
@@ -842,7 +847,6 @@ export default function App() {
         
         const isHost = data.hostId === user.uid;
         if (isHost) {
-            // FIX: If game is playing, go to host view. If lobby, go to lobby view.
             if (data.status === 'playing') setView('host'); 
             else setView('lobby');
         }
@@ -897,7 +901,7 @@ export default function App() {
       grid: JSON.stringify(initialGrid), turnIndex: 0, totalTurns: 0, 
       decks: { tracks: generateTrackDeck(), landmarks, passengers, metro: metroDeck },
       activePassengers, blockedCells: [], winner: null, lastEvent: null,
-      mostConnected: null, movesLeft: 1, skippedPlayers: [], decorations: {}
+      mostConnected: null, movesLeft: 1, skippedPlayers: [], decorations: {}, gameLog: []
     };
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', newRoomId), initialData);
     setEntryCode(newRoomId); setActiveRoomId(newRoomId);
@@ -964,12 +968,24 @@ export default function App() {
       });
     }
 
+    // UPDATE LOG
+    let newLog = gameState.gameLog || [];
+    if (lastEvent) {
+       let msg = "";
+       if (lastEvent.type === 'claim-passenger') msg = `${lastEvent.playerName} claimed ${lastEvent.passengerNames[0]}!`;
+       else if (lastEvent.type === 'place-track') msg = `${lastEvent.playerColor.toUpperCase()} placed a track.`;
+       else if (lastEvent.type === 'place-landmark') msg = `${lastEvent.playerColor.toUpperCase()} built a landmark.`;
+       
+       if (msg) newLog = [msg, ...newLog].slice(0, 8); // Keep last 8
+    }
+
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
       ...updates, players: newPlayers, decks: newDecks,
       turnIndex: actualNextTurn, winner: winner || null,
       lastEvent: lastEvent || gameState.lastEvent,
       totalTurns: (gameState.totalTurns || 0) + 1,
-      movesLeft: 1, skippedPlayers: newSkipped
+      movesLeft: 1, skippedPlayers: newSkipped,
+      gameLog: newLog
     });
     setSelectedCardIdx(null); setSelectedCardType(null); setRotation(0);
     setInteractionMode(null); setSelectedLandmarkForMove(null); setSelectedPlayerToSkip(null);
@@ -1000,7 +1016,7 @@ export default function App() {
       totalTurns: 0,
       turnIndex: 0,
       winner: null,
-      blockedCells: [], mostConnected: null, skippedPlayers: [], movesLeft: 1, decorations: {}
+      blockedCells: [], mostConnected: null, skippedPlayers: [], movesLeft: 1, decorations: {}, gameLog: []
     });
   };
   
@@ -1323,58 +1339,24 @@ export default function App() {
     }
   };
 
-  // --- ERROR SCREEN ---
-  if (authError) {
-    return (
-        <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-8 text-center font-questrial">
-            <div className="bg-red-900/20 border-2 border-red-500 p-8 rounded-2xl max-w-3xl shadow-2xl">
-                <AlertCircle size={64} className="text-red-500 mx-auto mb-6" />
-                <h2 className="text-4xl font-cal-sans mb-4 text-red-400">Security Access Blocked</h2>
-                <p className="text-xl mb-6">
-                    Google is blocking this website from accessing your game database because of the API Key restrictions you set up.
-                </p>
-                <div className="bg-black/50 p-4 rounded-lg text-left font-mono text-xs text-red-300 mb-6 overflow-x-auto whitespace-pre-wrap">
-                    {authError.message}
-                </div>
-                <div className="text-left bg-gray-800/50 p-6 rounded-xl space-y-4">
-                    <h3 className="font-bold text-white text-lg">How to fix this immediately:</h3>
-                    <ol className="list-decimal pl-5 space-y-2 text-gray-300">
-                        <li>Go to the <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer" className="text-blue-400 underline">Google Cloud Console Credentials</a>.</li>
-                        <li>Click the name of your API Key (e.g. <strong>Browser key</strong>).</li>
-                        <li>Under <strong>Website restrictions</strong>, click <strong>ADD ITEM</strong>.</li>
-                        <li>Copy and paste this current URL into the box:</li>
-                    </ol>
-                    <div className="flex items-center gap-2 mt-2">
-                        <code className="bg-black px-3 py-2 rounded text-green-400 flex-1">{window.location.origin}/*</code>
-                    </div>
-                    <p className="text-sm text-gray-400 mt-2">Make sure to include the <strong>/*</strong> at the end!</p>
-                </div>
-                <button onClick={() => window.location.reload()} className="mt-8 px-8 py-3 bg-red-600 hover:bg-red-500 text-white rounded-full font-bold shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 mx-auto">
-                    <RefreshCw size={20}/> I Fixed It, Reload
-                </button>
-            </div>
-        </div>
-    );
-  }
-
   if (view === 'home') {
     return (
       <div className="min-h-screen bg-[#1e1e2e] text-[#efe6d5] flex flex-col items-center justify-center font-sans p-4 relative overflow-hidden">
-        <h1 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-cal-sans">
+        <h1 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#e66a4e] via-[#f2ca50] via-[#63a669] to-[#5d76f2] mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-retro">
           MIND THE GAP
         </h1>
         <div className="flex flex-col gap-4 w-full max-w-md z-10 font-questrial">
-          <div className="flex flex-col gap-2 w-full bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
-            <h3 className="text-xl font-bold text-center mb-4 font-cal-sans">Join Room</h3>
+          <div className="flex flex-col gap-2 w-full bg-[#1e1e2e] p-6 rounded-none shadow-[8px_8px_0px_0px_#000] border-4 border-[#efe6d5]">
+            <h3 className="text-xl font-bold text-center mb-4 font-retro text-[#f2ca50]">Join Room</h3>
             <input 
               type="text" placeholder="Room Code" 
-              className="px-4 py-2 rounded bg-gray-900 border border-gray-700 focus:border-blue-500 outline-none text-center uppercase tracking-widest w-full font-bold"
+              className="px-4 py-2 rounded-none bg-[#1e1e2e] border-2 border-[#efe6d5] focus:border-[#5d76f2] outline-none text-center uppercase tracking-widest w-full font-bold font-retro text-[#efe6d5]"
               value={entryCode} onChange={e => setEntryCode(e.target.value.toUpperCase())}
             />
             {entryCode.length === 5 && (
                 <div className="grid grid-cols-4 gap-2 my-2">
                     {COLORS.map(c => (
-                        <button key={c} onClick={() => setPlayerColor(c)} disabled={!availableColors.includes(c)} className={`h-10 rounded-lg transition-all ${playerColor === c ? 'ring-4 ring-white scale-105' : ''} ${!availableColors.includes(c) ? 'opacity-20 cursor-not-allowed' : 'hover:opacity-80'}`} style={{ backgroundColor: THEME[c] }}>
+                        <button key={c} onClick={() => setPlayerColor(c)} disabled={!availableColors.includes(c)} className={`h-10 rounded-none border-2 border-black transition-all ${playerColor === c ? 'ring-4 ring-white scale-105' : ''} ${!availableColors.includes(c) ? 'opacity-20 cursor-not-allowed' : 'hover:opacity-80'}`} style={{ backgroundColor: THEME[c] }}>
                             {playerColor === c && <Check size={20} className="mx-auto text-white drop-shadow-md" />}
                         </button>
                     ))}
@@ -1382,15 +1364,15 @@ export default function App() {
             )}
             <input 
               type="text" placeholder="Your Name" 
-              className="px-4 py-2 rounded bg-gray-900 border border-gray-700 focus:border-blue-500 outline-none text-center w-full"
+              className="px-4 py-2 rounded-none bg-[#1e1e2e] border-2 border-[#efe6d5] focus:border-[#5d76f2] outline-none text-center w-full text-[#efe6d5] font-pixel text-xl"
               value={playerName} onChange={e => setPlayerName(e.target.value)}
             />
-            <button onClick={joinGame} className="px-8 py-3 bg-green-600 hover:bg-green-500 rounded-lg font-bold shadow-lg w-full mt-2 transition-transform active:scale-95">Join Game</button>
+            <button onClick={joinGame} className="px-8 py-3 bg-[#63a669] hover:bg-[#528a57] text-[#1e1e2e] font-black text-lg rounded-none shadow-[4px_4px_0px_0px_black] w-full mt-4 transition-transform active:translate-y-1 active:shadow-none border-2 border-black font-retro">Join Game</button>
           </div>
           <div className="relative flex py-2 items-center">
-            <div className="flex-grow border-t border-gray-700"></div><span className="flex-shrink mx-4 text-gray-500 text-xs uppercase">OR</span><div className="flex-grow border-t border-gray-700"></div>
+            <div className="flex-grow border-t-2 border-[#efe6d5]/20"></div><span className="flex-shrink mx-4 text-[#efe6d5]/50 text-xs uppercase font-pixel">OR</span><div className="flex-grow border-t-2 border-[#efe6d5]/20"></div>
           </div>
-          <button onClick={createGame} className="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-xl shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 w-full"><Crown size={24}/> Create New Room</button>
+          <button onClick={createGame} className="px-8 py-3 bg-[#5d76f2] hover:bg-[#4b63d6] text-[#efe6d5] font-black text-lg rounded-none shadow-[4px_4px_0px_0px_black] transition-transform active:translate-y-1 active:shadow-none flex items-center justify-center gap-2 w-full border-2 border-black font-retro"><Crown size={20}/> Create New Room</button>
         </div>
       </div>
     );
@@ -1400,94 +1382,128 @@ export default function App() {
 
   if (view === 'lobby') {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-[#1e1e2e] text-[#efe6d5] flex flex-col items-center justify-center p-4">
         <AudioPlayer view={view} />
-        <h2 className="text-4xl font-bold mb-2 font-cal-sans">Lobby: {activeRoomId}</h2>
-        <p className="text-gray-400 mb-8 font-questrial">Waiting for players...</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <h2 className="text-4xl font-bold mb-2 font-retro text-[#f2ca50]">Lobby: {activeRoomId}</h2>
+        <p className="text-gray-400 mb-8 font-pixel text-2xl">Waiting for players...</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
           {gameState?.players.map((p, i) => (
-            <div key={i} className={`p-6 rounded-xl bg-gray-800 border-2 border-${p.color}-500 flex flex-col items-center`}>
-              <div className={`w-12 h-12 rounded-full bg-${p.color}-500 mb-2`}></div>
-              <span className="font-bold text-lg font-cal-sans">{p.name}</span>
+            <div key={i} className={`p-6 rounded-none bg-[#1e1e2e] border-4 border-[${THEME[p.color]}] flex flex-col items-center shadow-[8px_8px_0px_0px_black]`}>
+              <div className={`w-12 h-12 rounded-full bg-[${THEME[p.color]}] mb-2 border-2 border-black`}></div>
+              <span className="font-bold text-lg font-retro text-[#efe6d5]">{p.name}</span>
             </div>
           ))}
-          {[...Array(4 - (gameState?.players.length || 0))].map((_, i) => <div key={i} className="p-6 rounded-xl bg-gray-800/50 border-2 border-dashed border-gray-700 flex flex-col items-center justify-center text-gray-600 font-questrial">Waiting...</div>)}
+          {[...Array(4 - (gameState?.players.length || 0))].map((_, i) => <div key={i} className="p-6 rounded-none bg-white/5 border-4 border-dashed border-[#efe6d5]/20 flex flex-col items-center justify-center text-[#efe6d5]/50 font-pixel text-xl">Waiting...</div>)}
         </div>
         {gameState?.hostId === user.uid ? (
-          <button onClick={startGame} disabled={gameState?.players.length < 2} className="px-12 py-4 bg-yellow-500 hover:bg-yellow-400 text-black rounded-full font-black text-2xl shadow-lg font-cal-sans">START GAME</button> 
+          <button onClick={startGame} disabled={gameState?.players.length < 2} className="px-12 py-4 bg-[#f2ca50] hover:bg-[#d9b646] text-[#1e1e2e] font-black text-2xl rounded-none shadow-[8px_8px_0px_0px_black] transition-transform active:translate-y-1 active:shadow-none disabled:opacity-50 font-retro border-4 border-black">START GAME</button> 
         ) : (
-          <p className="animate-pulse text-xl font-medium text-center font-questrial">Host will start the game soon...</p>
+          <p className="animate-pulse text-xl font-medium text-center font-pixel text-[#f2ca50]">Host will start the game soon...</p>
         )}
-        <button onClick={leaveGame} className="absolute top-4 right-4 p-2 bg-red-600/20 hover:bg-red-600 text-red-200 rounded-full z-50 transition-colors"><X size={20} /></button>
+        <button onClick={leaveGame} className="absolute top-4 right-4 p-2 bg-red-900/50 hover:bg-red-600 text-red-200 hover:text-white rounded-none border-2 border-red-500 z-50 transition-colors"><X size={20} /></button>
       </div>
     );
   }
 
   if (view === 'host') {
     return (
-      <div className="h-screen bg-gray-950 text-white flex p-4 gap-4 overflow-hidden relative font-questrial">
+      <div className="h-screen bg-[#1e1e2e] text-[#efe6d5] flex p-4 gap-6 overflow-hidden relative font-questrial">
         <AudioPlayer view="host" />
         <NotificationOverlay event={gameState.lastEvent} />
-        <button onClick={leaveGame} className="absolute top-4 right-4 p-2 bg-red-600/20 hover:bg-red-600 text-red-200 rounded-full z-50 transition-colors"><X size={20} /></button>
-        <div className="w-1/4 max-w-sm flex flex-col gap-4 h-full z-10">
-          <div className="bg-gray-800 p-3 rounded-lg text-center shadow-lg border border-gray-700">
-             <div className="text-xs text-gray-400 uppercase tracking-widest">Room Code</div>
-             <div className="text-4xl font-black tracking-widest text-white font-cal-sans">{activeRoomId}</div>
-          </div>
-
-          <div className="bg-gray-900 p-4 rounded-xl shadow-lg border border-gray-800 flex-shrink-0">
-            <h3 className="text-lg font-bold text-gray-400 mb-3 flex items-center gap-2 uppercase tracking-wide font-cal-sans"><Trophy size={18}/> Standings</h3>
-            <div className="space-y-3">
-              {gameState.players.map((p, i) => (
-                <div key={i} className={`flex items-center justify-between p-3 rounded-lg border ${gameState.turnIndex === i ? 'bg-gray-800 border-white ring-2 ring-white/20' : 'bg-gray-800/50 border-gray-700'}`}>
-                  <div className="flex items-center gap-3">
-                    <div className={`w-4 h-4 rounded-full bg-${p.color}-500 shadow-md`}></div>
-                    <span className="font-bold text-lg truncate max-w-[100px] font-cal-sans">{p.name}</span>
-                  </div>
-                  <span className="text-2xl font-black font-cal-sans">{p.score + (gameState.mostConnected?.playerId === p.id ? 2 : 0)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="flex-1 flex flex-col gap-2 overflow-auto">
-            <h3 className="text-lg font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wide font-cal-sans"><Users size={18}/> Passengers</h3>
-            <div className="space-y-3">
-              {gameState.activePassengers.map(pass => (
-                <div key={pass.id} className={`bg-white text-gray-900 p-4 rounded-xl shadow-xl flex flex-col gap-1 border-4 border-gray-200 relative overflow-hidden transform transition-all duration-300 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 scale-95 grayscale' : 'hover:scale-105'}`}>
-                  {gameState.totalTurns < pass.unlockTurn && <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10"><span className="bg-red-600 text-white px-3 py-1 font-bold rounded uppercase text-xs font-cal-sans">Arriving Soon</span></div>}
-                  <div className="absolute top-0 right-0 p-2 opacity-10 pointer-events-none">
-                    {pass.reqType === 'category' && CATEGORIES[pass.targetCategory?.toUpperCase()]?.icon}
-                  </div>
-                  <div className="flex justify-between items-center border-b border-gray-200 pb-2 mb-1">
-                    <span className="font-black text-2xl text-red-600 font-cal-sans">{pass.points}</span>
-                    <div className="flex gap-1">
-                        {gameState.players.map(pl => {
-                             const connectedLMs = new Set();
-                             gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) connectedLMs.add(c.id); }));
-                             let met = false;
-                             if(pass.reqType === 'specific' && connectedLMs.has(pass.targetId)) met = true;
-                             return <div key={pl.id} className={`w-2 h-2 rounded-full bg-${pl.color}-500 ${met ? 'opacity-100 ring-1 ring-black' : 'opacity-20'}`}></div>
-                        })}
-                    </div>
-                  </div>
-                  <div><p className="text-lg font-bold leading-tight font-cal-sans">{pass.name}</p></div>
-                  <p className="text-sm text-gray-600 italic mt-1 leading-snug font-questrial">{pass.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+        
+        {/* HEADER */}
+        <div className="flex justify-between items-center w-full z-10 bg-[#1e1e2e] pb-2 border-b-4 border-black">
+             <div className="flex items-center gap-4">
+                 <h1 className="text-2xl font-retro font-black text-[#efe6d5]">MIND THE GAP: <span className="text-[#f2ca50]">{activeRoomId}</span></h1>
+             </div>
+             
+             <div className="flex gap-4 items-center">
+                 {/* HORIZONTAL STANDINGS */}
+                 <div className="flex gap-2">
+                    {gameState.players.sort((a,b) => b.score - a.score).map((p, i) => (
+                        <div key={i} className={`flex items-center px-3 py-1 rounded-full border-2 border-black bg-[${THEME[p.color]}] text-[#1e1e2e]`}>
+                          <span className="font-bold text-xs font-retro mr-2">{i+1}{i===0?'ST':i===1?'ND':i===2?'RD':'TH'}</span>
+                          <span className="font-bold text-sm font-pixel uppercase">{p.name}</span>
+                          <span className="ml-2 font-black font-retro bg-black text-[#efe6d5] px-1.5 py-0.5 text-[10px] rounded-full">{p.score + (gameState.mostConnected?.playerId === p.id ? 2 : 0)}</span>
+                        </div>
+                    ))}
+                 </div>
+                 <button onClick={leaveGame} className="px-4 py-2 bg-[#e66a4e] hover:bg-[#d55e45] text-[#efe6d5] font-retro text-xs border-2 border-black shadow-[4px_4px_0px_0px_black] transition-transform active:translate-y-1 active:shadow-none">EXIT</button>
+             </div>
         </div>
-        <div className="flex-1 flex items-center justify-center rounded-xl overflow-hidden relative shadow-2xl backdrop-blur-sm">
-           <div className="absolute inset-4 flex items-center justify-center"><Board interactive={false} isMobile={false} lastEvent={gameState.lastEvent} gameState={gameState} handlePlaceCard={handlePlaceCard} view={view} /></div>
+
+        {/* MAIN LAYOUT */}
+        <div className="flex w-full h-full gap-6 overflow-hidden">
+            
+            {/* LEFT SIDEBAR - PASSENGERS */}
+            <div className="w-1/3 min-w-[350px] flex flex-col gap-4 h-full z-10 overflow-hidden">
+                <div className="bg-[#1e1e2e] border-2 border-[#efe6d5]/30 p-2 h-24 overflow-y-auto mb-2 text-[12px] font-pixel text-[#efe6d5]/70">
+                    {gameState.gameLog?.map((log, i) => <div key={i} className="border-b border-[#efe6d5]/10 pb-1 mb-1">{log}</div>)}
+                </div>
+                <h3 className="text-sm font-bold text-[#efe6d5] flex items-center gap-2 uppercase tracking-wide font-retro">CURRENT PASSENGERS:</h3>
+                <div className="flex-1 flex flex-col gap-3 overflow-y-auto pr-2 pb-4">
+                  {gameState.activePassengers.map(pass => (
+                    <div key={pass.id} className={`bg-[#efe6d5] w-full rounded-lg border-4 border-black relative transform transition-all duration-300 flex flex-row h-40 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 grayscale' : ''}`}>
+                      {gameState.totalTurns < pass.unlockTurn && <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20"><span className="bg-[#e66a4e] text-[#efe6d5] px-2 py-1 font-bold border-2 border-black font-retro text-[10px] shadow-[2px_2px_0px_0px_black]">Arriving Soon</span></div>}
+                      
+                      {/* Left: Character & Info */}
+                      <div className="w-1/3 bg-[#8ecae6] flex flex-col items-center justify-between border-r-4 border-black p-1 relative">
+                          <img src={`/${pass.img}`} className="w-20 h-20 object-contain z-10 rendering-pixelated mt-2" alt="char" />
+                          <div className="w-full bg-white border-t-2 border-black p-1 text-center">
+                             <span className="font-black text-[9px] font-retro text-black uppercase block leading-tight mb-1">{pass.name}</span>
+                             <span className="font-black text-xl font-retro text-[#e66a4e]">{pass.points}</span>
+                          </div>
+                      </div>
+
+                      {/* Right: Speech & Progress */}
+                      <div className="flex-1 flex flex-col justify-between p-3 bg-[#efe6d5]">
+                          {/* Bubble */}
+                          <div className="bg-[#782e53] flex-1 rounded-sm border-2 border-black p-3 flex items-center justify-center relative mb-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
+                              <p className="text-sm font-bold font-pixel leading-tight text-center text-[#efe6d5] uppercase tracking-wide">{pass.desc}</p>
+                          </div>
+                          
+                          {/* Progress Dots */}
+                          <div className="flex gap-2 justify-end">
+                              {gameState.players.map(pl => {
+                                   const connectedLMs = new Set();
+                                   gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) connectedLMs.add(c.id); }));
+                                   let opacity = 'opacity-20';
+                                   let ring = '';
+                                   if (pass.reqType === 'combo' || pass.reqType === 'combo_cat') {
+                                       let count = 0;
+                                       if(pass.reqType === 'combo') { if(connectedLMs.has(pass.targets[0])) count++; if(connectedLMs.has(pass.targets[1])) count++; } 
+                                       else { if(connectedLMs.has(pass.targetId)) count++; const myLandmarks = []; gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && connectedLMs.has(c.id)) myLandmarks.push(c); })); if(myLandmarks.some(l => l.category === pass.cat2)) count++; }
+                                       if (count === 1) opacity = 'opacity-50'; if (count === 2) { opacity = 'opacity-100'; ring = 'ring-2 ring-black'; }
+                                   } else {
+                                       let met = false;
+                                       const myLandmarks = []; gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && connectedLMs.has(c.id)) myLandmarks.push(c); }));
+                                       if(pass.reqType === 'specific' && connectedLMs.has(pass.targetId)) met = true;
+                                       if(pass.reqType === 'category' && myLandmarks.some(l => l.category === pass.targetCategory)) met = true;
+                                       if(pass.reqType === 'list' && pass.targets.some(t => connectedLMs.has(t))) met = true;
+                                       if (met) { opacity = 'opacity-100'; ring = 'ring-2 ring-black'; }
+                                   }
+                                   return <div key={pl.id} className={`w-3 h-3 rounded-full bg-[${THEME[pl.color]}] border border-black ${opacity} ${ring}`}></div>
+                              })}
+                          </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+            </div>
+
+            {/* MAP AREA */}
+            <div className="flex-1 flex items-center justify-center rounded-xl overflow-hidden relative border-4 border-[#efe6d5] bg-[#efe6d5]">
+               <div className="absolute inset-4 flex items-center justify-center"><Board interactive={false} isMobile={false} lastEvent={gameState.lastEvent} gameState={gameState} handlePlaceCard={handlePlaceCard} view={view} /></div>
+            </div>
         </div>
       </div>
     );
   }
 
   if (view === 'player') {
-    if (!gameState || !gameState.players) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center animate-pulse">Loading...</div>;
+    if (!gameState || !gameState.players) return <div className="min-h-screen bg-[#1e1e2e] text-[#efe6d5] flex items-center justify-center animate-pulse font-retro">Loading...</div>;
     const player = gameState.players.find(p => p.id === user.uid);
-    if (!player) return <div className="min-h-screen bg-gray-900 text-white p-8">Error: Player not found.</div>;
+    if (!player) return <div className="min-h-screen bg-[#1e1e2e] text-[#efe6d5] p-8 font-retro">Error: Player not found.</div>;
     const isMyTurn = gameState.players[gameState.turnIndex]?.id === user.uid;
     const connectedLandmarks = [];
     if (gameState && gameState.grid) gameState.grid.forEach(row => row.forEach(cell => { if (cell && cell.type === 'landmark' && cell.connections && cell.connections[player.color] > 0) connectedLandmarks.push(cell); }));
@@ -1495,86 +1511,87 @@ export default function App() {
     const displayScore = player.score + (gameState.mostConnected?.playerId === player.id ? 2 : 0);
 
     return (
-      <div className="h-[100dvh] bg-gray-950 text-white flex flex-col overflow-hidden font-questrial">
+      <div className="h-[100dvh] bg-[#1e1e2e] text-[#efe6d5] flex flex-col overflow-hidden font-questrial">
         <AudioPlayer view="player" />
         <NotificationOverlay event={gameState.lastEvent} />
         {showRules && <RulesModal onClose={closeRules} />}
         {/* Signal Failure Modal */}
         {interactionMode === 'signal_failure' && (
              <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
-                 <h2 className="text-2xl font-bold mb-6 font-cal-sans">Choose Player to Skip</h2>
+                 <h2 className="text-2xl font-bold mb-6 font-retro text-[#efe6d5]">SKIP WHO?</h2>
                  <div className="grid grid-cols-2 gap-4 w-full max-w-sm">
                      {gameState.players.filter(p => p.id !== user.uid).map(p => (
-                         <button key={p.id} onClick={() => handleSignalFailureSelect(p.id)} className={`p-6 bg-gray-800 border-2 border-${p.color}-500 rounded-xl flex flex-col items-center gap-2 hover:bg-gray-700`}>
-                             <div className={`w-12 h-12 rounded-full bg-${p.color}-500`}></div>
-                             <span className="font-bold">{p.name}</span>
+                         <button key={p.id} onClick={() => handleSignalFailureSelect(p.id)} className={`p-6 bg-[#1e1e2e] border-4 border-[${THEME[p.color]}] rounded-none shadow-[4px_4px_0px_0px_#fff] flex flex-col items-center gap-2 hover:bg-white/10 active:translate-y-1 active:shadow-none`}>
+                             <div className={`w-12 h-12 rounded-full bg-[${THEME[p.color]}] border-2 border-white`}></div>
+                             <span className="font-bold font-pixel text-xl uppercase">{p.name}</span>
                          </button>
                      ))}
                  </div>
-                 <button onClick={() => setInteractionMode(null)} className="mt-8 text-gray-400 underline">Cancel</button>
+                 <button onClick={() => setInteractionMode(null)} className="mt-8 text-gray-400 underline font-pixel uppercase tracking-widest text-lg">Cancel</button>
              </div>
         )}
 
-        <div className={`border-b border-gray-800 shrink-0 z-20 shadow-md transition-colors duration-500 ${isMyTurn ? 'bg-green-900/90 border-green-600' : 'bg-gray-900 border-gray-800'}`}>
+        <div className={`border-b-4 border-black shrink-0 z-20 shadow-md transition-colors duration-500 ${isMyTurn ? 'bg-[#63a669] text-[#1e1e2e]' : 'bg-[#1e1e2e] text-[#efe6d5]'}`}>
           <div className="max-w-5xl mx-auto">
-            <div className="h-14 flex items-center justify-between px-4">
+            <div className="h-16 flex items-center justify-between px-4">
               <div className="flex items-center gap-3">
-                <div className={`w-4 h-4 rounded-full bg-${player.color}-500 shadow-[0_0_10px_currentColor] ring-2 ring-white/20`}></div>
-                <span className="font-bold text-lg truncate max-w-[120px] font-cal-sans text-white">{player.name}</span>
+                <div className={`w-8 h-8 rounded-full bg-[${THEME[player.color]}] border-2 border-white shadow-sm`}></div>
+                <span className="font-bold text-lg truncate max-w-[120px] font-retro">{player.name}</span>
               </div>
               <div className="flex items-center gap-4">
                  <div className="flex flex-col items-end leading-none">
-                    <span className="text-[10px] text-gray-400 tracking-wider font-cal-sans">SCORE</span>
-                    <span className="text-2xl font-black text-white font-cal-sans flex items-center gap-1">
+                    <span className="text-[10px] tracking-wider font-pixel uppercase opacity-80">SCORE</span>
+                    <span className="text-3xl font-black font-retro flex items-center gap-1">
                         {displayScore} 
-                        {gameState.mostConnected?.playerId === player.id && <LinkIcon size={14} className="text-blue-400" />}
+                        {gameState.mostConnected?.playerId === player.id && <LinkIcon size={16} className={isMyTurn ? "text-[#1e1e2e]" : "text-[#5d76f2]"} />}
                     </span>
                  </div>
-                 {isMyTurn && <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse shadow-[0_0_15px_#4ade80]"></div>}
-                 <button onClick={leaveGame} className="text-gray-400 hover:text-white"><LogOut size={18}/></button>
+                 {isMyTurn && <div className="w-4 h-4 bg-white rounded-full animate-pulse shadow-[0_0_10px_white]"></div>}
+                 <button onClick={leaveGame} className="opacity-50 hover:opacity-100"><LogOut size={20}/></button>
               </div>
             </div>
+            {/* Connected Bar */}
             {connectedLandmarks.length > 0 && (
-              <div className="px-4 py-2 bg-gray-800/50 border-t border-gray-700 flex items-center gap-2 overflow-x-auto no-scrollbar">
-                <span className="text-[10px] text-gray-400 uppercase tracking-wider shrink-0 flex items-center gap-1 font-cal-sans"><LinkIcon size={10}/> Connected:</span>
+              <div className="px-4 py-2 bg-black/20 border-t-2 border-black/10 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                <span className="text-[10px] uppercase tracking-wider shrink-0 flex items-center gap-1 font-pixel"><LinkIcon size={10}/> Connected:</span>
                 {connectedLandmarks.map(l => (
-                  <div key={l.id} className="flex items-center gap-1 bg-gray-700 rounded-full px-2 py-1 shrink-0 border border-gray-600">
-                    <span className={`text-${CATEGORIES[l.category?.toUpperCase()]?.color?.split('-')[1]}-400`}>{CATEGORIES[l.category?.toUpperCase()]?.icon}</span>
-                    <span className="text-[10px] font-bold truncate max-w-[80px] text-white font-cal-sans">{l.name}</span>
+                  <div key={l.id} className="flex items-center gap-1 bg-[#efe6d5] rounded-none px-2 py-0.5 shrink-0 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)]">
+                    <span style={{ color: CATEGORIES[l.category?.toUpperCase()]?.color }}>{CATEGORIES[l.category?.toUpperCase()]?.icon}</span>
+                    <span className="text-[10px] font-bold truncate max-w-[80px] text-[#1e1e2e] font-pixel uppercase">{l.name}</span>
                   </div>
                 ))}
               </div>
             )}
           </div>
         </div>
-        <div className="flex-1 overflow-auto bg-black/40 relative" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+        <div className="flex-1 overflow-auto bg-[#1e1e2e] relative" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
            <div style={{ width: `${100 * zoom}%`, minWidth: '100%', minHeight: '100%', transformOrigin: '0 0' }}> 
                <div style={{ transform: `scale(${zoom})`, transformOrigin: '0 0' }}>
                  <div className="inline-block min-w-full min-h-full p-4"><Board interactive={isMyTurn} isMobile={true} lastEvent={gameState.lastEvent} gameState={gameState} handlePlaceCard={handlePlaceCard} view={view} /></div>
                </div>
            </div>
         </div>
-        <div className="bg-gray-900 border-t border-gray-800 shrink-0 flex flex-col safe-area-pb shadow-[0_-4px_20px_rgba(0,0,0,0.5)] z-20">
+        <div className="bg-[#1e1e2e] border-t-4 border-black shrink-0 flex flex-col safe-area-pb z-20">
           <div className="max-w-5xl mx-auto w-full">
             {interactionMode && interactionMode !== 'signal_failure' && (
-                <div className="bg-yellow-600 text-black font-bold p-2 text-center animate-pulse font-cal-sans">
-                    {interactionMode === 'track_maint' && "Select a square to block"}
-                    {interactionMode === 'grand_opening_select_source' && "Select a Landmark to replace"}
-                    <button onClick={() => setInteractionMode(null)} className="ml-4 underline text-sm">Cancel</button>
+                <div className="bg-[#f2ca50] text-[#1e1e2e] font-bold p-3 text-center animate-pulse font-retro text-xs border-b-4 border-black">
+                    {interactionMode === 'track_maint' && "TAP EMPTY SQUARE TO BLOCK"}
+                    {interactionMode === 'grand_opening_select_source' && "TAP LANDMARK TO REPLACE"}
+                    <button onClick={() => setInteractionMode(null)} className="ml-4 underline">CANCEL</button>
                 </div>
             )}
             
             {isMyTurn && selectedCardType === 'tracks' && (
-              <div className="flex justify-center items-center gap-6 py-3 border-b border-gray-800 bg-gray-800/80 backdrop-blur-sm">
-                 <div className="w-12 h-12 border-2 border-gray-500 bg-gray-900 rounded-lg flex items-center justify-center shadow-inner"><TrackSvg shape={player.hand.tracks[selectedCardIdx]?.shape} rotation={rotation} color={player.color} /></div>
-                <button onClick={() => { playSound('rotate-track'); setRotation((r) => (r + 90) % 360); }} className="flex items-center gap-2 px-8 py-3 bg-blue-600 rounded-full font-bold text-lg shadow-lg font-cal-sans"><RotateCw size={20} /> Rotate</button>
+              <div className="flex justify-center items-center gap-6 py-3 border-b-4 border-black bg-[#2a2a3e]">
+                 <div className="w-16 h-16 border-4 border-[#efe6d5] bg-[#1e1e2e] flex items-center justify-center shadow-[4px_4px_0px_0px_black]"><TrackSvg shape={player.hand.tracks[selectedCardIdx]?.shape} rotation={rotation} color={player.color} /></div>
+                <button onClick={() => { playSound('rotate-track'); setRotation((r) => (r + 90) % 360); }} className="flex items-center gap-2 px-6 py-4 bg-[#5d76f2] text-[#efe6d5] border-4 border-[#efe6d5] font-bold text-lg shadow-[4px_4px_0px_0px_black] active:translate-y-1 active:shadow-none font-retro"><RotateCw size={24} /> ROTATE</button>
               </div>
             )}
-            <div className="flex gap-2 overflow-x-auto p-3 pb-6 no-scrollbar">
+            <div className="flex gap-2 overflow-x-auto p-4 pb-8 no-scrollbar bg-[#1e1e2e]">
               {player.hand.metro?.map((card, i) => <GameCard key={`m-${i}`} data={card} type="metro" selected={selectedCardType === 'metro' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; handleMetroCardAction(i); }} />)}
-              {player.hand.metro?.length > 0 && <div className="w-px bg-yellow-700 mx-1 shrink-0 self-stretch my-2"></div>}
+              {player.hand.metro?.length > 0 && <div className="w-1 bg-[#efe6d5]/20 mx-1 shrink-0 self-stretch my-2"></div>}
               {player.hand.tracks.map((card, i) => <GameCard key={`t-${i}`} data={card} type="track" selected={selectedCardType === 'tracks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; playSound('select-track'); setSelectedCardIdx(i); setSelectedCardType('tracks'); setRotation(0); setInteractionMode(null); }} />)}
-              <div className="w-px bg-gray-700 mx-1 shrink-0 self-stretch my-2"></div>
+              <div className="w-1 bg-[#efe6d5]/20 mx-1 shrink-0 self-stretch my-2"></div>
               {player.hand.landmarks.map((card, i) => <GameCard key={`l-${i}`} data={card} type="landmark" selected={selectedCardType === 'landmarks' && selectedCardIdx === i} onClick={() => { if (!isMyTurn) return; playSound('select-track'); setSelectedCardIdx(i); setSelectedCardType('landmarks'); setRotation(0); setInteractionMode(null); }} />)}
             </div>
           </div>
