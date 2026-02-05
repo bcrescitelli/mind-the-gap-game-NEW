@@ -234,7 +234,6 @@ const generatePassengers = (allLandmarks) => {
   let idCounter = 1;
   const findL = (name) => allLandmarks.find(l => l.name === name);
 
-  // TIER 1
   const tier1 = [
     { name: "The Foodie", req: 'category', target: 'gastronomy', pts: 1, desc: "I'd like to visit any Gastronomy spot." },
     { name: "The Tourist", req: 'category', target: 'heritage', pts: 1, desc: "I'd like to visit any Heritage spot." },
@@ -243,7 +242,6 @@ const generatePassengers = (allLandmarks) => {
     { name: "The Adrenaline Junkie", req: 'category', target: 'thrilling', pts: 1, desc: "I'd like to visit any Thrilling spot." },
     { name: "The Medium", req: 'category', target: 'spiritual', pts: 2, desc: "I'd like to visit any Spiritual spot." } 
   ];
-  // TIER 2
   const tier2 = [
       { name: "The Sweet Tooth", req: 'list', targets: ["Ice Cream Shop", "Candy Store", "Bakery"], pts: 2 },
       { name: "The Scholar", req: 'list', targets: ["University", "Library", "Museum"], pts: 2 },
@@ -254,7 +252,6 @@ const generatePassengers = (allLandmarks) => {
       { name: "The Artist", req: 'list', targets: ["Opera House", "Theatre", "Tattoo Parlor"], pts: 2 },
       { name: "The Errand Runner", req: 'list', targets: ["Bank", "Post Office", "Tailors"], pts: 2 }
   ];
-  // TIER 3
   const tier3 = [
       { name: "The Pilot", target: "Airport", pts: 3 },
       { name: "The Astronomer", target: "Observatory", pts: 3 },
@@ -265,7 +262,6 @@ const generatePassengers = (allLandmarks) => {
       { name: "The Widow", target: "Cemetery", pts: 3 },
       { name: "The Gambler", target: "Casino", pts: 3 }
   ];
-  // TIER 4
   const tier4 = [
       { name: "The Date Night", targets: ["Cafe", "Cinema"], pts: 5 },
       { name: "The Ghost Tour", type: 'ghost', target1: "Haunted House", cat2: "heritage", pts: 4, desc: "I need to visit Haunted House and any Heritage spot." },
@@ -795,6 +791,7 @@ export default function App() {
             await signInAnonymously(auth); 
         } catch (err) { 
             console.error("Auth error:", err);
+            // Fail silently in UI
         } 
     };
     initAuth();
@@ -1174,9 +1171,9 @@ export default function App() {
         delete d[`${x},${y}`];
         newDecorations = d;
     }
-    if (Math.random() < 0.4) {
+    if (Math.random() < 0.8) {
         let attempts = 0;
-        while(attempts < 20) {
+        while(attempts < 50) {
             const rx = Math.floor(Math.random() * GRID_SIZE);
             const ry = Math.floor(Math.random() * GRID_SIZE);
             if (!getCell(newGrid, rx, ry) && !isStart(rx, ry) && !newDecorations[`${rx},${ry}`]) {
@@ -1425,9 +1422,10 @@ export default function App() {
               {gameState.activePassengers.map(pass => (
                 <div key={pass.id} className={`bg-white text-gray-900 p-4 rounded-xl shadow-xl flex flex-col gap-1 border-4 border-gray-200 relative overflow-hidden transform transition-all duration-300 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 scale-95 grayscale' : 'hover:scale-105'}`}>
                   {gameState.totalTurns < pass.unlockTurn && <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10"><span className="bg-red-600 text-white px-3 py-1 font-bold rounded uppercase text-xs font-cal-sans">Arriving Soon</span></div>}
-                  <div className="bg-sky-300 h-32 relative p-2 flex items-end rounded-t-lg overflow-visible">
+                  <div className="bg-sky-300 h-40 relative p-2 flex items-end rounded-t-lg overflow-visible">
                     <img src={`/${pass.img}`} className="w-20 h-20 object-contain z-10 -ml-2" alt="char" />
-                    <div className="absolute top-2 left-16 right-2 bottom-auto bg-white border-4 border-black p-3 rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)] z-20 flex items-center justify-center min-h-[60px]">
+                    {/* BUBBLE */}
+                    <div className="absolute top-2 left-20 right-2 bottom-auto bg-white border-4 border-black p-4 rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)] z-20 flex items-center justify-center min-h-[80px]">
                       <p className="text-sm font-bold font-questrial leading-tight text-center">"{pass.desc}"</p>
                     </div>
                   </div>
@@ -1443,9 +1441,7 @@ export default function App() {
                                  let opacity = 'opacity-20';
                                  let ring = '';
                                  
-                                 // Check Partial Progress
                                  if (pass.reqType === 'combo' || pass.reqType === 'combo_cat') {
-                                     // AND LOGIC: 0 (dim), 1 (50%), 2 (100%)
                                      let count = 0;
                                      if(pass.reqType === 'combo') {
                                          if(connectedLMs.has(pass.targets[0])) count++;
@@ -1458,7 +1454,6 @@ export default function App() {
                                      if (count === 1) opacity = 'opacity-50';
                                      if (count === 2) { opacity = 'opacity-100'; ring = 'ring-1 ring-black'; }
                                  } else {
-                                     // OR/Specific LOGIC: 0 (dim), 1 (100%)
                                      let met = false;
                                      const myLandmarks = []; gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && connectedLMs.has(c.id)) myLandmarks.push(c); }));
                                      
@@ -1469,11 +1464,11 @@ export default function App() {
                                      if (met) { opacity = 'opacity-100'; ring = 'ring-1 ring-black'; }
                                  }
 
-                                 return <div key={pl.id} className={`w-2 h-2 rounded-full bg-${pl.color}-500 ${opacity} ${ring}`}></div>
+                                 return <div key={pl.id} className={`w-3 h-3 rounded-full bg-${pl.color}-500 ${opacity} ${ring}`}></div>
                             })}
                         </div>
                      </div>
-                     <span className="font-black text-xl font-cal-sans text-red-600">{pass.points} Pts</span>
+                     <span className="font-black text-2xl font-cal-sans text-red-600">{pass.points} Pts</span>
                   </div>
                 </div>
               ))}
