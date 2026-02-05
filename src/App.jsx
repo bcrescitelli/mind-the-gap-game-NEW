@@ -36,7 +36,7 @@ const CENTER = Math.floor(GRID_SIZE / 2);
 const COLORS = ['red', 'blue', 'green', 'yellow'];
 const WIN_SCORE = 10; 
 
-// THEME COLORS (From your mockup)
+// THEME COLORS
 const THEME = {
   bg: '#1e1e2e',       // Dark Navy
   cream: '#efe6d5',    // Cream/Bone
@@ -495,7 +495,7 @@ const GameCard = ({ data, selected, onClick, type }) => {
              {CATEGORIES[data.category?.toUpperCase()]?.icon}
           </div>
           <div className="text-[8px] md:text-[10px] text-center font-bold text-black leading-tight mt-2 line-clamp-2 w-full font-retro overflow-hidden leading-tight break-words px-0.5">{data.name}</div>
-          <div className="text-[7px] md:text-[8px] text-gray-600 mt-1 font-pixel uppercase">{CATEGORIES[data.category?.toUpperCase()]?.label}</div>
+          <div className="text-[8px] md:text-[9px] text-gray-600 mt-1 font-pixel uppercase">{CATEGORIES[data.category?.toUpperCase()]?.label}</div>
         </>
       )}
     </div>
@@ -852,7 +852,6 @@ export default function App() {
         
         const isHost = data.hostId === user.uid;
         if (isHost) {
-            // FIX: If game is playing, go to host view. If lobby, go to lobby view.
             if (data.status === 'playing') setView('host'); 
             else setView('lobby');
         }
@@ -1413,15 +1412,14 @@ export default function App() {
 
   if (view === 'host') {
     return (
-      <div className="h-screen bg-[#1e1e2e] text-[#efe6d5] flex p-4 gap-6 overflow-hidden relative font-questrial">
+      <div className="h-screen bg-[#1e1e2e] text-[#efe6d5] flex flex-col p-4 gap-4 overflow-hidden relative font-questrial">
         <AudioPlayer view="host" />
         <NotificationOverlay event={gameState.lastEvent} />
         
         {/* HEADER */}
         <div className="flex justify-between items-center w-full z-10 bg-[#1e1e2e] pb-2 border-b-4 border-black">
              <div className="flex items-center gap-4">
-                 <h1 className="text-2xl font-retro font-black text-[#efe6d5]">MIND THE GAP</h1>
-                 <span className="text-xl font-retro text-[#f2ca50] border-l-4 border-black pl-4">{activeRoomId}</span>
+                 <h1 className="text-2xl font-retro font-black text-[#efe6d5]">MIND THE GAP: <span className="text-[#f2ca50]">{activeRoomId}</span></h1>
              </div>
              
              <div className="flex gap-4 items-center">
