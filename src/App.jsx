@@ -405,6 +405,7 @@ const TrackSvg = ({ shape, rotation, color, animate }) => {
   );
 };
 
+// REVERTED MEMOIZATION FOR FUNCTIONALITY
 const Cell = ({ x, y, cellData, onClick, view, isBlocked, isSurge, decorImage }) => {
   const isCenter = x === CENTER && y === CENTER;
   const isHost = view === 'host';
@@ -620,11 +621,27 @@ const playSound = (type) => {
 const AudioPlayer = ({ view }) => {
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef(null);
+  const ambientRef = useRef(null);
 
   useEffect(() => {
     if (view === 'host' && audioRef.current) {
-      audioRef.current.volume = 0.1; 
+      audioRef.current.volume = 0.1; // Reduced background music volume
       audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+      
+      // Ambient Sound Loop (Continuous)
+      if (ambientRef.current) {
+          ambientRef.current.volume = 0.3; // Start low
+          ambientRef.current.play().catch(e => console.log("Ambient fail", e));
+          
+          // Random volume fluctuation
+          const fluctuate = () => {
+             if(ambientRef.current) {
+                 ambientRef.current.volume = Math.random() * 0.4 + 0.1; 
+                 setTimeout(fluctuate, Math.random() * 10000 + 5000);
+             }
+          };
+          fluctuate();
+      }
     }
   }, [view]);
 
@@ -633,11 +650,14 @@ const AudioPlayer = ({ view }) => {
   return (
     <div className="fixed bottom-4 right-4 z-50">
       <audio ref={audioRef} loop src="/mind-the-gap-theme.mp3" />
+      <audio ref={ambientRef} loop src="/city-ambience.mp3" />
       <button onClick={() => {
         if(playing) {
             audioRef.current.pause();
+            ambientRef.current.pause();
         } else {
             audioRef.current.play();
+            ambientRef.current.play();
         }
         setPlaying(!playing);
       }} className="p-2 bg-[#1e1e2e] text-[#efe6d5] rounded-none shadow-[4px_4px_0px_0px_#efe6d5] border-2 border-[#efe6d5] hover:bg-[#2a2a3e] transition-colors">
@@ -649,18 +669,21 @@ const AudioPlayer = ({ view }) => {
 
 // --- MAIN COMPONENT ---
 const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, view }) => {
+  // Memoized surge path calculation
   const surgePath = useMemo(() => {
     if (!gameState?.lastEvent || gameState.lastEvent.type !== 'claim-passenger') return new Set();
+    // Only show surge for 2.5s
     if (Date.now() - gameState.lastEvent.timestamp > 2500) return new Set();
 
     const { playerColor, claimedLandmarkIds } = gameState.lastEvent;
     
+    // PATHFINDING FOR SURGE
     const nodes = new Set();
     if(!claimedLandmarkIds || claimedLandmarkIds.length === 0) return new Set();
 
     const queue = [{ x: CENTER, y: CENTER }];
     const visited = new Set([`${CENTER},${CENTER}`]);
-    const cameFrom = {}; 
+    const cameFrom = {}; // key -> parentKey
     
     const targetsFound = new Set();
     
@@ -671,6 +694,7 @@ const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, v
        
        if (cell && cell.type === 'landmark' && claimedLandmarkIds.includes(cell.id)) {
            targetsFound.add(cell.id);
+           // Trace back
            let trace = currKey;
            while(trace) {
                nodes.add(trace);
@@ -686,6 +710,7 @@ const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, v
              const currObj = isStart(curr.x, curr.y) ? {isStart:true, type:'start'} : cell;
              const nextObj = isStart(nc.x, nc.y) ? {isStart:true, type:'start'} : nextCell;
 
+             // Valid node if Start, Own Track, or Connected Landmark
              if(nextObj && (nextObj.isStart || (nextObj.type === 'track' && nextObj.owner === playerColor) || (nextObj.type === 'landmark' && nextObj.connections?.[playerColor] > 0))) {
                  if(areConnected(currObj, nextObj, dir)) {
                      visited.add(key);
@@ -741,6 +766,7 @@ export default function App() {
   const [gameState, setGameState] = useState(null);
   const [view, setView] = useState('home');
   const [error, setError] = useState("");
+  const [authError, setAuthError] = useState(null);
   
   const [selectedCardIdx, setSelectedCardIdx] = useState(null);
   const [selectedCardType, setSelectedCardType] = useState(null);
@@ -773,11 +799,16 @@ export default function App() {
             await signInAnonymously(auth); 
         } catch (err) { 
             console.error("Auth error:", err);
+            // Fail silently in UI
         } 
     };
     initAuth();
     const sub = onAuthStateChanged(auth, (u) => {
-        if (u) setUser(u); else setUser(null);
+        if (u) {
+            setUser(u);
+        } else {
+            setUser(null);
+        }
     });
     return () => sub();
   }, []);
@@ -821,6 +852,7 @@ export default function App() {
         
         const isHost = data.hostId === user.uid;
         if (isHost) {
+            // FIX: If game is playing, go to host view. If lobby, go to lobby view.
             if (data.status === 'playing') setView('host'); 
             else setView('lobby');
         }
@@ -1381,13 +1413,17 @@ export default function App() {
 
   if (view === 'host') {
     return (
-      <div className="h-screen bg-[#1e1e2e] text-[#efe6d5] flex flex-col p-4 gap-4 overflow-hidden relative font-questrial">
+      <div className="h-screen bg-[#1e1e2e] text-[#efe6d5] flex p-4 gap-6 overflow-hidden relative font-questrial">
         <AudioPlayer view="host" />
         <NotificationOverlay event={gameState.lastEvent} />
         
         {/* HEADER */}
         <div className="flex justify-between items-center w-full z-10 bg-[#1e1e2e] pb-2 border-b-4 border-black">
-             <h1 className="text-2xl font-retro font-black text-[#efe6d5] flex-1">MIND THE GAP: <span className="text-[#f2ca50]">{activeRoomId}</span></h1>
+             <div className="flex items-center gap-4">
+                 <h1 className="text-2xl font-retro font-black text-[#efe6d5]">MIND THE GAP</h1>
+                 <span className="text-xl font-retro text-[#f2ca50] border-l-4 border-black pl-4">{activeRoomId}</span>
+             </div>
+             
              <div className="flex gap-4 items-center">
                  {/* HORIZONTAL STANDINGS */}
                  <div className="flex gap-2">
@@ -1407,34 +1443,34 @@ export default function App() {
         <div className="flex w-full h-full gap-6 overflow-hidden">
             
             {/* LEFT SIDEBAR - PASSENGERS */}
-            <div className="w-1/4 min-w-[300px] flex flex-col gap-4 h-full z-10 overflow-hidden">
-                <div className="bg-[#1e1e2e] border-2 border-[#efe6d5]/30 p-2 h-24 overflow-y-auto mb-2 text-[10px] font-pixel text-[#efe6d5]/70">
+            <div className="w-1/3 min-w-[350px] flex flex-col gap-4 h-full z-10 overflow-hidden">
+                <div className="bg-[#1e1e2e] border-2 border-[#efe6d5]/30 p-2 h-24 overflow-y-auto mb-2 text-[12px] font-pixel text-[#efe6d5]/70">
                     {gameState.gameLog?.map((log, i) => <div key={i} className="border-b border-[#efe6d5]/10 pb-1 mb-1">{log}</div>)}
                 </div>
                 <h3 className="text-sm font-bold text-[#efe6d5] flex items-center gap-2 uppercase tracking-wide font-retro">CURRENT PASSENGERS:</h3>
-                <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-2 pb-4">
+                <div className="flex-1 flex flex-col gap-3 overflow-y-auto pr-2 pb-4">
                   {gameState.activePassengers.map(pass => (
-                    <div key={pass.id} className={`bg-[#efe6d5] w-full rounded-lg border-4 border-black relative transform transition-all duration-300 flex flex-row h-32 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 grayscale' : ''}`}>
+                    <div key={pass.id} className={`bg-[#efe6d5] w-full rounded-lg border-4 border-black relative transform transition-all duration-300 flex flex-row h-40 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 grayscale' : ''}`}>
                       {gameState.totalTurns < pass.unlockTurn && <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20"><span className="bg-[#e66a4e] text-[#efe6d5] px-2 py-1 font-bold border-2 border-black font-retro text-[10px] shadow-[2px_2px_0px_0px_black]">Arriving Soon</span></div>}
                       
                       {/* Left: Character & Info */}
-                      <div className="w-1/3 bg-[#8ecae6] flex flex-col items-center justify-end border-r-4 border-black p-1 relative">
-                          <img src={`/${pass.img}`} className="w-16 h-16 object-contain z-10 rendering-pixelated" alt="char" />
+                      <div className="w-1/3 bg-[#8ecae6] flex flex-col items-center justify-between border-r-4 border-black p-1 relative">
+                          <img src={`/${pass.img}`} className="w-20 h-20 object-contain z-10 rendering-pixelated mt-2" alt="char" />
                           <div className="w-full bg-white border-t-2 border-black p-1 text-center">
                              <span className="font-black text-[9px] font-retro text-black uppercase block leading-tight mb-1">{pass.name}</span>
-                             <span className="font-black text-lg font-retro text-[#e66a4e]">{pass.points}</span>
+                             <span className="font-black text-xl font-retro text-[#e66a4e]">{pass.points}</span>
                           </div>
                       </div>
 
                       {/* Right: Speech & Progress */}
-                      <div className="flex-1 flex flex-col justify-between p-2 bg-[#efe6d5]">
+                      <div className="flex-1 flex flex-col justify-between p-3 bg-[#efe6d5]">
                           {/* Bubble */}
-                          <div className="bg-[#782e53] flex-1 rounded-sm border-2 border-black p-2 flex items-center justify-center relative mb-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
-                              <p className="text-[12px] font-bold font-pixel leading-tight text-center text-[#efe6d5] uppercase tracking-wide">{pass.desc}</p>
+                          <div className="bg-[#782e53] flex-1 rounded-sm border-2 border-black p-3 flex items-center justify-center relative mb-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
+                              <p className="text-sm font-bold font-pixel leading-tight text-center text-[#efe6d5] uppercase tracking-wide">{pass.desc}</p>
                           </div>
                           
                           {/* Progress Dots */}
-                          <div className="flex gap-1 justify-end">
+                          <div className="flex gap-2 justify-end">
                               {gameState.players.map(pl => {
                                    const connectedLMs = new Set();
                                    gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) connectedLMs.add(c.id); }));
