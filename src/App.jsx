@@ -12,7 +12,7 @@ import {
   AlertCircle, Trophy, Coffee, Landmark, Trees, 
   ShoppingBag, Zap, Crown, Play, User, Music, Volume2, VolumeX, 
   Link as LinkIcon, RefreshCw, Star, Ticket, Cone, Construction, Shuffle, Move, Repeat,
-  Plane, Banknote, Ghost, Heart, Smile, LogOut, X, Check, FastForward, Ban, Bot
+  Plane, Banknote, Ghost, Heart, Smile, LogOut, X, Check, FastForward, Ban
 } from 'lucide-react';
 
 // --- FIREBASE CONFIGURATION ---
@@ -405,14 +405,13 @@ const TrackSvg = ({ shape, rotation, color, animate }) => {
   );
 };
 
-// REVERTED MEMOIZATION FOR FUNCTIONALITY
 const Cell = ({ x, y, cellData, onClick, view, isBlocked, isSurge, decorImage }) => {
   const isCenter = x === CENTER && y === CENTER;
   const isHost = view === 'host';
   
   let content = null;
   // Host bg is transparent to show map. Player bg is semi-transparent dark to show map.
-  let bgClass = isHost ? "bg-transparent" : "bg-black/30 backdrop-blur-[1px]";
+  let bgClass = isHost ? "bg-transparent" : "bg-transparent"; // Fixed transparency for map visibility
   // Borders: None for Host, Thin Cream for Players
   let borderClass = isHost ? "border-0" : "border border-[#efe6d5]/20";
   
@@ -846,120 +845,6 @@ export default function App() {
       }
     }
   }, [gameState?.lastEvent, view]);
-
-  // --- BOT LOGIC HOOK ---
-  useEffect(() => {
-     if (view === 'host' && gameState?.status === 'playing') {
-         const currentPlayer = gameState.players[gameState.turnIndex];
-         if (currentPlayer && currentPlayer.isBot) {
-             const timer = setTimeout(() => runBotTurn(gameState), 2000); // 2s thinking time
-             return () => clearTimeout(timer);
-         }
-     }
-  }, [gameState, view]);
-
-  const runBotTurn = async (currentState) => {
-      // Simple Greedy Bot
-      const playerIdx = currentState.turnIndex;
-      const player = currentState.players[playerIdx];
-      const newGrid = JSON.parse(JSON.stringify(currentState.grid));
-      
-      // 1. Try to place a track that extends network
-      // (Simplified: just pick random valid spot for now to keep it running)
-      let placed = false;
-      let cardIdx = 0;
-      let cardType = 'tracks';
-      let bestX = -1, bestY = -1, bestRot = 0;
-
-      // ... Bot logic could be expanded here with pathfinding
-      // For now, naive random valid placement:
-      const availableTracks = player.hand.tracks;
-      if (availableTracks.length > 0) {
-          // Shuffle grid positions
-          const coords = [];
-          for(let y=0; y<GRID_SIZE; y++) for(let x=0; x<GRID_SIZE; x++) coords.push({x,y});
-          coords.sort(() => Math.random() - 0.5);
-
-          for (let c of coords) {
-              if (!getCell(newGrid, c.x, c.y) && !isStart(c.x, c.y)) {
-                 // Try rotations
-                 for (let r of [0, 90, 180, 270]) {
-                     const testCard = { ...availableTracks[0], owner: player.color, rotation: r, type: 'track', isStart: false };
-                     // Check connectivity
-                     let connected = false;
-                     [0,1,2,3].forEach(d => {
-                         const nc = getNeighborCoords(c.x, c.y, d);
-                         const nCell = getCell(newGrid, nc.x, nc.y);
-                         const isS = isStart(nc.x, nc.y);
-                         if(isS || (nCell && (nCell.owner === player.color || (nCell.type === 'landmark' && nCell.connections?.[player.color]>0)))) {
-                             if(areConnected(isS?{isStart:true}:nCell, testCard, (d+2)%4)) connected = true;
-                         }
-                     });
-                     
-                     if (connected) {
-                         bestX = c.x; bestY = c.y; bestRot = r; placed = true;
-                         break;
-                     }
-                 }
-              }
-              if (placed) break;
-          }
-      }
-
-      if (placed) {
-          // Commit Move
-          newGrid[bestY][bestX] = { ...availableTracks[0], owner: player.color, rotation: bestRot, connectedColors: [player.color], type: 'track' };
-          
-          // Basic Hand Update
-          const newHand = { ...player.hand };
-          newHand.tracks.splice(0, 1);
-          // Refill
-          const newDecks = { ...currentState.decks };
-          if(newDecks.tracks.length > 0) newHand.tracks.push(newDecks.tracks.pop());
-          
-          const newPlayers = [...currentState.players];
-          newPlayers[playerIdx] = { ...player, hand: newHand };
-          
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
-              grid: JSON.stringify(newGrid),
-              players: newPlayers,
-              decks: newDecks,
-              turnIndex: (playerIdx + 1) % newPlayers.length,
-              lastEvent: { type: 'place-track', playerColor: player.color, timestamp: Date.now() },
-              totalTurns: (currentState.totalTurns || 0) + 1
-          });
-      } else {
-          // Skip turn if stuck
-           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
-              turnIndex: (playerIdx + 1) % currentState.players.length,
-              totalTurns: (currentState.totalTurns || 0) + 1
-          });
-      }
-  };
-
-  const addBot = async () => {
-      if (!gameState || gameState.players.length >= 4) return;
-      const botColor = COLORS.find(c => !gameState.players.find(p => p.color === c));
-      const newBot = {
-          id: `bot-${Date.now()}`,
-          name: `CPU ${gameState.players.length + 1}`,
-          color: botColor,
-          score: 0,
-          hand: { 
-              tracks: generateTrackDeck().slice(0,3), 
-              landmarks: generateLandmarks().slice(0,2), 
-              metro: [] 
-          },
-          completedPassengers: [],
-          isBot: true
-      };
-      
-      const newDecks = { ...gameState.decks }; // Should reduce deck but simplifed for add
-      
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
-          players: arrayUnion(newBot)
-      });
-  };
 
   const handleTouchStart = (e) => {
     if (e.touches.length === 2) {
@@ -1484,18 +1369,11 @@ export default function App() {
           ))}
           {[...Array(4 - (gameState?.players.length || 0))].map((_, i) => <div key={i} className="p-6 rounded-none bg-white/5 border-4 border-dashed border-[#efe6d5]/20 flex flex-col items-center justify-center text-[#efe6d5]/50 font-pixel text-xl">Waiting...</div>)}
         </div>
-        
-        <div className="flex gap-4">
-          {gameState?.hostId === user.uid && (
-            <>
-                <button onClick={addBot} disabled={gameState?.players.length >= 4} className="px-8 py-4 bg-[#5d76f2] hover:bg-[#4b63d6] text-[#efe6d5] font-black text-xl rounded-none shadow-[8px_8px_0px_0px_black] transition-transform active:translate-y-1 active:shadow-none disabled:opacity-50 font-retro border-4 border-black flex items-center gap-2"><Bot size={20}/> ADD CPU</button>
-                <button onClick={startGame} disabled={gameState?.players.length < 2} className="px-12 py-4 bg-[#f2ca50] hover:bg-[#d9b646] text-[#1e1e2e] font-black text-2xl rounded-none shadow-[8px_8px_0px_0px_black] transition-transform active:translate-y-1 active:shadow-none disabled:opacity-50 font-retro border-4 border-black">START GAME</button> 
-            </>
-          )}
-        </div>
-        
-        {gameState?.hostId !== user.uid && <p className="animate-pulse text-xl font-medium text-center font-pixel text-[#f2ca50]">Host will start the game soon...</p>}
-        
+        {gameState?.hostId === user.uid ? (
+          <button onClick={startGame} disabled={gameState?.players.length < 2} className="px-12 py-4 bg-[#f2ca50] hover:bg-[#d9b646] text-[#1e1e2e] font-black text-2xl rounded-none shadow-[8px_8px_0px_0px_black] transition-transform active:translate-y-1 active:shadow-none disabled:opacity-50 font-retro border-4 border-black">START GAME</button> 
+        ) : (
+          <p className="animate-pulse text-xl font-medium text-center font-pixel text-[#f2ca50]">Host will start the game soon...</p>
+        )}
         <button onClick={leaveGame} className="absolute top-4 right-4 p-2 bg-red-900/50 hover:bg-red-600 text-red-200 hover:text-white rounded-none border-2 border-red-500 z-50 transition-colors"><X size={20} /></button>
       </div>
     );
@@ -1503,7 +1381,7 @@ export default function App() {
 
   if (view === 'host') {
     return (
-      <div className="h-screen bg-[#1e1e2e] text-[#efe6d5] flex p-4 gap-6 overflow-hidden relative font-questrial">
+      <div className="h-screen bg-[#1e1e2e] text-[#efe6d5] flex flex-col p-4 gap-4 overflow-hidden relative font-questrial">
         <AudioPlayer view="host" />
         <NotificationOverlay event={gameState.lastEvent} />
         
@@ -1530,54 +1408,54 @@ export default function App() {
             
             {/* LEFT SIDEBAR - PASSENGERS */}
             <div className="w-1/4 min-w-[300px] flex flex-col gap-4 h-full z-10 overflow-hidden">
-                <h3 className="text-sm font-bold text-[#efe6d5] flex items-center gap-2 uppercase tracking-wide font-retro">CURRENT PASSENGERS:</h3>
-                {/* STATION LOG */}
                 <div className="bg-[#1e1e2e] border-2 border-[#efe6d5]/30 p-2 h-24 overflow-y-auto mb-2 text-[10px] font-pixel text-[#efe6d5]/70">
                     {gameState.gameLog?.map((log, i) => <div key={i} className="border-b border-[#efe6d5]/10 pb-1 mb-1">{log}</div>)}
                 </div>
+                <h3 className="text-sm font-bold text-[#efe6d5] flex items-center gap-2 uppercase tracking-wide font-retro">CURRENT PASSENGERS:</h3>
                 <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-2 pb-4">
                   {gameState.activePassengers.map(pass => (
-                    <div key={pass.id} className={`bg-[#efe6d5] w-full rounded-lg border-4 border-black relative transform transition-all duration-300 flex flex-col h-48 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 grayscale' : ''}`}>
+                    <div key={pass.id} className={`bg-[#efe6d5] w-full rounded-lg border-4 border-black relative transform transition-all duration-300 flex flex-row h-32 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 grayscale' : ''}`}>
                       {gameState.totalTurns < pass.unlockTurn && <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20"><span className="bg-[#e66a4e] text-[#efe6d5] px-2 py-1 font-bold border-2 border-black font-retro text-[10px] shadow-[2px_2px_0px_0px_black]">Arriving Soon</span></div>}
                       
-                      {/* TOP HALF: Sky Blue + Character + Bubble */}
-                      <div className="bg-[#8ecae6] flex-1 relative rounded-t-sm border-b-4 border-black overflow-hidden flex items-end p-2">
-                          <img src={`/${pass.img}`} className="w-16 h-16 object-contain z-10" alt="char" />
-                          <div className="absolute top-2 left-20 right-2 bottom-auto bg-white border-4 border-black p-3 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] z-20 flex items-center justify-center">
-                              <p className="text-sm font-bold font-pixel leading-tight text-center text-black uppercase">{pass.desc}</p>
+                      {/* Left: Character & Info */}
+                      <div className="w-1/3 bg-[#8ecae6] flex flex-col items-center justify-end border-r-4 border-black p-1 relative">
+                          <img src={`/${pass.img}`} className="w-16 h-16 object-contain z-10 rendering-pixelated" alt="char" />
+                          <div className="w-full bg-white border-t-2 border-black p-1 text-center">
+                             <span className="font-black text-[9px] font-retro text-black uppercase block leading-tight mb-1">{pass.name}</span>
+                             <span className="font-black text-lg font-retro text-[#e66a4e]">{pass.points}</span>
                           </div>
                       </div>
 
-                      {/* BOTTOM HALF: Info */}
-                      <div className="p-2 flex justify-between items-center bg-[#efe6d5]">
-                         <div className="flex flex-col">
-                            <span className="font-black text-sm font-retro text-black uppercase">{pass.name}</span>
-                            <div className="flex gap-1 mt-1">
-                                {gameState.players.map(pl => {
-                                     const connectedLMs = new Set();
-                                     gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) connectedLMs.add(c.id); }));
-                                     
-                                     let opacity = 'opacity-20';
-                                     let ring = '';
-                                     
-                                     if (pass.reqType === 'combo' || pass.reqType === 'combo_cat') {
-                                         let count = 0;
-                                         if(pass.reqType === 'combo') { if(connectedLMs.has(pass.targets[0])) count++; if(connectedLMs.has(pass.targets[1])) count++; } 
-                                         else { if(connectedLMs.has(pass.targetId)) count++; const myLandmarks = []; gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && connectedLMs.has(c.id)) myLandmarks.push(c); })); if(myLandmarks.some(l => l.category === pass.cat2)) count++; }
-                                         if (count === 1) opacity = 'opacity-50'; if (count === 2) { opacity = 'opacity-100'; ring = 'ring-2 ring-black'; }
-                                     } else {
-                                         let met = false;
-                                         const myLandmarks = []; gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && connectedLMs.has(c.id)) myLandmarks.push(c); }));
-                                         if(pass.reqType === 'specific' && connectedLMs.has(pass.targetId)) met = true;
-                                         if(pass.reqType === 'category' && myLandmarks.some(l => l.category === pass.targetCategory)) met = true;
-                                         if(pass.reqType === 'list' && pass.targets.some(t => connectedLMs.has(t))) met = true;
-                                         if (met) { opacity = 'opacity-100'; ring = 'ring-2 ring-black'; }
-                                     }
-                                     return <div key={pl.id} className={`w-3 h-3 rounded-full bg-[${THEME[pl.color]}] border border-black ${opacity} ${ring}`}></div>
-                                })}
-                            </div>
-                         </div>
-                         <span className="font-black text-2xl font-retro text-[#e66a4e]">{pass.points} Pts</span>
+                      {/* Right: Speech & Progress */}
+                      <div className="flex-1 flex flex-col justify-between p-2 bg-[#efe6d5]">
+                          {/* Bubble */}
+                          <div className="bg-[#782e53] flex-1 rounded-sm border-2 border-black p-2 flex items-center justify-center relative mb-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
+                              <p className="text-[12px] font-bold font-pixel leading-tight text-center text-[#efe6d5] uppercase tracking-wide">{pass.desc}</p>
+                          </div>
+                          
+                          {/* Progress Dots */}
+                          <div className="flex gap-1 justify-end">
+                              {gameState.players.map(pl => {
+                                   const connectedLMs = new Set();
+                                   gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) connectedLMs.add(c.id); }));
+                                   let opacity = 'opacity-20';
+                                   let ring = '';
+                                   if (pass.reqType === 'combo' || pass.reqType === 'combo_cat') {
+                                       let count = 0;
+                                       if(pass.reqType === 'combo') { if(connectedLMs.has(pass.targets[0])) count++; if(connectedLMs.has(pass.targets[1])) count++; } 
+                                       else { if(connectedLMs.has(pass.targetId)) count++; const myLandmarks = []; gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && connectedLMs.has(c.id)) myLandmarks.push(c); })); if(myLandmarks.some(l => l.category === pass.cat2)) count++; }
+                                       if (count === 1) opacity = 'opacity-50'; if (count === 2) { opacity = 'opacity-100'; ring = 'ring-2 ring-black'; }
+                                   } else {
+                                       let met = false;
+                                       const myLandmarks = []; gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && connectedLMs.has(c.id)) myLandmarks.push(c); }));
+                                       if(pass.reqType === 'specific' && connectedLMs.has(pass.targetId)) met = true;
+                                       if(pass.reqType === 'category' && myLandmarks.some(l => l.category === pass.targetCategory)) met = true;
+                                       if(pass.reqType === 'list' && pass.targets.some(t => connectedLMs.has(t))) met = true;
+                                       if (met) { opacity = 'opacity-100'; ring = 'ring-2 ring-black'; }
+                                   }
+                                   return <div key={pl.id} className={`w-3 h-3 rounded-full bg-[${THEME[pl.color]}] border border-black ${opacity} ${ring}`}></div>
+                              })}
+                          </div>
                       </div>
                     </div>
                   ))}
