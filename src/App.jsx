@@ -12,7 +12,7 @@ import {
   AlertCircle, Trophy, Coffee, Landmark, Trees, 
   ShoppingBag, Zap, Crown, Play, User, Music, Volume2, VolumeX, 
   Link as LinkIcon, RefreshCw, Star, Ticket, Cone, Construction, Shuffle, Move, Repeat,
-  Plane, Banknote, Ghost, Heart, Smile, LogOut, X, Check, FastForward, Ban, Activity
+  Plane, Banknote, Ghost, Heart, Smile, LogOut, X, Check, FastForward, Ban, Bot
 } from 'lucide-react';
 
 // --- FIREBASE CONFIGURATION ---
@@ -71,31 +71,24 @@ const CATEGORIES = {
 
 // Landmarks Data
 const LANDMARKS_DATA = [
-  // Gastronomy
   { name: "Ice Cream Shop", cat: 'gastronomy' }, { name: "Candy Store", cat: 'gastronomy' }, { name: "Farmer's Market", cat: 'gastronomy' },
   { name: "Spice Village", cat: 'gastronomy' }, { name: "Food Truck", cat: 'gastronomy' }, { name: "The Melting Pot", cat: 'gastronomy' },
   { name: "Cafe", cat: 'gastronomy' }, { name: "Bakery", cat: 'gastronomy' }, { name: "Bodega", cat: 'gastronomy' }, { name: "Rooftop Bar", cat: 'gastronomy' },
-  // Heritage
   { name: "Old Cathedral", cat: 'heritage' }, { name: "Museum", cat: 'heritage' }, { name: "Theatre", cat: 'heritage' },
   { name: "Opera House", cat: 'heritage' }, { name: "Observatory", cat: 'heritage' }, { name: "Clocktower", cat: 'heritage' },
   { name: "University", cat: 'heritage' }, { name: "Cinema", cat: 'heritage' },
-  // Nature
   { name: "Botanic Gardens", cat: 'nature' }, { name: "Dog Park", cat: 'nature' }, { name: "Butterfly House", cat: 'nature' },
   { name: "Country Club", cat: 'nature' }, { name: "Flower Shop", cat: 'nature' }, { name: "Mountain Trail", cat: 'nature' },
-  // Services
   { name: "Airport", cat: 'services' }, { name: "Bank", cat: 'services' }, { name: "Mall", cat: 'services' },
   { name: "Gym", cat: 'services' }, { name: "Fire Department", cat: 'services' }, { name: "Post Office", cat: 'services' },
   { name: "Library", cat: 'services' }, { name: "Tailors", cat: 'services' },
-  // Spiritual
   { name: "Haunted House", cat: 'spiritual' }, { name: "Cemetery", cat: 'spiritual' }, 
   { name: "Fortune Teller", cat: 'spiritual' }, { name: "Antique Store", cat: 'spiritual' },
-  // Thrilling
   { name: "Theme Park", cat: 'thrilling' }, { name: "Casino", cat: 'thrilling' }, { name: "Rock Climbing Gym", cat: 'thrilling' },
   { name: "Comedy Club", cat: 'thrilling' }, { name: "Skate Park", cat: 'thrilling' }, { name: "Zoo", cat: 'thrilling' },
   { name: "Tattoo Parlor", cat: 'thrilling' }, { name: "The Stadium", cat: 'thrilling' }
 ];
 
-// Personas
 const PERSONAS_BY_CAT = {
   gastronomy: ["The Head Chef", "The Food Critic", "The Glutton", "The Barista", "The Baker", "The Sommelier"],
   heritage: ["The Historian", "The Widow", "The Archaeologist", "The Monk", "The Duke", "The Architect"],
@@ -501,8 +494,8 @@ const GameCard = ({ data, selected, onClick, type }) => {
           <div className="absolute top-1 right-1 text-black scale-75 md:scale-100">
              {CATEGORIES[data.category?.toUpperCase()]?.icon}
           </div>
-          <div className="text-[8px] md:text-[10px] text-center font-bold text-black leading-tight mt-2 line-clamp-2 w-full font-retro overflow-hidden">{data.name}</div>
-          <div className="text-[8px] md:text-[9px] text-gray-600 mt-1 font-pixel uppercase">{CATEGORIES[data.category?.toUpperCase()]?.label}</div>
+          <div className="text-[8px] md:text-[10px] text-center font-bold text-black leading-tight mt-2 line-clamp-2 w-full font-retro overflow-hidden leading-tight break-words px-0.5">{data.name}</div>
+          <div className="text-[7px] md:text-[8px] text-gray-600 mt-1 font-pixel uppercase">{CATEGORIES[data.category?.toUpperCase()]?.label}</div>
         </>
       )}
     </div>
@@ -628,25 +621,11 @@ const playSound = (type) => {
 const AudioPlayer = ({ view }) => {
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef(null);
-  const ambientRef = useRef(null);
 
   useEffect(() => {
     if (view === 'host' && audioRef.current) {
       audioRef.current.volume = 0.1; 
       audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
-      
-      if (ambientRef.current) {
-          ambientRef.current.volume = 0.3; 
-          ambientRef.current.play().catch(e => console.log("Ambient fail", e));
-          
-          const fluctuate = () => {
-             if(ambientRef.current) {
-                 ambientRef.current.volume = Math.random() * 0.4 + 0.1; 
-                 setTimeout(fluctuate, Math.random() * 10000 + 5000);
-             }
-          };
-          fluctuate();
-      }
     }
   }, [view]);
 
@@ -655,14 +634,11 @@ const AudioPlayer = ({ view }) => {
   return (
     <div className="fixed bottom-4 right-4 z-50">
       <audio ref={audioRef} loop src="/mind-the-gap-theme.mp3" />
-      <audio ref={ambientRef} loop src="/city-ambience.mp3" />
       <button onClick={() => {
         if(playing) {
             audioRef.current.pause();
-            ambientRef.current.pause();
         } else {
             audioRef.current.play();
-            ambientRef.current.play();
         }
         setPlaying(!playing);
       }} className="p-2 bg-[#1e1e2e] text-[#efe6d5] rounded-none shadow-[4px_4px_0px_0px_#efe6d5] border-2 border-[#efe6d5] hover:bg-[#2a2a3e] transition-colors">
@@ -870,6 +846,120 @@ export default function App() {
       }
     }
   }, [gameState?.lastEvent, view]);
+
+  // --- BOT LOGIC HOOK ---
+  useEffect(() => {
+     if (view === 'host' && gameState?.status === 'playing') {
+         const currentPlayer = gameState.players[gameState.turnIndex];
+         if (currentPlayer && currentPlayer.isBot) {
+             const timer = setTimeout(() => runBotTurn(gameState), 2000); // 2s thinking time
+             return () => clearTimeout(timer);
+         }
+     }
+  }, [gameState, view]);
+
+  const runBotTurn = async (currentState) => {
+      // Simple Greedy Bot
+      const playerIdx = currentState.turnIndex;
+      const player = currentState.players[playerIdx];
+      const newGrid = JSON.parse(JSON.stringify(currentState.grid));
+      
+      // 1. Try to place a track that extends network
+      // (Simplified: just pick random valid spot for now to keep it running)
+      let placed = false;
+      let cardIdx = 0;
+      let cardType = 'tracks';
+      let bestX = -1, bestY = -1, bestRot = 0;
+
+      // ... Bot logic could be expanded here with pathfinding
+      // For now, naive random valid placement:
+      const availableTracks = player.hand.tracks;
+      if (availableTracks.length > 0) {
+          // Shuffle grid positions
+          const coords = [];
+          for(let y=0; y<GRID_SIZE; y++) for(let x=0; x<GRID_SIZE; x++) coords.push({x,y});
+          coords.sort(() => Math.random() - 0.5);
+
+          for (let c of coords) {
+              if (!getCell(newGrid, c.x, c.y) && !isStart(c.x, c.y)) {
+                 // Try rotations
+                 for (let r of [0, 90, 180, 270]) {
+                     const testCard = { ...availableTracks[0], owner: player.color, rotation: r, type: 'track', isStart: false };
+                     // Check connectivity
+                     let connected = false;
+                     [0,1,2,3].forEach(d => {
+                         const nc = getNeighborCoords(c.x, c.y, d);
+                         const nCell = getCell(newGrid, nc.x, nc.y);
+                         const isS = isStart(nc.x, nc.y);
+                         if(isS || (nCell && (nCell.owner === player.color || (nCell.type === 'landmark' && nCell.connections?.[player.color]>0)))) {
+                             if(areConnected(isS?{isStart:true}:nCell, testCard, (d+2)%4)) connected = true;
+                         }
+                     });
+                     
+                     if (connected) {
+                         bestX = c.x; bestY = c.y; bestRot = r; placed = true;
+                         break;
+                     }
+                 }
+              }
+              if (placed) break;
+          }
+      }
+
+      if (placed) {
+          // Commit Move
+          newGrid[bestY][bestX] = { ...availableTracks[0], owner: player.color, rotation: bestRot, connectedColors: [player.color], type: 'track' };
+          
+          // Basic Hand Update
+          const newHand = { ...player.hand };
+          newHand.tracks.splice(0, 1);
+          // Refill
+          const newDecks = { ...currentState.decks };
+          if(newDecks.tracks.length > 0) newHand.tracks.push(newDecks.tracks.pop());
+          
+          const newPlayers = [...currentState.players];
+          newPlayers[playerIdx] = { ...player, hand: newHand };
+          
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
+              grid: JSON.stringify(newGrid),
+              players: newPlayers,
+              decks: newDecks,
+              turnIndex: (playerIdx + 1) % newPlayers.length,
+              lastEvent: { type: 'place-track', playerColor: player.color, timestamp: Date.now() },
+              totalTurns: (currentState.totalTurns || 0) + 1
+          });
+      } else {
+          // Skip turn if stuck
+           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
+              turnIndex: (playerIdx + 1) % currentState.players.length,
+              totalTurns: (currentState.totalTurns || 0) + 1
+          });
+      }
+  };
+
+  const addBot = async () => {
+      if (!gameState || gameState.players.length >= 4) return;
+      const botColor = COLORS.find(c => !gameState.players.find(p => p.color === c));
+      const newBot = {
+          id: `bot-${Date.now()}`,
+          name: `CPU ${gameState.players.length + 1}`,
+          color: botColor,
+          score: 0,
+          hand: { 
+              tracks: generateTrackDeck().slice(0,3), 
+              landmarks: generateLandmarks().slice(0,2), 
+              metro: [] 
+          },
+          completedPassengers: [],
+          isBot: true
+      };
+      
+      const newDecks = { ...gameState.decks }; // Should reduce deck but simplifed for add
+      
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
+          players: arrayUnion(newBot)
+      });
+  };
 
   const handleTouchStart = (e) => {
     if (e.touches.length === 2) {
@@ -1394,11 +1484,18 @@ export default function App() {
           ))}
           {[...Array(4 - (gameState?.players.length || 0))].map((_, i) => <div key={i} className="p-6 rounded-none bg-white/5 border-4 border-dashed border-[#efe6d5]/20 flex flex-col items-center justify-center text-[#efe6d5]/50 font-pixel text-xl">Waiting...</div>)}
         </div>
-        {gameState?.hostId === user.uid ? (
-          <button onClick={startGame} disabled={gameState?.players.length < 2} className="px-12 py-4 bg-[#f2ca50] hover:bg-[#d9b646] text-[#1e1e2e] font-black text-2xl rounded-none shadow-[8px_8px_0px_0px_black] transition-transform active:translate-y-1 active:shadow-none disabled:opacity-50 font-retro border-4 border-black">START GAME</button> 
-        ) : (
-          <p className="animate-pulse text-xl font-medium text-center font-pixel text-[#f2ca50]">Host will start the game soon...</p>
-        )}
+        
+        <div className="flex gap-4">
+          {gameState?.hostId === user.uid && (
+            <>
+                <button onClick={addBot} disabled={gameState?.players.length >= 4} className="px-8 py-4 bg-[#5d76f2] hover:bg-[#4b63d6] text-[#efe6d5] font-black text-xl rounded-none shadow-[8px_8px_0px_0px_black] transition-transform active:translate-y-1 active:shadow-none disabled:opacity-50 font-retro border-4 border-black flex items-center gap-2"><Bot size={20}/> ADD CPU</button>
+                <button onClick={startGame} disabled={gameState?.players.length < 2} className="px-12 py-4 bg-[#f2ca50] hover:bg-[#d9b646] text-[#1e1e2e] font-black text-2xl rounded-none shadow-[8px_8px_0px_0px_black] transition-transform active:translate-y-1 active:shadow-none disabled:opacity-50 font-retro border-4 border-black">START GAME</button> 
+            </>
+          )}
+        </div>
+        
+        {gameState?.hostId !== user.uid && <p className="animate-pulse text-xl font-medium text-center font-pixel text-[#f2ca50]">Host will start the game soon...</p>}
+        
         <button onClick={leaveGame} className="absolute top-4 right-4 p-2 bg-red-900/50 hover:bg-red-600 text-red-200 hover:text-white rounded-none border-2 border-red-500 z-50 transition-colors"><X size={20} /></button>
       </div>
     );
@@ -1406,7 +1503,7 @@ export default function App() {
 
   if (view === 'host') {
     return (
-      <div className="h-screen bg-[#1e1e2e] text-[#efe6d5] flex flex-col p-4 gap-4 overflow-hidden relative font-questrial">
+      <div className="h-screen bg-[#1e1e2e] text-[#efe6d5] flex p-4 gap-6 overflow-hidden relative font-questrial">
         <AudioPlayer view="host" />
         <NotificationOverlay event={gameState.lastEvent} />
         
@@ -1446,7 +1543,7 @@ export default function App() {
                       {/* TOP HALF: Sky Blue + Character + Bubble */}
                       <div className="bg-[#8ecae6] flex-1 relative rounded-t-sm border-b-4 border-black overflow-hidden flex items-end p-2">
                           <img src={`/${pass.img}`} className="w-16 h-16 object-contain z-10" alt="char" />
-                          <div className="absolute top-2 left-2 right-2 bottom-20 bg-white border-4 border-black p-3 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] z-20 flex items-center justify-center">
+                          <div className="absolute top-2 left-20 right-2 bottom-auto bg-white border-4 border-black p-3 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] z-20 flex items-center justify-center">
                               <p className="text-sm font-bold font-pixel leading-tight text-center text-black uppercase">{pass.desc}</p>
                           </div>
                       </div>
@@ -1480,7 +1577,7 @@ export default function App() {
                                 })}
                             </div>
                          </div>
-                         <span className="font-black text-2xl font-retro text-[#e66a4e]">{pass.points}</span>
+                         <span className="font-black text-2xl font-retro text-[#e66a4e]">{pass.points} Pts</span>
                       </div>
                     </div>
                   ))}
