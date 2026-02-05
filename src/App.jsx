@@ -36,6 +36,21 @@ const CENTER = Math.floor(GRID_SIZE / 2);
 const COLORS = ['red', 'blue', 'green', 'yellow'];
 const WIN_SCORE = 10; 
 
+// THEME COLORS
+const THEME = {
+  bg: '#1e1e2e',       // Dark Navy
+  cream: '#efe6d5',    // Cream/Bone
+  plum: '#782e53',     // Plum
+  red: '#e66a4e',      // Terra Cotta
+  yellow: '#f2ca50',   // Mustard
+  green: '#63a669',    // Sage
+  blue: '#5d76f2',     // Periwinkle
+};
+
+const getPlayerHex = (colorName) => {
+  return THEME[colorName] || '#999';
+};
+
 // Decoration Assets
 const DECOR_IMAGES = [
   'decor-1.png', 'decor-2.png', 'decor-3.png', 
@@ -60,31 +75,24 @@ const CATEGORIES = {
 
 // Landmarks Data
 const LANDMARKS_DATA = [
-  // Gastronomy
   { name: "Ice Cream Shop", cat: 'gastronomy' }, { name: "Candy Store", cat: 'gastronomy' }, { name: "Farmer's Market", cat: 'gastronomy' },
   { name: "Spice Village", cat: 'gastronomy' }, { name: "Food Truck", cat: 'gastronomy' }, { name: "The Melting Pot", cat: 'gastronomy' },
   { name: "Cafe", cat: 'gastronomy' }, { name: "Bakery", cat: 'gastronomy' }, { name: "Bodega", cat: 'gastronomy' }, { name: "Rooftop Bar", cat: 'gastronomy' },
-  // Heritage
   { name: "Old Cathedral", cat: 'heritage' }, { name: "Museum", cat: 'heritage' }, { name: "Theatre", cat: 'heritage' },
   { name: "Opera House", cat: 'heritage' }, { name: "Observatory", cat: 'heritage' }, { name: "Clocktower", cat: 'heritage' },
   { name: "University", cat: 'heritage' }, { name: "Cinema", cat: 'heritage' },
-  // Nature
   { name: "Botanic Gardens", cat: 'nature' }, { name: "Dog Park", cat: 'nature' }, { name: "Butterfly House", cat: 'nature' },
   { name: "Country Club", cat: 'nature' }, { name: "Flower Shop", cat: 'nature' }, { name: "Mountain Trail", cat: 'nature' },
-  // Services
   { name: "Airport", cat: 'services' }, { name: "Bank", cat: 'services' }, { name: "Mall", cat: 'services' },
   { name: "Gym", cat: 'services' }, { name: "Fire Department", cat: 'services' }, { name: "Post Office", cat: 'services' },
   { name: "Library", cat: 'services' }, { name: "Tailors", cat: 'services' },
-  // Spiritual
   { name: "Haunted House", cat: 'spiritual' }, { name: "Cemetery", cat: 'spiritual' }, 
   { name: "Fortune Teller", cat: 'spiritual' }, { name: "Antique Store", cat: 'spiritual' },
-  // Thrilling
   { name: "Theme Park", cat: 'thrilling' }, { name: "Casino", cat: 'thrilling' }, { name: "Rock Climbing Gym", cat: 'thrilling' },
   { name: "Comedy Club", cat: 'thrilling' }, { name: "Skate Park", cat: 'thrilling' }, { name: "Zoo", cat: 'thrilling' },
   { name: "Tattoo Parlor", cat: 'thrilling' }, { name: "The Stadium", cat: 'thrilling' }
 ];
 
-// Personas
 const PERSONAS_BY_CAT = {
   gastronomy: ["The Head Chef", "The Food Critic", "The Glutton", "The Barista", "The Baker", "The Sommelier"],
   heritage: ["The Historian", "The Widow", "The Archaeologist", "The Monk", "The Duke", "The Architect"],
@@ -347,14 +355,10 @@ const generateTrackDeck = () => {
 
 const TrackSvg = ({ shape, rotation, color, animate }) => {
   const colorMap = { red: '#ef4444', blue: '#3b82f6', green: '#22c55e', yellow: '#eab308', gray: '#9ca3af' };
-  const strokeColor = colorMap[color] || '#9ca3af';
+  const strokeColor = THEME[color] || colorMap[color] || '#9ca3af';
   
   const pathId = `track-${shape}-${Math.random().toString(36).substr(2, 5)}`;
-  let d = "";
-  if (shape === 'straight') d = "M 50 0 L 50 100";
-  if (shape === 'curved') d = "M 50 100 Q 50 50 100 50";
-  if (shape === 't-shape') d = "M 0 50 L 100 50 M 50 50 L 50 100"; 
-
+  
   return (
     <div className="w-full h-full" style={{ transform: `rotate(${rotation}deg)` }}>
       <svg viewBox="0 0 100 100" className="w-full h-full" shapeRendering="geometricPrecision">
@@ -401,46 +405,46 @@ const TrackSvg = ({ shape, rotation, color, animate }) => {
   );
 };
 
-// REVERTED MEMOIZATION FOR FUNCTIONALITY
 const Cell = ({ x, y, cellData, onClick, view, isBlocked, isSurge, decorImage }) => {
   const isCenter = x === CENTER && y === CENTER;
   const isHost = view === 'host';
   
   let content = null;
-  let bgClass = isHost ? "bg-transparent" : "bg-black/40 backdrop-blur-[2px]";
-  let borderClass = isHost ? "border-0" : "border border-gray-700";
-  const colorDotMap = { red: 'bg-red-500', blue: 'bg-blue-500', green: 'bg-green-500', yellow: 'bg-yellow-400' };
+  // Host bg is transparent to show map. Player bg is Dark Navy.
+  let bgClass = isHost ? "bg-transparent" : "bg-[#1e1e2e] backdrop-blur-[2px]";
+  // Borders: None for Host, Thin Cream for Players
+  let borderClass = isHost ? "border-0" : "border border-[#efe6d5]/20";
+  
+  const colorDotMap = { red: 'bg-[#e66a4e]', blue: 'bg-[#5d76f2]', green: 'bg-[#63a669]', yellow: 'bg-[#f2ca50]' };
 
   if (isBlocked) {
     content = <div className="w-full h-full flex items-center justify-center bg-yellow-900/50"><Cone size={24} className="text-yellow-500 animate-pulse" /></div>;
   } else if (isCenter) {
-    content = <div className="flex flex-col items-center justify-center h-full w-full bg-white text-black font-bold text-[6px] md:text-[10px] z-10 text-center leading-none border-2 border-black font-cal-sans">CITY HALL</div>;
-    bgClass = "bg-white/90";
+    content = <div className="flex flex-col items-center justify-center h-full w-full bg-[#efe6d5] text-[#1e1e2e] font-bold text-[6px] md:text-[10px] z-10 text-center leading-none border-2 border-black font-retro">CITY HALL</div>;
+    bgClass = "bg-[#efe6d5]";
   } else if (cellData?.type === 'track') {
-    if (!isHost) bgClass = "bg-gray-900/80"; 
-    // ONLY animate if it is a surge event
+    if (!isHost) bgClass = "bg-[#1e1e2e]"; 
     content = <TrackSvg shape={cellData.shape} rotation={cellData.rotation} color={cellData.owner} animate={isSurge} />;
   } else if (cellData?.type === 'landmark') {
     content = (
-      <div className="w-full h-full bg-white/90 flex flex-col items-center justify-center p-0.5 border-2 border-gray-400 shadow-md relative">
-         <div className={`text-black scale-75 md:scale-100 ${CATEGORIES[cellData.category?.toUpperCase()]?.color}`}>{CATEGORIES[cellData.category?.toUpperCase()]?.icon}</div>
-         <div className="text-[5px] md:text-[8px] text-black font-bold text-center leading-none mt-0.5 break-words w-full overflow-hidden font-cal-sans">{cellData.name}</div>
+      <div className="w-full h-full bg-[#efe6d5] flex flex-col items-center justify-center p-0.5 border-2 border-black shadow-md relative">
+         <div className={`text-[#1e1e2e] scale-75 md:scale-100 ${CATEGORIES[cellData.category?.toUpperCase()]?.color}`}>{CATEGORIES[cellData.category?.toUpperCase()]?.icon}</div>
+         <div className="text-[5px] md:text-[8px] text-black font-bold text-center leading-none mt-0.5 break-words w-full overflow-hidden font-pixel">{cellData.name}</div>
          {cellData.connections && Object.keys(cellData.connections).map((c, i) => (
-           <div key={c} className={`absolute w-2 h-2 rounded-full border border-white ${colorDotMap[c]} bottom-0.5 right-${i * 2 + 1}`}></div>
+           <div key={c} className={`absolute w-2 h-2 rounded-full border border-black ${colorDotMap[c]} bottom-0.5 right-${i * 2 + 1}`}></div>
          ))}
       </div>
     );
     if (isHost) bgClass = "bg-transparent"; 
   } else if (isHost && decorImage) {
-    // Show decor only on empty cells on host
-    content = <img src={`/${decorImage}`} className="w-2/5 h-2/5 opacity-80 object-contain drop-shadow-md" alt="decor" />;
+    content = <img src={`/${decorImage}`} className="w-2/5 h-2/5 opacity-90 object-contain drop-shadow-md" alt="decor" />;
     bgClass = "bg-transparent flex items-center justify-center";
   }
 
   return (
     <div 
       onClick={() => onClick(x, y)}
-      className={`w-full h-full aspect-square ${borderClass} ${bgClass} relative flex items-center justify-center overflow-hidden cursor-pointer hover:bg-white/10 transition-colors touch-manipulation`}
+      className={`w-full h-full aspect-square ${borderClass} ${bgClass} relative flex items-center justify-center overflow-hidden cursor-pointer hover:bg-white/5 transition-colors touch-manipulation`}
     >
       {content}
     </div>
@@ -448,18 +452,17 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked, isSurge, decorImage })
 };
 
 const GameCard = ({ data, selected, onClick, type }) => {
-  if (!data) return <div className="w-16 h-24 bg-gray-800 rounded opacity-50"></div>;
+  if (!data) return <div className="w-16 h-24 bg-[#1e1e2e] rounded opacity-50"></div>;
   
   if (type === 'metro') {
     const info = METRO_CARDS_DATA[data.id] || {};
     return (
       <div 
         onClick={onClick}
-        className={`relative w-16 h-24 md:w-24 md:h-32 rounded-lg border-2 flex flex-col items-center justify-center p-1 cursor-pointer transition-all shadow-md shrink-0 bg-yellow-900 ${selected ? 'border-yellow-400 -translate-y-2' : 'border-yellow-700 hover:border-yellow-500'}`}
+        className={`relative w-16 h-24 md:w-24 md:h-32 rounded-lg border-4 flex flex-col items-center justify-center p-1 cursor-pointer transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,0.5)] shrink-0 bg-[#f2ca50] ${selected ? 'border-white -translate-y-2' : 'border-black hover:border-white'}`}
       >
-        <div className="text-yellow-500 mb-1">{info.icon}</div>
-        <div className="text-[9px] md:text-xs text-center font-bold text-white leading-tight font-cal-sans">{info.name}</div>
-        <div className="text-[7px] text-center text-yellow-200 mt-1 leading-tight font-questrial">{info.desc}</div>
+        <div className="text-black mb-1">{info.icon}</div>
+        <div className="text-[9px] md:text-xs text-center font-bold text-black leading-tight font-retro">{info.name}</div>
       </div>
     );
   }
@@ -467,15 +470,15 @@ const GameCard = ({ data, selected, onClick, type }) => {
   return (
     <div 
       onClick={onClick}
-      className={`relative w-16 h-24 md:w-24 md:h-32 rounded-lg border-2 flex flex-col items-center justify-center p-1 cursor-pointer transition-all shadow-md shrink-0
-        ${selected ? 'border-yellow-400 -translate-y-2 shadow-yellow-500/50' : 'border-gray-600 bg-gray-800 hover:border-gray-400'}
-        ${type === 'track' ? 'bg-slate-800' : 'bg-indigo-900'}
+      className={`relative w-16 h-24 md:w-24 md:h-32 rounded-lg border-4 flex flex-col items-center justify-center p-1 cursor-pointer transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,0.5)] shrink-0
+        ${selected ? 'border-white -translate-y-2' : 'border-black hover:border-white'}
+        ${type === 'track' ? 'bg-[#1e1e2e]' : 'bg-[#efe6d5]'}
       `}
     >
       {type === 'track' && (
         <>
-          <div className="text-[10px] md:text-xs text-gray-400 mb-1 md:mb-2 uppercase font-bold text-center truncate w-full font-cal-sans">{data.shape}</div>
-          <div className="w-8 h-8 md:w-12 md:h-12 border border-gray-600 rounded flex items-center justify-center bg-gray-900">
+          <div className="text-[10px] md:text-xs text-[#efe6d5] mb-1 md:mb-2 uppercase font-bold text-center truncate w-full font-retro">{data.shape}</div>
+          <div className="w-8 h-8 md:w-12 md:h-12 border-2 border-[#efe6d5] rounded flex items-center justify-center bg-[#1e1e2e]">
              <TrackSvg shape={data.shape} rotation={0} color="gray" />
           </div>
         </>
@@ -483,11 +486,11 @@ const GameCard = ({ data, selected, onClick, type }) => {
 
       {type === 'landmark' && (
         <>
-          <div className="absolute top-1 right-1 text-gray-500 scale-75 md:scale-100">
+          <div className="absolute top-1 right-1 text-black scale-75 md:scale-100">
              {CATEGORIES[data.category?.toUpperCase()]?.icon}
           </div>
-          <div className="text-[8px] md:text-[10px] text-center font-bold text-white leading-tight mt-2 line-clamp-2 font-cal-sans">{data.name}</div>
-          <div className="text-[8px] md:text-[9px] text-gray-400 mt-1 font-questrial">{CATEGORIES[data.category?.toUpperCase()]?.label}</div>
+          <div className="text-[8px] md:text-[10px] text-center font-bold text-black leading-tight mt-2 line-clamp-2 font-retro">{data.name}</div>
+          <div className="text-[8px] md:text-[9px] text-gray-600 mt-1 font-pixel uppercase">{CATEGORIES[data.category?.toUpperCase()]?.label}</div>
         </>
       )}
     </div>
@@ -499,23 +502,22 @@ const WinnerModal = ({ winner, onRestart, onExit }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Simple CSS Confetti */}
         {[...Array(50)].map((_, i) => (
-          <div key={i} className="absolute w-2 h-2 bg-yellow-500 rounded-full animate-ping" style={{ 
+          <div key={i} className="absolute w-2 h-2 bg-[#f2ca50] rounded-full animate-ping" style={{ 
             top: `${Math.random()*100}%`, left: `${Math.random()*100}%`, 
             animationDuration: `${0.5 + Math.random()}s`, animationDelay: `${Math.random()}s` 
           }}></div>
         ))}
       </div>
-      <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl border-4 border-yellow-500 shadow-2xl text-center max-w-md w-full transform scale-110">
-        <Crown size={64} className="text-yellow-400 mx-auto mb-4 animate-bounce" />
-        <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-widest font-cal-sans">Winner!</h2>
-        <div className={`text-5xl font-black mb-6 text-${winner.color}-500 drop-shadow-lg font-cal-sans`}>{winner.name}</div>
-        <p className="text-gray-400 mb-8 text-xl font-cal-sans">Final Score: <span className="text-white font-bold">{winner.score}</span></p>
-        <button onClick={onRestart} className="px-8 py-4 bg-green-600 hover:bg-green-500 text-white rounded-full font-bold text-xl shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-2 w-full font-cal-sans">
-          <RefreshCw size={24}/> Play Again
+      <div className="bg-[#1e1e2e] p-8 rounded-none border-4 border-[#efe6d5] shadow-[8px_8px_0px_0px_#efe6d5] text-center max-w-md w-full transform scale-110">
+        <Crown size={64} className="text-[#f2ca50] mx-auto mb-4 animate-bounce" />
+        <h2 className="text-4xl font-black text-[#efe6d5] mb-4 uppercase tracking-widest font-retro">Winner!</h2>
+        <div className={`text-5xl font-black mb-6 text-[${THEME[winner.color]}] drop-shadow-lg font-retro`}>{winner.name}</div>
+        <p className="text-[#efe6d5] mb-8 text-xl font-pixel uppercase">Final Score: <span className="text-white font-bold">{winner.score}</span></p>
+        <button onClick={onRestart} className="px-8 py-4 bg-[#63a669] hover:bg-[#528a57] text-[#1e1e2e] border-4 border-black font-bold text-xl shadow-[4px_4px_0px_0px_black] transition-transform hover:translate-y-1 hover:shadow-none flex items-center justify-center gap-2 w-full font-retro mb-4">
+          <RefreshCw size={20}/> Play Again
         </button>
-        <button onClick={onExit} className="mt-4 text-gray-500 hover:text-white underline text-sm font-questrial">Exit to Menu</button>
+        <button onClick={onExit} className="text-[#efe6d5] hover:text-white underline text-sm font-pixel uppercase tracking-widest">Exit to Menu</button>
       </div>
     </div>
   );
@@ -523,16 +525,16 @@ const WinnerModal = ({ winner, onRestart, onExit }) => {
 
 const RulesModal = ({ onClose }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
-    <div className="bg-white text-gray-900 p-6 rounded-2xl shadow-2xl max-w-sm w-full border-4 border-blue-600">
-      <h2 className="text-3xl font-black font-cal-sans text-center mb-4 text-blue-600 uppercase tracking-wide">How to Play</h2>
-      <ul className="space-y-3 font-questrial text-lg font-bold">
-        <li className="flex items-start gap-2"><span className="text-blue-500">1.</span> <span>Connect tracks from City Hall to Landmarks.</span></li>
-        <li className="flex items-start gap-2"><span className="text-blue-500">2.</span> <span>Pick up Passengers by connecting to their destinations.</span></li>
-        <li className="flex items-start gap-2"><span className="text-blue-500">3.</span> <span>Landmarks need breathing room (3 tracks apart).</span></li>
-        <li className="flex items-start gap-2"><span className="text-blue-500">4.</span> <span>Max 2 connections per Landmark (In & Out).</span></li>
-        <li className="flex items-start gap-2"><span className="text-blue-500">5.</span> <span>Bonus +2 Points for the Longest Network (10+ connections).</span></li>
+    <div className="bg-[#1e1e2e] text-[#efe6d5] p-6 rounded-none border-4 border-[#efe6d5] shadow-[8px_8px_0px_0px_#000] max-w-sm w-full">
+      <h2 className="text-2xl font-black font-retro text-center mb-6 text-[#f2ca50] uppercase tracking-wide border-b-4 border-[#f2ca50] pb-2">How to Play</h2>
+      <ul className="space-y-4 font-pixel text-xl leading-snug">
+        <li className="flex items-start gap-3"><span className="text-[#5d76f2] font-bold">1.</span> <span>Connect tracks from City Hall to Landmarks.</span></li>
+        <li className="flex items-start gap-3"><span className="text-[#5d76f2] font-bold">2.</span> <span>Pick up Passengers by connecting to their destinations.</span></li>
+        <li className="flex items-start gap-3"><span className="text-[#5d76f2] font-bold">3.</span> <span>Landmarks need breathing room (3 tracks apart).</span></li>
+        <li className="flex items-start gap-3"><span className="text-[#5d76f2] font-bold">4.</span> <span>Max 2 connections per Landmark (In & Out).</span></li>
+        <li className="flex items-start gap-3"><span className="text-[#5d76f2] font-bold">5.</span> <span>Bonus +2 Points for the Longest Network.</span></li>
       </ul>
-      <button onClick={onClose} className="mt-8 w-full py-4 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xl rounded-xl shadow-lg transform transition-transform active:scale-95 border-2 border-black uppercase font-cal-sans">
+      <button onClick={onClose} className="mt-8 w-full py-4 bg-[#f2ca50] hover:bg-[#d9b646] text-[#1e1e2e] font-black text-lg rounded-none shadow-[4px_4px_0px_0px_black] transform transition-transform active:translate-y-1 active:shadow-none border-4 border-black uppercase font-retro">
         Let's Ride!
       </button>
     </div>
@@ -552,16 +554,16 @@ const NotificationOverlay = ({ event }) => {
   
   if (event.type === 'claim-passenger') {
       return (
-        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-10 fade-in duration-500 w-full max-w-2xl px-4 pointer-events-none">
-          <div className="bg-white text-gray-900 px-8 py-6 rounded-2xl shadow-[0_0_50px_rgba(255,255,0,0.5)] border-4 border-yellow-400 flex flex-col items-center gap-2 w-full">
-            <div className="flex items-center gap-2 text-yellow-600 font-black uppercase tracking-widest text-sm animate-pulse font-cal-sans">
-              <Star size={24} className="fill-current" /> Passenger Claimed! <Star size={24} className="fill-current" />
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-10 fade-in duration-500 w-full max-w-md px-4 pointer-events-none">
+          <div className="bg-[#efe6d5] text-[#1e1e2e] px-6 py-6 rounded-none shadow-[8px_8px_0px_0px_#000] border-4 border-[#1e1e2e] flex flex-col items-center gap-2 w-full">
+            <div className="flex items-center gap-2 text-[#f2ca50] font-black uppercase tracking-widest text-xs animate-pulse font-retro bg-[#1e1e2e] px-2 py-1">
+              <Star size={16} className="fill-current" /> Passenger Claimed! <Star size={16} className="fill-current" />
             </div>
-            <div className="text-center w-full font-cal-sans">
-              <span className={`text-${event.playerColor}-600 font-black text-4xl drop-shadow-sm`}>{event.playerName}</span>
-              <span className="text-gray-500 font-bold text-xl mx-2 block md:inline">picked up</span>
+            <div className="text-center w-full font-retro mt-2">
+              <span className={`text-[${THEME[event.playerColor] || event.playerColor}] font-black text-2xl drop-shadow-sm block`}>{event.playerName}</span>
+              <span className="text-[#1e1e2e] font-bold text-sm mx-2 block mt-1 font-pixel uppercase tracking-widest">picked up</span>
             </div>
-            <div className="text-3xl font-black font-cal-sans text-center leading-tight mt-2 text-gray-800">
+            <div className="text-xl font-black font-retro text-center leading-tight mt-1 text-[#782e53]">
               {event.passengerNames.join(" & ")}
             </div>
           </div>
@@ -571,16 +573,16 @@ const NotificationOverlay = ({ event }) => {
 
   if (event.type === 'most-connected') {
       return (
-        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-10 fade-in duration-500 w-full max-w-2xl px-4 pointer-events-none">
-          <div className="bg-white text-gray-900 px-8 py-6 rounded-2xl shadow-[0_0_50px_rgba(0,0,255,0.5)] border-4 border-blue-500 flex flex-col items-center gap-2 w-full">
-             <div className="flex items-center gap-2 text-blue-600 font-black uppercase tracking-widest text-sm animate-pulse font-cal-sans">
-               <LinkIcon size={24} /> Most Connected!
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-10 fade-in duration-500 w-full max-w-md px-4 pointer-events-none">
+          <div className="bg-[#5d76f2] text-[#efe6d5] px-6 py-6 rounded-none shadow-[8px_8px_0px_0px_#000] border-4 border-[#efe6d5] flex flex-col items-center gap-2 w-full">
+             <div className="flex items-center gap-2 text-[#1e1e2e] font-black uppercase tracking-widest text-xs animate-pulse font-retro bg-[#efe6d5] px-2 py-1">
+               <LinkIcon size={16} /> Most Connected!
              </div>
-             <div className="text-center w-full font-cal-sans">
-               <span className={`text-${event.playerColor}-600 font-black text-4xl drop-shadow-sm`}>{event.playerName}</span>
-               <span className="text-gray-500 font-bold text-xl mx-2 block md:inline">takes the lead!</span>
+             <div className="text-center w-full font-retro mt-2">
+               <span className={`text-[${THEME[event.playerColor] || '#fff'}] font-black text-2xl drop-shadow-sm`}>{event.playerName}</span>
+               <span className="text-[#efe6d5] font-bold text-sm mx-2 block mt-1 font-pixel uppercase tracking-widest">takes the lead!</span>
              </div>
-             <div className="text-3xl font-black font-cal-sans text-center leading-tight mt-2 text-gray-800">
+             <div className="text-xl font-black font-retro text-center leading-tight mt-1 text-white">
                {event.count} Connections (+2 PTS)
              </div>
           </div>
@@ -599,7 +601,7 @@ const playSound = (type) => {
     'win-game': 'win-game.mp3',
     'select-track': 'select-track.m4a',
     'rotate-track': 'rotate-track.m4a',
-    'success': 'claim-passenger.m4a' // Bonus sound reuse
+    'success': 'claim-passenger.m4a'
   };
   
   const file = soundFileMap[type];
@@ -617,15 +619,13 @@ const AudioPlayer = ({ view }) => {
 
   useEffect(() => {
     if (view === 'host' && audioRef.current) {
-      audioRef.current.volume = 0.1; // Reduced background music volume
+      audioRef.current.volume = 0.1; 
       audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
       
-      // Ambient Sound Loop (Continuous)
       if (ambientRef.current) {
-          ambientRef.current.volume = 0.3; // Start low
+          ambientRef.current.volume = 0.3; 
           ambientRef.current.play().catch(e => console.log("Ambient fail", e));
           
-          // Random volume fluctuation
           const fluctuate = () => {
              if(ambientRef.current) {
                  ambientRef.current.volume = Math.random() * 0.4 + 0.1; 
@@ -652,7 +652,7 @@ const AudioPlayer = ({ view }) => {
             ambientRef.current.play();
         }
         setPlaying(!playing);
-      }} className="p-2 bg-gray-800 text-white rounded-full shadow-lg border border-gray-600 hover:bg-gray-700 transition-colors">
+      }} className="p-2 bg-[#1e1e2e] text-[#efe6d5] rounded-none shadow-[4px_4px_0px_0px_#efe6d5] border-2 border-[#efe6d5] hover:bg-[#2a2a3e] transition-colors">
         {playing ? <Volume2 size={24} /> : <VolumeX size={24} />}
       </button>
     </div>
@@ -661,21 +661,18 @@ const AudioPlayer = ({ view }) => {
 
 // --- MAIN COMPONENT ---
 const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, view }) => {
-  // Memoized surge path calculation
   const surgePath = useMemo(() => {
     if (!gameState?.lastEvent || gameState.lastEvent.type !== 'claim-passenger') return new Set();
-    // Only show surge for 2.5s
     if (Date.now() - gameState.lastEvent.timestamp > 2500) return new Set();
 
     const { playerColor, claimedLandmarkIds } = gameState.lastEvent;
     
-    // PATHFINDING FOR SURGE
     const nodes = new Set();
     if(!claimedLandmarkIds || claimedLandmarkIds.length === 0) return new Set();
 
     const queue = [{ x: CENTER, y: CENTER }];
     const visited = new Set([`${CENTER},${CENTER}`]);
-    const cameFrom = {}; // key -> parentKey
+    const cameFrom = {}; 
     
     const targetsFound = new Set();
     
@@ -686,7 +683,6 @@ const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, v
        
        if (cell && cell.type === 'landmark' && claimedLandmarkIds.includes(cell.id)) {
            targetsFound.add(cell.id);
-           // Trace back
            let trace = currKey;
            while(trace) {
                nodes.add(trace);
@@ -702,7 +698,6 @@ const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, v
              const currObj = isStart(curr.x, curr.y) ? {isStart:true, type:'start'} : cell;
              const nextObj = isStart(nc.x, nc.y) ? {isStart:true, type:'start'} : nextCell;
 
-             // Valid node if Start, Own Track, or Connected Landmark
              if(nextObj && (nextObj.isStart || (nextObj.type === 'track' && nextObj.owner === playerColor) || (nextObj.type === 'landmark' && nextObj.connections?.[playerColor] > 0))) {
                  if(areConnected(currObj, nextObj, dir)) {
                      visited.add(key);
@@ -718,7 +713,7 @@ const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, v
 
   return (
     <div 
-      className={`grid ${isMobile ? 'gap-[1px]' : 'gap-0'} ${isMobile ? 'bg-black/10 border border-gray-600/30' : 'bg-transparent border-0'} rounded-lg shadow-2xl overflow-hidden select-none mx-auto relative backdrop-blur-sm`}
+      className={`grid ${isMobile ? 'gap-[1px]' : 'gap-0'} ${isMobile ? 'bg-black/10 border-2 border-[#1e1e2e]' : 'bg-transparent border-0'} rounded-none shadow-[8px_8px_0px_0px_rgba(0,0,0,0.3)] overflow-hidden select-none mx-auto relative backdrop-blur-sm`}
       style={{ 
         backgroundImage: 'url(/city-map.jpg)', 
         backgroundSize: 'cover',
@@ -758,14 +753,12 @@ export default function App() {
   const [gameState, setGameState] = useState(null);
   const [view, setView] = useState('home');
   const [error, setError] = useState("");
-  const [authError, setAuthError] = useState(null);
   
   const [selectedCardIdx, setSelectedCardIdx] = useState(null);
   const [selectedCardType, setSelectedCardType] = useState(null);
   const [rotation, setRotation] = useState(0);
   const [interactionMode, setInteractionMode] = useState(null); 
   const [selectedLandmarkForMove, setSelectedLandmarkForMove] = useState(null);
-  const [selectedPlayerToSkip, setSelectedPlayerToSkip] = useState(null);
   const [zoom, setZoom] = useState(1);
   const lastPinchDist = useRef(null);
   const lastPlayedEventTime = useRef(Date.now());
@@ -774,13 +767,13 @@ export default function App() {
 
   useEffect(() => {
     const link = document.createElement('link');
-    link.href = "https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Nabla&family=Questrial&display=swap";
+    link.href = "https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
     const style = document.createElement('style');
     style.innerHTML = `
-      .font-questrial { font-family: 'Questrial', sans-serif; }
-      .font-cal-sans { font-family: 'Outfit', sans-serif; }
+      .font-retro { font-family: 'Press Start 2P', cursive; }
+      .font-pixel { font-family: 'VT323', monospace; }
     `;
     document.head.appendChild(style);
   }, []);
@@ -791,16 +784,11 @@ export default function App() {
             await signInAnonymously(auth); 
         } catch (err) { 
             console.error("Auth error:", err);
-            // Fail silently in UI
         } 
     };
     initAuth();
     const sub = onAuthStateChanged(auth, (u) => {
-        if (u) {
-            setUser(u);
-        } else {
-            setUser(null);
-        }
+        if (u) setUser(u); else setUser(null);
     });
     return () => sub();
   }, []);
@@ -810,7 +798,6 @@ export default function App() {
     if (savedRoom && !activeRoomId) setActiveRoomId(savedRoom);
   }, []);
 
-  // Show Rules for first time players
   useEffect(() => {
       if (view === 'player' && !sessionStorage.getItem('rules_viewed')) {
           setShowRules(true);
@@ -1424,7 +1411,7 @@ export default function App() {
                   {gameState.totalTurns < pass.unlockTurn && <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10"><span className="bg-red-600 text-white px-3 py-1 font-bold rounded uppercase text-xs font-cal-sans">Arriving Soon</span></div>}
                   <div className="bg-sky-300 h-40 relative p-2 flex items-end rounded-t-lg overflow-visible">
                     <img src={`/${pass.img}`} className="w-20 h-20 object-contain z-10 -ml-2" alt="char" />
-                    {/* BUBBLE */}
+                    {/* BUBBLE - REMOVED TAIL */}
                     <div className="absolute top-2 left-20 right-2 bottom-auto bg-white border-4 border-black p-4 rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)] z-20 flex items-center justify-center min-h-[80px]">
                       <p className="text-sm font-bold font-questrial leading-tight text-center">"{pass.desc}"</p>
                     </div>
@@ -1437,10 +1424,11 @@ export default function App() {
                                  const connectedLMs = new Set();
                                  gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) connectedLMs.add(c.id); }));
                                  
-                                 // PROGRESS DOT LOGIC
+                                 // PROGRESS DOT LOGIC (Universal)
                                  let opacity = 'opacity-20';
                                  let ring = '';
                                  
+                                 // Check Progress
                                  if (pass.reqType === 'combo' || pass.reqType === 'combo_cat') {
                                      let count = 0;
                                      if(pass.reqType === 'combo') {
@@ -1452,7 +1440,7 @@ export default function App() {
                                          if(myLandmarks.some(l => l.category === pass.cat2)) count++;
                                      }
                                      if (count === 1) opacity = 'opacity-50';
-                                     if (count === 2) { opacity = 'opacity-100'; ring = 'ring-1 ring-black'; }
+                                     if (count === 2) { opacity = 'opacity-100'; ring = 'ring-2 ring-black'; }
                                  } else {
                                      let met = false;
                                      const myLandmarks = []; gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && connectedLMs.has(c.id)) myLandmarks.push(c); }));
@@ -1461,7 +1449,7 @@ export default function App() {
                                      if(pass.reqType === 'category' && myLandmarks.some(l => l.category === pass.targetCategory)) met = true;
                                      if(pass.reqType === 'list' && pass.targets.some(t => connectedLMs.has(t))) met = true;
                                      
-                                     if (met) { opacity = 'opacity-100'; ring = 'ring-1 ring-black'; }
+                                     if (met) { opacity = 'opacity-100'; ring = 'ring-2 ring-black'; }
                                  }
 
                                  return <div key={pl.id} className={`w-3 h-3 rounded-full bg-${pl.color}-500 ${opacity} ${ring}`}></div>
