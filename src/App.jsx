@@ -12,7 +12,7 @@ import {
   AlertCircle, Trophy, Coffee, Landmark, Trees, 
   ShoppingBag, Zap, Crown, Play, User, Music, Volume2, VolumeX, 
   Link as LinkIcon, RefreshCw, Star, Ticket, Cone, Construction, Shuffle, Move, Repeat,
-  Plane, Banknote, Ghost, Heart, Smile, LogOut, X, Check, FastForward, Ban
+  Plane, Banknote, Ghost, Heart, Smile, LogOut, X, Check, FastForward, Ban, Activity
 } from 'lucide-react';
 
 // --- FIREBASE CONFIGURATION ---
@@ -418,8 +418,8 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked, isSurge, decorImage })
   const isHost = view === 'host';
   
   let content = null;
-  // Host bg is transparent to show map. Player bg is transparent to allow underlying image to show.
-  let bgClass = isHost ? "bg-transparent" : "bg-transparent";
+  // Host bg is transparent to show map. Player bg is semi-transparent dark to show map.
+  let bgClass = isHost ? "bg-transparent" : "bg-black/30 backdrop-blur-[1px]";
   // Borders: None for Host, Thin Cream for Players
   let borderClass = isHost ? "border-0" : "border border-[#efe6d5]/20";
   
@@ -431,7 +431,8 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked, isSurge, decorImage })
     content = <div className="flex flex-col items-center justify-center h-full w-full bg-[#efe6d5] text-[#1e1e2e] font-bold text-[6px] md:text-[10px] z-10 text-center leading-none border-2 border-black font-retro">CITY HALL</div>;
     bgClass = "bg-[#efe6d5]";
   } else if (cellData?.type === 'track') {
-    if (!isHost) bgClass = "bg-[#1e1e2e]"; 
+    // Make placed tracks visible but allow map to show through slightly
+    if (!isHost) bgClass = "bg-black/40"; 
     // ONLY animate if it is a surge event
     content = <TrackSvg shape={cellData.shape} rotation={cellData.rotation} color={cellData.owner} animate={isSurge} />;
   } else if (cellData?.type === 'landmark') {
@@ -472,7 +473,8 @@ const GameCard = ({ data, selected, onClick, type }) => {
         className={`relative w-16 h-24 md:w-24 md:h-32 rounded-lg border-4 flex flex-col items-center justify-center p-1 cursor-pointer transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,0.5)] shrink-0 bg-[#f2ca50] ${selected ? 'border-white -translate-y-2' : 'border-black hover:border-white'}`}
       >
         <div className="text-black mb-1">{info.icon}</div>
-        <div className="text-[9px] md:text-xs text-center font-bold text-black leading-tight font-retro">{info.name}</div>
+        <div className="text-[9px] md:text-xs text-center font-bold text-black leading-tight font-cal-sans">{info.name}</div>
+        <div className="text-[7px] text-center text-yellow-200 mt-1 leading-tight font-questrial px-0.5 overflow-hidden text-ellipsis line-clamp-3 w-full">{info.desc}</div>
       </div>
     );
   }
@@ -626,11 +628,25 @@ const playSound = (type) => {
 const AudioPlayer = ({ view }) => {
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef(null);
+  const ambientRef = useRef(null);
 
   useEffect(() => {
     if (view === 'host' && audioRef.current) {
       audioRef.current.volume = 0.1; 
       audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+      
+      if (ambientRef.current) {
+          ambientRef.current.volume = 0.3; 
+          ambientRef.current.play().catch(e => console.log("Ambient fail", e));
+          
+          const fluctuate = () => {
+             if(ambientRef.current) {
+                 ambientRef.current.volume = Math.random() * 0.4 + 0.1; 
+                 setTimeout(fluctuate, Math.random() * 10000 + 5000);
+             }
+          };
+          fluctuate();
+      }
     }
   }, [view]);
 
@@ -639,11 +655,14 @@ const AudioPlayer = ({ view }) => {
   return (
     <div className="fixed bottom-4 right-4 z-50">
       <audio ref={audioRef} loop src="/mind-the-gap-theme.mp3" />
+      <audio ref={ambientRef} loop src="/city-ambience.mp3" />
       <button onClick={() => {
         if(playing) {
             audioRef.current.pause();
+            ambientRef.current.pause();
         } else {
             audioRef.current.play();
+            ambientRef.current.play();
         }
         setPlaying(!playing);
       }} className="p-2 bg-[#1e1e2e] text-[#efe6d5] rounded-none shadow-[4px_4px_0px_0px_#efe6d5] border-2 border-[#efe6d5] hover:bg-[#2a2a3e] transition-colors">
@@ -881,7 +900,7 @@ export default function App() {
       grid: JSON.stringify(initialGrid), turnIndex: 0, totalTurns: 0, 
       decks: { tracks: generateTrackDeck(), landmarks, passengers, metro: metroDeck },
       activePassengers, blockedCells: [], winner: null, lastEvent: null,
-      mostConnected: null, movesLeft: 1, skippedPlayers: [], decorations: {}
+      mostConnected: null, movesLeft: 1, skippedPlayers: [], decorations: {}, gameLog: []
     };
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', newRoomId), initialData);
     setEntryCode(newRoomId); setActiveRoomId(newRoomId);
@@ -948,12 +967,24 @@ export default function App() {
       });
     }
 
+    // UPDATE LOG
+    let newLog = gameState.gameLog || [];
+    if (lastEvent) {
+       let msg = "";
+       if (lastEvent.type === 'claim-passenger') msg = `${lastEvent.playerName} claimed ${lastEvent.passengerNames[0]}!`;
+       else if (lastEvent.type === 'place-track') msg = `${lastEvent.playerColor.toUpperCase()} placed a track.`;
+       else if (lastEvent.type === 'place-landmark') msg = `${lastEvent.playerColor.toUpperCase()} built a landmark.`;
+       
+       if (msg) newLog = [msg, ...newLog].slice(0, 8); // Keep last 8
+    }
+
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', activeRoomId), {
       ...updates, players: newPlayers, decks: newDecks,
       turnIndex: actualNextTurn, winner: winner || null,
       lastEvent: lastEvent || gameState.lastEvent,
       totalTurns: (gameState.totalTurns || 0) + 1,
-      movesLeft: 1, skippedPlayers: newSkipped
+      movesLeft: 1, skippedPlayers: newSkipped,
+      gameLog: newLog
     });
     setSelectedCardIdx(null); setSelectedCardType(null); setRotation(0);
     setInteractionMode(null); setSelectedLandmarkForMove(null); setSelectedPlayerToSkip(null);
@@ -984,7 +1015,7 @@ export default function App() {
       totalTurns: 0,
       turnIndex: 0,
       winner: null,
-      blockedCells: [], mostConnected: null, skippedPlayers: [], movesLeft: 1, decorations: {}
+      blockedCells: [], mostConnected: null, skippedPlayers: [], movesLeft: 1, decorations: {}, gameLog: []
     });
   };
   
@@ -1190,7 +1221,7 @@ export default function App() {
         }
       });
     }
-    refreshConnections();
+    refreshConnections(); // Ensure fresh state before checking
 
     let currentMostConnected = gameState.mostConnected; 
     let bonusEvent = null;
@@ -1403,50 +1434,53 @@ export default function App() {
             {/* LEFT SIDEBAR - PASSENGERS */}
             <div className="w-1/4 min-w-[300px] flex flex-col gap-4 h-full z-10 overflow-hidden">
                 <h3 className="text-sm font-bold text-[#efe6d5] flex items-center gap-2 uppercase tracking-wide font-retro">CURRENT PASSENGERS:</h3>
+                {/* STATION LOG */}
+                <div className="bg-[#1e1e2e] border-2 border-[#efe6d5]/30 p-2 h-24 overflow-y-auto mb-2 text-[10px] font-pixel text-[#efe6d5]/70">
+                    {gameState.gameLog?.map((log, i) => <div key={i} className="border-b border-[#efe6d5]/10 pb-1 mb-1">{log}</div>)}
+                </div>
                 <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-2 pb-4">
                   {gameState.activePassengers.map(pass => (
-                    <div key={pass.id} className={`bg-[#efe6d5] w-full rounded-lg border-4 border-black relative transform transition-all duration-300 flex flex-row h-32 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 grayscale' : ''}`}>
+                    <div key={pass.id} className={`bg-[#efe6d5] w-full rounded-lg border-4 border-black relative transform transition-all duration-300 flex flex-col h-48 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 grayscale' : ''}`}>
                       {gameState.totalTurns < pass.unlockTurn && <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20"><span className="bg-[#e66a4e] text-[#efe6d5] px-2 py-1 font-bold border-2 border-black font-retro text-[10px] shadow-[2px_2px_0px_0px_black]">Arriving Soon</span></div>}
                       
-                      {/* Left: Character & Info */}
-                      <div className="w-1/3 bg-[#8ecae6] flex flex-col items-center justify-end border-r-4 border-black p-1 relative">
-                          <img src={`/${pass.img}`} className="w-16 h-16 object-contain z-10 rendering-pixelated" alt="char" />
-                          <div className="w-full bg-white border-t-2 border-black p-1 text-center">
-                             <span className="font-black text-[9px] font-retro text-black uppercase block leading-tight mb-1">{pass.name}</span>
-                             <span className="font-black text-lg font-retro text-[#e66a4e]">{pass.points}</span>
+                      {/* TOP HALF: Sky Blue + Character + Bubble */}
+                      <div className="bg-[#8ecae6] flex-1 relative rounded-t-sm border-b-4 border-black overflow-hidden flex items-end p-2">
+                          <img src={`/${pass.img}`} className="w-16 h-16 object-contain z-10" alt="char" />
+                          <div className="absolute top-2 left-2 right-2 bottom-20 bg-white border-4 border-black p-3 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] z-20 flex items-center justify-center">
+                              <p className="text-sm font-bold font-pixel leading-tight text-center text-black uppercase">{pass.desc}</p>
                           </div>
                       </div>
 
-                      {/* Right: Speech & Progress */}
-                      <div className="flex-1 flex flex-col justify-between p-2 bg-[#efe6d5]">
-                          {/* Bubble */}
-                          <div className="bg-[#782e53] flex-1 rounded-sm border-2 border-black p-2 flex items-center justify-center relative mb-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
-                              <p className="text-[10px] font-bold font-pixel leading-tight text-center text-[#efe6d5] uppercase">{pass.desc}</p>
-                          </div>
-                          
-                          {/* Progress Dots */}
-                          <div className="flex gap-1 justify-end">
-                              {gameState.players.map(pl => {
-                                   const connectedLMs = new Set();
-                                   gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) connectedLMs.add(c.id); }));
-                                   let opacity = 'opacity-20';
-                                   let ring = '';
-                                   if (pass.reqType === 'combo' || pass.reqType === 'combo_cat') {
-                                       let count = 0;
-                                       if(pass.reqType === 'combo') { if(connectedLMs.has(pass.targets[0])) count++; if(connectedLMs.has(pass.targets[1])) count++; } 
-                                       else { if(connectedLMs.has(pass.targetId)) count++; const myLandmarks = []; gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && connectedLMs.has(c.id)) myLandmarks.push(c); })); if(myLandmarks.some(l => l.category === pass.cat2)) count++; }
-                                       if (count === 1) opacity = 'opacity-50'; if (count === 2) { opacity = 'opacity-100'; ring = 'ring-2 ring-black'; }
-                                   } else {
-                                       let met = false;
-                                       const myLandmarks = []; gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && connectedLMs.has(c.id)) myLandmarks.push(c); }));
-                                       if(pass.reqType === 'specific' && connectedLMs.has(pass.targetId)) met = true;
-                                       if(pass.reqType === 'category' && myLandmarks.some(l => l.category === pass.targetCategory)) met = true;
-                                       if(pass.reqType === 'list' && pass.targets.some(t => connectedLMs.has(t))) met = true;
-                                       if (met) { opacity = 'opacity-100'; ring = 'ring-2 ring-black'; }
-                                   }
-                                   return <div key={pl.id} className={`w-3 h-3 rounded-full bg-[${THEME[pl.color]}] border border-black ${opacity} ${ring}`}></div>
-                              })}
-                          </div>
+                      {/* BOTTOM HALF: Info */}
+                      <div className="p-2 flex justify-between items-center bg-[#efe6d5]">
+                         <div className="flex flex-col">
+                            <span className="font-black text-sm font-retro text-black uppercase">{pass.name}</span>
+                            <div className="flex gap-1 mt-1">
+                                {gameState.players.map(pl => {
+                                     const connectedLMs = new Set();
+                                     gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) connectedLMs.add(c.id); }));
+                                     
+                                     let opacity = 'opacity-20';
+                                     let ring = '';
+                                     
+                                     if (pass.reqType === 'combo' || pass.reqType === 'combo_cat') {
+                                         let count = 0;
+                                         if(pass.reqType === 'combo') { if(connectedLMs.has(pass.targets[0])) count++; if(connectedLMs.has(pass.targets[1])) count++; } 
+                                         else { if(connectedLMs.has(pass.targetId)) count++; const myLandmarks = []; gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && connectedLMs.has(c.id)) myLandmarks.push(c); })); if(myLandmarks.some(l => l.category === pass.cat2)) count++; }
+                                         if (count === 1) opacity = 'opacity-50'; if (count === 2) { opacity = 'opacity-100'; ring = 'ring-2 ring-black'; }
+                                     } else {
+                                         let met = false;
+                                         const myLandmarks = []; gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && connectedLMs.has(c.id)) myLandmarks.push(c); }));
+                                         if(pass.reqType === 'specific' && connectedLMs.has(pass.targetId)) met = true;
+                                         if(pass.reqType === 'category' && myLandmarks.some(l => l.category === pass.targetCategory)) met = true;
+                                         if(pass.reqType === 'list' && pass.targets.some(t => connectedLMs.has(t))) met = true;
+                                         if (met) { opacity = 'opacity-100'; ring = 'ring-2 ring-black'; }
+                                     }
+                                     return <div key={pl.id} className={`w-3 h-3 rounded-full bg-[${THEME[pl.color]}] border border-black ${opacity} ${ring}`}></div>
+                                })}
+                            </div>
+                         </div>
+                         <span className="font-black text-2xl font-retro text-[#e66a4e]">{pass.points}</span>
                       </div>
                     </div>
                   ))}
