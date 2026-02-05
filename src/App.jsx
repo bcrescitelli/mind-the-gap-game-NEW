@@ -33,9 +33,6 @@ const appId = "mind-the-gap-v1";
 // --- GAME CONSTANTS ---
 const GRID_SIZE = 19; 
 const CENTER = Math.floor(GRID_SIZE / 2); 
-// Updated colors to match the slightly desaturated/retro look if needed, 
-// but keeping standard names for logic mapping. 
-// Visuals will handle the specific hexes.
 const COLORS = ['red', 'blue', 'green', 'yellow'];
 const WIN_SCORE = 10; 
 
@@ -64,34 +61,41 @@ const PASSENGER_IMAGES = [
 
 // Categories
 const CATEGORIES = {
-  GASTRONOMY: { id: 'gastronomy', label: 'Gastronomy', icon: <Coffee size={16} />, color: 'text-amber-700' },
-  HERITAGE: { id: 'heritage', label: 'Heritage', icon: <Landmark size={16} />, color: 'text-stone-600' },
-  NATURE: { id: 'nature', label: 'Nature', icon: <Trees size={16} />, color: 'text-green-700' },
-  SERVICES: { id: 'services', label: 'Services', icon: <Banknote size={16} />, color: 'text-blue-700' },
-  SPIRITUAL: { id: 'spiritual', label: 'Spiritual', icon: <Ghost size={16} />, color: 'text-purple-700' },
-  THRILLING: { id: 'thrilling', label: 'Thrilling', icon: <Zap size={16} />, color: 'text-red-700' },
+  GASTRONOMY: { id: 'gastronomy', label: 'Gastronomy', icon: <Coffee size={16} />, color: '#e66a4e' },
+  HERITAGE: { id: 'heritage', label: 'Heritage', icon: <Landmark size={16} />, color: '#782e53' }, // Plum for stone
+  NATURE: { id: 'nature', label: 'Nature', icon: <Trees size={16} />, color: '#63a669' },
+  SERVICES: { id: 'services', label: 'Services', icon: <Banknote size={16} />, color: '#5d76f2' },
+  SPIRITUAL: { id: 'spiritual', label: 'Spiritual', icon: <Ghost size={16} />, color: '#782e53' },
+  THRILLING: { id: 'thrilling', label: 'Thrilling', icon: <Zap size={16} />, color: '#e66a4e' },
 };
 
 // Landmarks Data
 const LANDMARKS_DATA = [
+  // Gastronomy
   { name: "Ice Cream Shop", cat: 'gastronomy' }, { name: "Candy Store", cat: 'gastronomy' }, { name: "Farmer's Market", cat: 'gastronomy' },
   { name: "Spice Village", cat: 'gastronomy' }, { name: "Food Truck", cat: 'gastronomy' }, { name: "The Melting Pot", cat: 'gastronomy' },
   { name: "Cafe", cat: 'gastronomy' }, { name: "Bakery", cat: 'gastronomy' }, { name: "Bodega", cat: 'gastronomy' }, { name: "Rooftop Bar", cat: 'gastronomy' },
+  // Heritage
   { name: "Old Cathedral", cat: 'heritage' }, { name: "Museum", cat: 'heritage' }, { name: "Theatre", cat: 'heritage' },
   { name: "Opera House", cat: 'heritage' }, { name: "Observatory", cat: 'heritage' }, { name: "Clocktower", cat: 'heritage' },
   { name: "University", cat: 'heritage' }, { name: "Cinema", cat: 'heritage' },
+  // Nature
   { name: "Botanic Gardens", cat: 'nature' }, { name: "Dog Park", cat: 'nature' }, { name: "Butterfly House", cat: 'nature' },
   { name: "Country Club", cat: 'nature' }, { name: "Flower Shop", cat: 'nature' }, { name: "Mountain Trail", cat: 'nature' },
+  // Services
   { name: "Airport", cat: 'services' }, { name: "Bank", cat: 'services' }, { name: "Mall", cat: 'services' },
   { name: "Gym", cat: 'services' }, { name: "Fire Department", cat: 'services' }, { name: "Post Office", cat: 'services' },
   { name: "Library", cat: 'services' }, { name: "Tailors", cat: 'services' },
+  // Spiritual
   { name: "Haunted House", cat: 'spiritual' }, { name: "Cemetery", cat: 'spiritual' }, 
   { name: "Fortune Teller", cat: 'spiritual' }, { name: "Antique Store", cat: 'spiritual' },
+  // Thrilling
   { name: "Theme Park", cat: 'thrilling' }, { name: "Casino", cat: 'thrilling' }, { name: "Rock Climbing Gym", cat: 'thrilling' },
   { name: "Comedy Club", cat: 'thrilling' }, { name: "Skate Park", cat: 'thrilling' }, { name: "Zoo", cat: 'thrilling' },
   { name: "Tattoo Parlor", cat: 'thrilling' }, { name: "The Stadium", cat: 'thrilling' }
 ];
 
+// Personas
 const PERSONAS_BY_CAT = {
   gastronomy: ["The Head Chef", "The Food Critic", "The Glutton", "The Barista", "The Baker", "The Sommelier"],
   heritage: ["The Historian", "The Widow", "The Archaeologist", "The Monk", "The Duke", "The Architect"],
@@ -357,11 +361,7 @@ const TrackSvg = ({ shape, rotation, color, animate }) => {
   const strokeColor = THEME[color] || colorMap[color] || '#9ca3af';
   
   const pathId = `track-${shape}-${Math.random().toString(36).substr(2, 5)}`;
-  let d = "";
-  if (shape === 'straight') d = "M 50 0 L 50 100";
-  if (shape === 'curved') d = "M 50 100 Q 50 50 100 50";
-  if (shape === 't-shape') d = "M 0 50 L 100 50 M 50 50 L 50 100"; 
-
+  
   return (
     <div className="w-full h-full" style={{ transform: `rotate(${rotation}deg)` }}>
       <svg viewBox="0 0 100 100" className="w-full h-full" shapeRendering="geometricPrecision">
@@ -433,7 +433,9 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked, isSurge, decorImage })
   } else if (cellData?.type === 'landmark') {
     content = (
       <div className="w-full h-full bg-[#efe6d5] flex flex-col items-center justify-center p-0.5 border-2 border-black shadow-md relative">
-         <div className={`text-[#1e1e2e] scale-75 md:scale-100 ${CATEGORIES[cellData.category?.toUpperCase()]?.color}`}>{CATEGORIES[cellData.category?.toUpperCase()]?.icon}</div>
+         <div className={`text-[#1e1e2e] scale-75 md:scale-100`}>
+             <span style={{color: CATEGORIES[cellData.category?.toUpperCase()]?.color}}>{CATEGORIES[cellData.category?.toUpperCase()]?.icon}</span>
+         </div>
          <div className="text-[5px] md:text-[8px] text-black font-bold text-center leading-none mt-0.5 break-words w-full overflow-hidden font-pixel">{cellData.name}</div>
          {cellData.connections && Object.keys(cellData.connections).map((c, i) => (
            <div key={c} className={`absolute w-2 h-2 rounded-full border border-black ${colorDotMap[c]} bottom-0.5 right-${i * 2 + 1}`}></div>
@@ -492,9 +494,9 @@ const GameCard = ({ data, selected, onClick, type }) => {
       {type === 'landmark' && (
         <>
           <div className="absolute top-1 right-1 text-black scale-75 md:scale-100">
-             {CATEGORIES[data.category?.toUpperCase()]?.icon}
+             <span style={{color: CATEGORIES[data.category?.toUpperCase()]?.color}}>{CATEGORIES[data.category?.toUpperCase()]?.icon}</span>
           </div>
-          <div className="text-[8px] md:text-[10px] text-center font-bold text-black leading-tight mt-2 line-clamp-2 font-retro">{data.name}</div>
+          <div className="text-[8px] md:text-[10px] text-center font-bold text-black leading-tight mt-2 line-clamp-2 w-full font-retro overflow-hidden">{data.name}</div>
           <div className="text-[8px] md:text-[9px] text-gray-600 mt-1 font-pixel uppercase">{CATEGORIES[data.category?.toUpperCase()]?.label}</div>
         </>
       )}
@@ -518,7 +520,7 @@ const WinnerModal = ({ winner, onRestart, onExit }) => {
       <div className="bg-[#1e1e2e] p-8 rounded-none border-4 border-[#efe6d5] shadow-[8px_8px_0px_0px_#efe6d5] text-center max-w-md w-full transform scale-110">
         <Crown size={64} className="text-[#f2ca50] mx-auto mb-4 animate-bounce" />
         <h2 className="text-4xl font-black text-[#efe6d5] mb-4 uppercase tracking-widest font-retro">Winner!</h2>
-        <div className={`text-5xl font-black mb-6 text-[${THEME[winner.color]}] drop-shadow-lg font-retro`}>{winner.name}</div>
+        <div className={`text-5xl font-black mb-6 drop-shadow-lg font-retro`} style={{ color: THEME[winner.color] }}>{winner.name}</div>
         <p className="text-[#efe6d5] mb-8 text-xl font-pixel uppercase">Final Score: <span className="text-white font-bold">{winner.score}</span></p>
         <button onClick={onRestart} className="px-8 py-4 bg-[#63a669] hover:bg-[#528a57] text-[#1e1e2e] border-4 border-black font-bold text-xl shadow-[4px_4px_0px_0px_black] transition-transform hover:translate-y-1 hover:shadow-none flex items-center justify-center gap-2 w-full font-retro mb-4">
           <RefreshCw size={20}/> Play Again
@@ -566,7 +568,7 @@ const NotificationOverlay = ({ event }) => {
               <Star size={16} className="fill-current" /> Passenger Claimed! <Star size={16} className="fill-current" />
             </div>
             <div className="text-center w-full font-retro mt-2">
-              <span className={`text-[${THEME[event.playerColor] || event.playerColor}] font-black text-2xl drop-shadow-sm block`}>{event.playerName}</span>
+              <span className={`text-[${THEME[event.playerColor] || event.playerColor}] font-black text-2xl drop-shadow-sm block`} style={{ color: THEME[event.playerColor] }}>{event.playerName}</span>
               <span className="text-[#1e1e2e] font-bold text-sm mx-2 block mt-1 font-pixel uppercase tracking-widest">picked up</span>
             </div>
             <div className="text-xl font-black font-retro text-center leading-tight mt-1 text-[#782e53]">
@@ -585,7 +587,7 @@ const NotificationOverlay = ({ event }) => {
                <LinkIcon size={16} /> Most Connected!
              </div>
              <div className="text-center w-full font-retro mt-2">
-               <span className={`text-[${THEME[event.playerColor] || '#fff'}] font-black text-2xl drop-shadow-sm`}>{event.playerName}</span>
+               <span className={`text-[${THEME[event.playerColor] || '#fff'}] font-black text-2xl drop-shadow-sm`} style={{ color: THEME[event.playerColor] || 'white' }}>{event.playerName}</span>
                <span className="text-[#efe6d5] font-bold text-sm mx-2 block mt-1 font-pixel uppercase tracking-widest">takes the lead!</span>
              </div>
              <div className="text-xl font-black font-retro text-center leading-tight mt-1 text-white">
@@ -702,7 +704,7 @@ const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, v
 
   return (
     <div 
-      className={`grid ${isMobile ? 'gap-[1px]' : 'gap-0'} ${isMobile ? 'bg-black/10 border-2 border-[#1e1e2e]' : 'bg-transparent border-0'} rounded-none shadow-[8px_8px_0px_0px_rgba(0,0,0,0.3)] overflow-hidden select-none mx-auto relative backdrop-blur-sm`}
+      className={`grid ${isMobile ? 'gap-[1px]' : 'gap-0'} ${isMobile ? 'bg-transparent border-0' : 'bg-[#efe6d5] border-4 border-black'} rounded-none shadow-[8px_8px_0px_0px_rgba(0,0,0,0.3)] overflow-hidden select-none mx-auto relative backdrop-blur-sm`}
       style={{ 
         backgroundImage: 'url(/city-map.jpg)', 
         backgroundSize: 'cover',
@@ -1185,7 +1187,7 @@ export default function App() {
         }
       });
     }
-    refreshConnections(); // Ensure fresh state before checking
+    refreshConnections();
 
     let currentMostConnected = gameState.mostConnected; 
     let bonusEvent = null;
@@ -1305,7 +1307,7 @@ export default function App() {
   if (view === 'home') {
     return (
       <div className="min-h-screen bg-[#1e1e2e] text-[#efe6d5] flex flex-col items-center justify-center font-sans p-4 relative overflow-hidden">
-        <h1 className="text-4xl md:text-6xl font-black text-[#efe6d5] mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-retro">
+        <h1 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#e66a4e] via-[#f2ca50] via-[#63a669] to-[#5d76f2] mb-8 tracking-tighter text-center z-10 drop-shadow-lg font-retro">
           MIND THE GAP
         </h1>
         <div className="flex flex-col gap-4 w-full max-w-md z-10 font-questrial">
@@ -1373,91 +1375,96 @@ export default function App() {
       <div className="h-screen bg-[#1e1e2e] text-[#efe6d5] flex p-4 gap-6 overflow-hidden relative font-questrial">
         <AudioPlayer view="host" />
         <NotificationOverlay event={gameState.lastEvent} />
-        <button onClick={leaveGame} className="absolute top-4 right-4 p-2 bg-red-900/50 hover:bg-red-600 text-red-200 hover:text-white rounded-none border-2 border-red-500 z-50 transition-colors"><X size={20} /></button>
         
-        {/* LEFT SIDEBAR */}
-        <div className="w-1/3 max-w-md flex flex-col gap-6 h-full z-10">
-          
-          {/* ROOM CODE */}
-          <div className="bg-[#efe6d5] p-4 rounded-none text-center shadow-[8px_8px_0px_0px_black] border-4 border-black">
-             <div className="text-xs text-[#1e1e2e] uppercase tracking-widest font-pixel mb-1">Room Code</div>
-             <div className="text-4xl font-black tracking-widest text-[#1e1e2e] font-retro">{activeRoomId}</div>
-          </div>
-
-          {/* STANDINGS */}
-          <div className="bg-[#efe6d5] p-4 rounded-none shadow-[8px_8px_0px_0px_black] border-4 border-black flex-shrink-0">
-            <h3 className="text-sm font-bold text-[#1e1e2e] mb-3 uppercase tracking-wide font-retro text-center">CURRENT STANDINGS</h3>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {gameState.players
-                .sort((a,b) => b.score - a.score)
-                .map((p, i) => (
-                <div key={i} className={`flex items-center px-3 py-1 rounded-full border-2 border-black bg-[${THEME[p.color]}] text-[#1e1e2e]`}>
-                  <span className="font-bold text-xs font-retro mr-2">{i+1}{i===0?'ST':i===1?'ND':i===2?'RD':'TH'}</span>
-                  <span className="font-bold text-sm truncate max-w-[80px] font-pixel uppercase">{p.name}</span>
-                  <span className="ml-2 font-black font-retro bg-black text-[#efe6d5] px-1.5 py-0.5 text-[10px] rounded-full">{p.score + (gameState.mostConnected?.playerId === p.id ? 2 : 0)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* PASSENGERS */}
-          <div className="flex-1 flex flex-col gap-2 overflow-hidden">
-            <h3 className="text-sm font-bold text-[#efe6d5] flex items-center gap-2 uppercase tracking-wide font-retro mt-2">CURRENT PASSENGERS:</h3>
-            <div className="flex-1 overflow-y-auto space-y-4 pr-2 pb-4">
-              {gameState.activePassengers.map(pass => (
-                <div key={pass.id} className={`bg-[#efe6d5] p-2 rounded-lg border-4 border-black relative transform transition-all duration-300 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 grayscale' : ''}`}>
-                  {gameState.totalTurns < pass.unlockTurn && <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20"><span className="bg-[#e66a4e] text-[#efe6d5] px-3 py-1 font-bold border-2 border-black font-retro text-xs shadow-[4px_4px_0px_0px_black]">Arriving Soon</span></div>}
-                  
-                  {/* TOP HALF: Sky Blue + Character + Bubble */}
-                  <div className="bg-[#8ecae6] h-40 relative rounded-t-sm border-b-4 border-black overflow-hidden">
-                      {/* Character */}
-                      <img src={`/${pass.img}`} className="absolute bottom-0 left-2 w-20 h-20 object-contain z-10 rendering-pixelated" alt="char" />
-                      
-                      {/* Speech Bubble */}
-                      <div className="absolute top-3 right-3 left-24 bg-white border-4 border-black p-3 rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] z-20 flex items-center justify-center">
-                          <p className="text-sm font-bold font-pixel leading-tight text-center text-black uppercase">{pass.desc}</p>
-                      </div>
-                  </div>
-
-                  {/* BOTTOM HALF: Info */}
-                  <div className="pt-2 px-1 flex justify-between items-center bg-[#efe6d5]">
-                     <div className="flex flex-col">
-                        <span className="font-black text-sm font-retro text-black uppercase">{pass.name}</span>
-                        {/* Progress Dots */}
-                        <div className="flex gap-1 mt-1">
-                            {gameState.players.map(pl => {
-                                 const connectedLMs = new Set();
-                                 gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) connectedLMs.add(c.id); }));
-                                 let opacity = 'opacity-20';
-                                 let ring = '';
-                                 if (pass.reqType === 'combo' || pass.reqType === 'combo_cat') {
-                                     let count = 0;
-                                     if(pass.reqType === 'combo') { if(connectedLMs.has(pass.targets[0])) count++; if(connectedLMs.has(pass.targets[1])) count++; } 
-                                     else { if(connectedLMs.has(pass.targetId)) count++; const myLandmarks = []; gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && connectedLMs.has(c.id)) myLandmarks.push(c); })); if(myLandmarks.some(l => l.category === pass.cat2)) count++; }
-                                     if (count === 1) opacity = 'opacity-50'; if (count === 2) { opacity = 'opacity-100'; ring = 'ring-2 ring-black'; }
-                                 } else {
-                                     let met = false;
-                                     const myLandmarks = []; gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && connectedLMs.has(c.id)) myLandmarks.push(c); }));
-                                     if(pass.reqType === 'specific' && connectedLMs.has(pass.targetId)) met = true;
-                                     if(pass.reqType === 'category' && myLandmarks.some(l => l.category === pass.targetCategory)) met = true;
-                                     if(pass.reqType === 'list' && pass.targets.some(t => connectedLMs.has(t))) met = true;
-                                     if (met) { opacity = 'opacity-100'; ring = 'ring-2 ring-black'; }
-                                 }
-                                 return <div key={pl.id} className={`w-3 h-3 rounded-full bg-[${THEME[pl.color]}] border border-black ${opacity} ${ring}`}></div>
-                            })}
-                        </div>
-                     </div>
-                     <span className="font-black text-2xl font-retro text-[#e66a4e]">{pass.points}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* HEADER */}
+        <div className="absolute top-4 left-4 z-50 flex items-center gap-4">
+             <button onClick={leaveGame} className="px-4 py-2 bg-[#e66a4e] hover:bg-[#d55e45] text-[#efe6d5] font-retro text-xs border-2 border-black shadow-[4px_4px_0px_0px_black]">EXIT</button>
+             <h1 className="text-3xl font-retro font-black bg-gradient-to-r from-[#e66a4e] via-[#f2ca50] via-[#63a669] to-[#5d76f2] text-transparent bg-clip-text drop-shadow-sm">MIND THE GAP: LET'S RIDE</h1>
         </div>
 
-        {/* MAP AREA */}
-        <div className="flex-1 flex items-center justify-center rounded-xl overflow-hidden relative border-4 border-[#efe6d5] bg-[#efe6d5]">
-           <div className="absolute inset-4 flex items-center justify-center"><Board interactive={false} isMobile={false} lastEvent={gameState.lastEvent} gameState={gameState} handlePlaceCard={handlePlaceCard} view={view} /></div>
+        {/* MAIN LAYOUT */}
+        <div className="flex w-full h-full pt-16 gap-6">
+            
+            {/* LEFT SIDEBAR */}
+            <div className="w-1/3 max-w-md flex flex-col gap-6 h-full z-10">
+              
+              {/* ROOM CODE */}
+              <div className="bg-[#efe6d5] p-4 rounded-none text-center shadow-[8px_8px_0px_0px_black] border-4 border-black">
+                 <div className="text-xs text-[#1e1e2e] uppercase tracking-widest font-pixel mb-1">Room Code</div>
+                 <div className="text-4xl font-black tracking-widest text-[#1e1e2e] font-retro">{activeRoomId}</div>
+              </div>
+
+              {/* STANDINGS */}
+              <div className="bg-[#efe6d5] p-4 rounded-none shadow-[8px_8px_0px_0px_black] border-4 border-black flex-shrink-0">
+                <h3 className="text-sm font-bold text-[#1e1e2e] mb-3 uppercase tracking-wide font-retro text-center">CURRENT STANDINGS</h3>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {gameState.players
+                    .sort((a,b) => b.score - a.score)
+                    .map((p, i) => (
+                    <div key={i} className={`flex items-center px-3 py-1 rounded-full border-2 border-black bg-[${THEME[p.color]}] text-[#1e1e2e]`}>
+                      <span className="font-bold text-xs font-retro mr-2">{i+1}{i===0?'ST':i===1?'ND':i===2?'RD':'TH'}</span>
+                      <span className="font-bold text-sm truncate max-w-[80px] font-pixel uppercase">{p.name}</span>
+                      <span className="ml-2 font-black font-retro bg-black text-[#efe6d5] px-1.5 py-0.5 text-[10px] rounded-full">{p.score + (gameState.mostConnected?.playerId === p.id ? 2 : 0)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* PASSENGERS */}
+              <div className="flex-1 flex flex-col gap-2 overflow-hidden">
+                <h3 className="text-sm font-bold text-[#efe6d5] flex items-center gap-2 uppercase tracking-wide font-retro mt-2">CURRENT PASSENGERS:</h3>
+                <div className="flex-1 grid grid-cols-3 gap-2 overflow-y-auto pr-2 pb-4">
+                  {gameState.activePassengers.map(pass => (
+                    <div key={pass.id} className={`bg-[#efe6d5] p-1 rounded-lg border-4 border-black relative transform transition-all duration-300 flex flex-col justify-between h-full ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 grayscale' : ''}`}>
+                      {gameState.totalTurns < pass.unlockTurn && <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20"><span className="bg-[#e66a4e] text-[#efe6d5] px-1 py-1 font-bold border-2 border-black font-retro text-[8px] shadow-[2px_2px_0px_0px_black]">Soon</span></div>}
+                      
+                      {/* TOP HALF: Text Bubble */}
+                      <div className="bg-[#782e53] flex-1 rounded-sm border-2 border-black p-2 flex items-center justify-center relative mb-1">
+                          <p className="text-[9px] font-bold font-pixel leading-tight text-center text-[#efe6d5] uppercase">{pass.desc}</p>
+                      </div>
+
+                      {/* Character + Info */}
+                      <div className="flex flex-col items-center">
+                          <img src={`/${pass.img}`} className="w-12 h-12 object-contain rendering-pixelated mb-1" alt="char" />
+                          <div className="w-full bg-white border-t-2 border-black p-1 flex justify-between items-center">
+                             <span className="font-black text-[8px] font-retro text-black uppercase truncate max-w-[60px]">{pass.name}</span>
+                             <div className="flex items-center gap-1">
+                                 <span className="font-black text-xs font-retro text-[#e66a4e]">{pass.points}</span>
+                                 {/* Progress Dot */}
+                                 <div className="flex -space-x-1">
+                                    {gameState.players.map(pl => {
+                                         const connectedLMs = new Set();
+                                         gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) connectedLMs.add(c.id); }));
+                                         let opacity = 'opacity-0';
+                                         if (pass.reqType === 'combo' || pass.reqType === 'combo_cat') {
+                                             let count = 0;
+                                             if(pass.reqType === 'combo') { if(connectedLMs.has(pass.targets[0])) count++; if(connectedLMs.has(pass.targets[1])) count++; } 
+                                             else { if(connectedLMs.has(pass.targetId)) count++; const myLandmarks = []; gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && connectedLMs.has(c.id)) myLandmarks.push(c); })); if(myLandmarks.some(l => l.category === pass.cat2)) count++; }
+                                             if (count >= 1) opacity = 'opacity-100';
+                                         } else {
+                                             let met = false;
+                                             const myLandmarks = []; gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && connectedLMs.has(c.id)) myLandmarks.push(c); }));
+                                             if(pass.reqType === 'specific' && connectedLMs.has(pass.targetId)) met = true;
+                                             if(pass.reqType === 'category' && myLandmarks.some(l => l.category === pass.targetCategory)) met = true;
+                                             if(pass.reqType === 'list' && pass.targets.some(t => connectedLMs.has(t))) met = true;
+                                             if (met) opacity = 'opacity-100';
+                                         }
+                                         return <div key={pl.id} className={`w-2 h-2 rounded-full bg-[${THEME[pl.color]}] border border-black ${opacity}`}></div>
+                                    })}
+                                 </div>
+                             </div>
+                          </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* MAP AREA */}
+            <div className="flex-1 flex items-center justify-center rounded-xl overflow-hidden relative border-4 border-[#efe6d5] bg-[#efe6d5]">
+               <div className="absolute inset-4 flex items-center justify-center"><Board interactive={false} isMobile={false} lastEvent={gameState.lastEvent} gameState={gameState} handlePlaceCard={handlePlaceCard} view={view} /></div>
+            </div>
         </div>
       </div>
     );
@@ -1519,7 +1526,7 @@ export default function App() {
                 <span className="text-[10px] uppercase tracking-wider shrink-0 flex items-center gap-1 font-pixel"><LinkIcon size={10}/> Connected:</span>
                 {connectedLandmarks.map(l => (
                   <div key={l.id} className="flex items-center gap-1 bg-[#efe6d5] rounded-none px-2 py-0.5 shrink-0 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)]">
-                    <span className={`text-[${THEME[CATEGORIES[l.category?.toUpperCase()]?.color.split('-')[1]]}]`}>{CATEGORIES[l.category?.toUpperCase()]?.icon}</span>
+                    <span style={{ color: CATEGORIES[l.category?.toUpperCase()]?.color }}>{CATEGORIES[l.category?.toUpperCase()]?.icon}</span>
                     <span className="text-[10px] font-bold truncate max-w-[80px] text-[#1e1e2e] font-pixel uppercase">{l.name}</span>
                   </div>
                 ))}
