@@ -1423,7 +1423,7 @@ export default function App() {
 
   if (view === 'host') {
     return (
-      <div className="h-screen bg-[#1e1e2e] text-[#efe6d5] flex flex-col p-4 gap-4 overflow-hidden relative font-questrial">
+      <div className="h-screen bg-[#1e1e2e] text-[#efe6d5] flex p-4 gap-6 overflow-hidden relative font-questrial">
         <AudioPlayer view="host" />
         <NotificationOverlay event={gameState.lastEvent} />
         
