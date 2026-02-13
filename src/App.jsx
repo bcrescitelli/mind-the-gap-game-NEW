@@ -467,7 +467,7 @@ const GameCard = ({ data, selected, onClick, type }) => {
       >
         <div className="text-black mb-1">{info.icon}</div>
         <div className="text-[9px] md:text-xs text-center font-bold text-black leading-tight font-cal-sans break-words w-full px-0.5 overflow-hidden">{info.name}</div>
-        <div className="text-[7px] text-center text-yellow-200 mt-1 leading-tight font-questrial px-0.5 overflow-hidden text-ellipsis w-full h-auto">{info.desc}</div>
+        <div className="text-[7px] text-center text-yellow-200 mt-1 leading-tight font-questrial px-0.5 overflow-hidden text-ellipsis line-clamp-3 w-full">{info.desc}</div>
       </div>
     );
   }
@@ -494,8 +494,8 @@ const GameCard = ({ data, selected, onClick, type }) => {
           <div className="absolute top-1 right-1 text-black scale-75 md:scale-100">
              {CATEGORIES[data.category?.toUpperCase()]?.icon}
           </div>
-          <div className="text-[8px] md:text-[10px] text-center font-bold text-black leading-tight mt-2 line-clamp-2 w-full font-retro overflow-hidden leading-tight break-words px-0.5">{data.name}</div>
-          <div className="text-[8px] md:text-[9px] text-gray-600 mt-1 font-pixel uppercase">{CATEGORIES[data.category?.toUpperCase()]?.label}</div>
+          <div className="text-[7px] md:text-[8px] text-center font-bold text-black leading-tight mt-2 line-clamp-3 w-full font-retro overflow-hidden leading-tight break-words px-0.5">{data.name}</div>
+          <div className="text-[6px] md:text-[7px] text-gray-600 mt-1 font-pixel uppercase">{CATEGORIES[data.category?.toUpperCase()]?.label}</div>
         </>
       )}
     </div>
@@ -732,11 +732,11 @@ const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, v
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
-        width: '100%',
+        width: isMobile ? '100%' : 'auto', 
+        height: isMobile ? 'auto' : '100%',
         aspectRatio: '1/1',
-        maxWidth: isMobile ? 'none' : '1000px', 
-        minWidth: isMobile ? '1200px' : 'auto', 
-        maxHeight: isMobile ? 'none' : '90vh',
+        maxWidth: '100%',
+        maxHeight: '100%',
       }}
     >
       {gameState?.grid.map((row, y) => (
@@ -800,7 +800,6 @@ export default function App() {
             await signInAnonymously(auth); 
         } catch (err) { 
             console.error("Auth error:", err);
-            // Fail silently in UI
         } 
     };
     initAuth();
@@ -1423,7 +1422,7 @@ export default function App() {
 
   if (view === 'host') {
     return (
-      <div className="h-screen bg-[#1e1e2e] text-[#efe6d5] flex p-4 gap-6 overflow-hidden relative font-questrial">
+      <div className="h-screen bg-[#1e1e2e] text-[#efe6d5] flex flex-col p-4 gap-4 overflow-hidden relative font-questrial">
         <AudioPlayer view="host" />
         <NotificationOverlay event={gameState.lastEvent} />
         
@@ -1464,9 +1463,9 @@ export default function App() {
                       
                       {/* Left: Character & Info */}
                       <div className="w-1/3 bg-[#8ecae6] flex flex-col items-center justify-between border-r-4 border-black p-1 relative">
-                          <img src={`/${pass.img}`} className="w-20 h-20 object-contain z-10 rendering-pixelated mt-1" alt="char" />
+                          <img src={`/${pass.img}`} className="w-20 h-20 object-contain z-10 rendering-pixelated mt-2" alt="char" />
                           <div className="w-full bg-white border-t-2 border-black p-1 text-center">
-                             <span className="font-black text-[8px] font-retro text-black uppercase block leading-tight mb-0.5 truncate">{pass.name}</span>
+                             <span className="font-black text-[9px] font-retro text-black uppercase block leading-tight mb-0.5 truncate">{pass.name}</span>
                              <span className="font-black text-lg font-retro text-[#e66a4e]">{pass.points}</span>
                           </div>
                       </div>
@@ -1581,7 +1580,7 @@ export default function App() {
             )}
           </div>
         </div>
-        <div className="flex-1 overflow-auto bg-[#1e1e2e] relative" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} ref={useRef(null)}>
+        <div className="flex-1 overflow-auto bg-[#1e1e2e] relative" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} ref={setScrollRef}>
            <div style={{ width: `${100 * zoom}%`, minWidth: '100%', minHeight: '100%', transformOrigin: '0 0' }}> 
                <div style={{ transform: `scale(${zoom})`, transformOrigin: '0 0' }}>
                  <div className="inline-block min-w-full min-h-full p-4"><Board interactive={isMyTurn} isMobile={true} lastEvent={gameState.lastEvent} gameState={gameState} handlePlaceCard={handlePlaceCard} view={view} /></div>
