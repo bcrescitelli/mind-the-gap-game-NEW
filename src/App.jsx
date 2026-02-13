@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef, useLayoutEffect } from 'react';
+
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { 
   getFirestore, collection, doc, setDoc, getDoc, onSnapshot, 
@@ -150,34 +151,6 @@ const areConnected = (cellA, cellB, dirFromAtoB) => {
     if (!exitsB.includes(entryB)) return false;
   }
   return true;
-};
-
-// BFS
-const getDistanceToStart = (grid, targetX, targetY, playerColor) => {
-  const queue = [{ x: targetX, y: targetY, dist: 0 }];
-  const visited = new Set([`${targetX},${targetY}`]);
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (isStart(current.x, current.y)) return current.dist;
-    [0,1,2,3].forEach(dir => {
-      const nc = getNeighborCoords(current.x, current.y, dir);
-      const key = `${nc.x},${nc.y}`;
-      if (!visited.has(key)) {
-        const nextCell = getCell(grid, nc.x, nc.y);
-        const currCell = getCell(grid, current.x, current.y);
-        const currObj = isStart(current.x, current.y) ? { isStart: true, type: 'start' } : currCell;
-        const nextObj = isStart(nc.x, nc.y) ? { isStart: true, type: 'start' } : nextCell;
-        if (nextObj) {
-          const validNode = nextObj.isStart || (nextObj.type === 'track' && nextObj.owner === playerColor) || (nextObj.type === 'landmark' && nextObj.connections?.[playerColor] > 0);
-          if (validNode && areConnected(currObj, nextObj, dir)) {
-             visited.add(key);
-             queue.push({ x: nc.x, y: nc.y, dist: current.dist + 1 });
-          }
-        }
-      }
-    });
-  }
-  return Infinity;
 };
 
 const check3TrackRule = (grid, startX, startY, playerColor) => {
@@ -425,7 +398,7 @@ const Cell = ({ x, y, cellData, onClick, view, isBlocked, isSurge, decorImage })
     bgClass = "bg-[#efe6d5]";
   } else if (cellData?.type === 'track') {
     // Make placed tracks visible but allow map to show through slightly
-    if (!isHost) bgClass = "bg-transparent"; // Changed from bg-black/40 per request
+    if (!isHost) bgClass = "bg-transparent"; 
     // ONLY animate if it is a surge event
     content = <TrackSvg shape={cellData.shape} rotation={cellData.rotation} color={cellData.owner} animate={isSurge} />;
   } else if (cellData?.type === 'landmark') {
@@ -466,7 +439,7 @@ const GameCard = ({ data, selected, onClick, type }) => {
         className={`relative w-16 h-24 md:w-24 md:h-32 rounded-lg border-4 flex flex-col items-center justify-center p-1 cursor-pointer transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,0.5)] shrink-0 bg-[#f2ca50] ${selected ? 'border-white -translate-y-2' : 'border-black hover:border-white'}`}
       >
         <div className="text-black mb-1">{info.icon}</div>
-        <div className="text-[9px] md:text-xs text-center font-bold text-black leading-tight font-cal-sans break-words w-full px-0.5 overflow-hidden">{info.name}</div>
+        <div className="text-[9px] md:text-xs text-center font-bold text-black leading-tight font-cal-sans">{info.name}</div>
         <div className="text-[7px] text-center text-yellow-200 mt-1 leading-tight font-questrial px-0.5 overflow-hidden text-ellipsis line-clamp-3 w-full">{info.desc}</div>
       </div>
     );
@@ -494,8 +467,8 @@ const GameCard = ({ data, selected, onClick, type }) => {
           <div className="absolute top-1 right-1 text-black scale-75 md:scale-100">
              {CATEGORIES[data.category?.toUpperCase()]?.icon}
           </div>
-          <div className="text-[7px] md:text-[8px] text-center font-bold text-black leading-tight mt-2 line-clamp-3 w-full font-retro overflow-hidden leading-tight break-words px-0.5">{data.name}</div>
-          <div className="text-[6px] md:text-[7px] text-gray-600 mt-1 font-pixel uppercase">{CATEGORIES[data.category?.toUpperCase()]?.label}</div>
+          <div className="text-[8px] md:text-[10px] text-center font-bold text-black leading-tight mt-2 line-clamp-2 w-full font-retro overflow-hidden leading-tight break-words px-0.5">{data.name}</div>
+          <div className="text-[8px] md:text-[9px] text-gray-600 mt-1 font-pixel uppercase">{CATEGORIES[data.category?.toUpperCase()]?.label}</div>
         </>
       )}
     </div>
@@ -732,11 +705,11 @@ const Board = ({ interactive, isMobile, lastEvent, gameState, handlePlaceCard, v
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
-        width: isMobile ? '100%' : 'auto', 
-        height: isMobile ? 'auto' : '100%',
+        width: '100%',
         aspectRatio: '1/1',
-        maxWidth: '100%',
-        maxHeight: '100%',
+        maxWidth: isMobile ? 'none' : '1000px', 
+        minWidth: isMobile ? '1200px' : 'auto', 
+        maxHeight: isMobile ? 'none' : '90vh',
       }}
     >
       {gameState?.grid.map((row, y) => (
@@ -767,7 +740,6 @@ export default function App() {
   const [view, setView] = useState('home');
   const [error, setError] = useState("");
   const [authError, setAuthError] = useState(null);
-  const [scrollRef, setScrollRef] = useState(null); // Ref for Player scroll
   
   const [selectedCardIdx, setSelectedCardIdx] = useState(null);
   const [selectedCardType, setSelectedCardType] = useState(null);
@@ -800,6 +772,7 @@ export default function App() {
             await signInAnonymously(auth); 
         } catch (err) { 
             console.error("Auth error:", err);
+            // Fail silently in UI
         } 
     };
     initAuth();
@@ -823,16 +796,6 @@ export default function App() {
           setShowRules(true);
       }
   }, [view]);
-
-  // Center player map on load
-  useEffect(() => {
-      if (view === 'player' && scrollRef) {
-          const { scrollWidth, clientWidth, scrollHeight, clientHeight } = scrollRef;
-          // Calculate center position
-          scrollRef.scrollTop = (scrollHeight - clientHeight) / 2;
-          scrollRef.scrollLeft = (scrollWidth - clientWidth) / 2;
-      }
-  }, [view, scrollRef]);
 
   const closeRules = () => {
       setShowRules(false);
@@ -1458,27 +1421,27 @@ export default function App() {
                 <h3 className="text-sm font-bold text-[#efe6d5] flex items-center gap-2 uppercase tracking-wide font-retro shrink-0">CURRENT PASSENGERS:</h3>
                 <div className="flex-1 flex flex-col gap-3 overflow-y-auto pr-2 pb-4">
                   {gameState.activePassengers.map(pass => (
-                    <div key={pass.id} className={`bg-[#efe6d5] w-full rounded-lg border-4 border-black relative transform transition-all duration-300 flex flex-row h-40 shrink-0 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 grayscale' : ''}`}>
+                    <div key={pass.id} className={`bg-[#efe6d5] w-full rounded-lg border-4 border-black relative transform transition-all duration-300 flex flex-row h-32 shrink-0 ${gameState.totalTurns < pass.unlockTurn ? 'opacity-50 grayscale' : ''}`}>
                       {gameState.totalTurns < pass.unlockTurn && <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20"><span className="bg-[#e66a4e] text-[#efe6d5] px-2 py-1 font-bold border-2 border-black font-retro text-[10px] shadow-[2px_2px_0px_0px_black]">Arriving Soon</span></div>}
                       
                       {/* Left: Character & Info */}
                       <div className="w-1/3 bg-[#8ecae6] flex flex-col items-center justify-between border-r-4 border-black p-1 relative">
-                          <img src={`/${pass.img}`} className="w-20 h-20 object-contain z-10 rendering-pixelated mt-2" alt="char" />
+                          <img src={`/${pass.img}`} className="w-16 h-16 object-contain z-10 rendering-pixelated mt-1" alt="char" />
                           <div className="w-full bg-white border-t-2 border-black p-1 text-center">
-                             <span className="font-black text-[9px] font-retro text-black uppercase block leading-tight mb-0.5 truncate">{pass.name}</span>
+                             <span className="font-black text-[8px] font-retro text-black uppercase block leading-tight mb-0.5 truncate">{pass.name}</span>
                              <span className="font-black text-lg font-retro text-[#e66a4e]">{pass.points}</span>
                           </div>
                       </div>
 
                       {/* Right: Speech & Progress */}
-                      <div className="flex-1 flex flex-col justify-between p-3 bg-[#efe6d5]">
+                      <div className="flex-1 flex flex-col justify-between p-2 bg-[#efe6d5]">
                           {/* Bubble */}
-                          <div className="bg-[#782e53] flex-1 rounded-sm border-2 border-black p-3 flex items-center justify-center relative mb-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
-                              <p className="text-sm font-bold font-pixel leading-tight text-center text-[#efe6d5] uppercase tracking-wide line-clamp-3">{pass.desc}</p>
+                          <div className="bg-[#782e53] flex-1 rounded-sm border-2 border-black p-2 flex items-center justify-center relative mb-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
+                              <p className="text-xs font-bold font-pixel leading-tight text-center text-[#efe6d5] uppercase tracking-wide line-clamp-3">{pass.desc}</p>
                           </div>
                           
                           {/* Progress Dots */}
-                          <div className="flex gap-2 justify-end h-3">
+                          <div className="flex gap-1 justify-end h-3">
                               {gameState.players.map(pl => {
                                    const connectedLMs = new Set();
                                    gameState.grid.forEach(r => r.forEach(c => { if(c && c.type === 'landmark' && c.connections && c.connections[pl.color] > 0) connectedLMs.add(c.id); }));
@@ -1580,7 +1543,7 @@ export default function App() {
             )}
           </div>
         </div>
-        <div className="flex-1 overflow-auto bg-[#1e1e2e] relative" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} ref={setScrollRef}>
+        <div className="flex-1 overflow-auto bg-[#1e1e2e] relative" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
            <div style={{ width: `${100 * zoom}%`, minWidth: '100%', minHeight: '100%', transformOrigin: '0 0' }}> 
                <div style={{ transform: `scale(${zoom})`, transformOrigin: '0 0' }}>
                  <div className="inline-block min-w-full min-h-full p-4"><Board interactive={isMyTurn} isMobile={true} lastEvent={gameState.lastEvent} gameState={gameState} handlePlaceCard={handlePlaceCard} view={view} /></div>
